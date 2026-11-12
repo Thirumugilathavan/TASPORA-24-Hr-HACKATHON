@@ -188,3 +188,44 @@ async def test_ivr_dtmf_sanitization_and_sql_injection(client: AsyncClient, seed
     data = input_res.json()
     assert data["call_sid"] == call_sid
     assert "speak_text" in data
+
+
+@pytest.mark.asyncio
+async def test_ivr_production_prevents_predictable_phone_derived_pin(db_session, seed_data):
+    """In production mode or when demo PIN is disabled, phone-derived PINs must be rejected.
+    
+    Only securely provisioned hashed passwords/PINs are accepted.
+    """
+    from app.services.ivr_auth_service import IVRAuthService
+    auth = IVRAuthService(db_session)
+    phone = seed_data["users"]["patient"].phone  # 9876543203
+    phone_last4 = phone[-4:]  # 3203
+
+    orig_env = settings.ENVIRONMENT
+    orig_demo = settings.IVR_ALLOW_DEMO_PHONE_PIN
+    try:
+        # 1. In production environment, phone-derived PIN must be rejected
+        settings.ENVIRONMENT = "production"
+        settings.IVR_ALLOW_DEMO_PHONE_PIN = True
+
+        valid, err = await auth.verify_pin(phone, phone_last4)
+        assert valid is False
+        assert err == "INVALID_PIN"
+
+        # 2. In non-production, if IVR_ALLOW_DEMO_PHONE_PIN is False, also rejected
+        settings.ENVIRONMENT = "development"
+        settings.IVR_ALLOW_DEMO_PHONE_PIN = False
+
+        valid, err = await auth.verify_pin(phone, phone_last4)
+        assert valid is False
+        assert err == "INVALID_PIN"
+
+        # 3. Securely provisioned password matching the hash succeeds even in production
+        settings.ENVIRONMENT = "production"
+        valid, err = await auth.verify_pin(phone, "PatientPass123")
+        assert valid is True
+        assert err is None
+    finally:
+        settings.ENVIRONMENT = orig_env
+        settings.IVR_ALLOW_DEMO_PHONE_PIN = orig_demo
+

@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     IVR_DEFAULT_LANGUAGE: str = "ta"
     IVR_AUDIO_BASE_URL: str = ""
     IVR_EMERGENCY_NUMBER: str = "108"
+    IVR_ALLOW_DEMO_PHONE_PIN: bool = True
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

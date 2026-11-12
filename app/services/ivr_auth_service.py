@@ -117,18 +117,19 @@ class IVRAuthService:
             return False, "USER_NOT_FOUND"
 
         # 3. Secure PIN verification
-        # For button phone users, accepted PIN is either:
-        # a) Last 4 digits of their registered mobile number (safe rural default)
-        # b) Direct match against password if user password is 4 digits
-        # c) bcrypt password match
+        # Security Requirement: Production PINs must be securely provisioned and stored as password hashes.
+        # Predictable phone-derived PIN (last 4 digits) is strictly demonstration-only and is disabled in production.
         clean_pin = pin.strip()
-        expected_default_pin = norm_phone[-4:] if len(norm_phone) >= 4 else "1234"
+        is_production = getattr(settings, "ENVIRONMENT", "").lower() == "production"
+        allow_demo_pin = getattr(settings, "IVR_ALLOW_DEMO_PHONE_PIN", False) and not is_production
 
         is_correct = False
-        if clean_pin == expected_default_pin:
+        if clean_pin and verify_password(clean_pin, user.password_hash):
             is_correct = True
-        elif clean_pin and verify_password(clean_pin, user.password_hash):
-            is_correct = True
+        elif allow_demo_pin:
+            expected_default_pin = norm_phone[-4:] if len(norm_phone) >= 4 else "1234"
+            if clean_pin == expected_default_pin:
+                is_correct = True
 
         if is_correct:
             attempt.attempts_count = 0
