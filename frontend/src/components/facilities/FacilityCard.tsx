@@ -53,21 +53,23 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
         )}
 
         {/* Services Chips */}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {facility.services.slice(0, 3).map((service, idx) => (
-            <span
-              key={idx}
-              className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium"
-            >
-              {service}
-            </span>
-          ))}
-          {facility.services.length > 3 && (
-            <span className="text-[11px] px-1.5 py-0.5 text-slate-400 font-medium">
-              +{facility.services.length - 3} more
-            </span>
-          )}
-        </div>
+        {facility.services && facility.services.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {facility.services.slice(0, 3).map((service, idx) => (
+              <span
+                key={idx}
+                className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium"
+              >
+                {service}
+              </span>
+            ))}
+            {facility.services.length > 3 && (
+              <span className="text-[11px] px-1.5 py-0.5 text-slate-400 font-medium">
+                +{facility.services.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">

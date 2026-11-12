@@ -53,8 +53,8 @@ export const FacilitiesPage: React.FC = () => {
     const matchesSearch =
       !q ||
       fac.name.toLowerCase().includes(q) ||
-      fac.district.toLowerCase().includes(q) ||
-      fac.services.some((s) => s.toLowerCase().includes(q));
+      (fac.district && fac.district.toLowerCase().includes(q)) ||
+      (fac.services || []).some((s) => s.toLowerCase().includes(q));
     return matchesType && matchesSearch;
   });
 

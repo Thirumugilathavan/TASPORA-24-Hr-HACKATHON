@@ -11,6 +11,10 @@ export const FACILITY_TYPE_LABELS: Record<string, string> = {
   CHC: 'Community Health Centre (CHC)',
   HOSPITAL: 'District Hospital',
   PHARMACY: 'Community Jan Aushadhi Pharmacy',
+  SCE: 'Health Sub-Centre (SCE)',
+  SUB_CENTRE: 'Health Sub-Centre (SCE)',
+  THO: 'Taluk Hospital (THO)',
+  DHO: 'District Hospital (DHO)',
 };
 
 export const REQUEST_TYPE_LABELS: Record<string, string> = {
