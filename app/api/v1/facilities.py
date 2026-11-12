@@ -11,7 +11,7 @@ from app.schemas.facility import (
     FacilityDetailResponse,
     FacilityResponse,
 )
-from app.schemas.shared import Page
+from app.schemas.shared import Page, Role
 from app.services.facility_service import FacilityServiceHandler
 
 router = APIRouter(prefix="/facilities", tags=["Facilities"])
@@ -57,13 +57,10 @@ async def get_facility(
 @router.post("", response_model=FacilityResponse, status_code=status.HTTP_201_CREATED)
 async def create_facility(
     payload: FacilityCreate,
-    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new healthcare facility.
-
-    Restricted to authorized STAFF and ADMIN roles.
-    """
+    """Register a new healthcare facility (STAFF or ADMIN only)."""
     handler = FacilityServiceHandler(db)
     try:
         return await handler.create_facility(payload)

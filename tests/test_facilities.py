@@ -111,6 +111,22 @@ async def test_create_facility(client: AsyncClient, seed_data: dict):
 
 
 @pytest.mark.asyncio
+async def test_create_facility_anonymous_fails(client: AsyncClient, seed_data: dict):
+    """Anonymous callers cannot create facilities (returns 401)."""
+    payload = {
+        "name": "Unauthorized Clinic",
+        "facility_type": "PHC",
+        "address": "Unknown Road",
+        "village_id": str(seed_data["villages"][0].id),
+        "latitude": 12.9900,
+        "longitude": 77.6100,
+        "services": ["First Aid"],
+    }
+    response = await client.post("/api/facilities", json=payload)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_create_facility_patient_forbidden(client: AsyncClient, seed_data: dict):
     """Verify patients cannot create facilities (HTTP 403 Forbidden)."""
     patient_headers = seed_data["headers"]["patient"]
@@ -125,6 +141,27 @@ async def test_create_facility_patient_forbidden(client: AsyncClient, seed_data:
     response = await client.post("/api/facilities", json=payload, headers=patient_headers)
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_facility_admin_success(client: AsyncClient, seed_data: dict):
+    """ADMIN role callers can create facilities (returns 201)."""
+    payload = {
+        "name": "Admin General Hospital",
+        "facility_type": "HOSPITAL",
+        "address": "Admin Road, Hub",
+        "village_id": str(seed_data["villages"][0].id),
+        "latitude": 12.9900,
+        "longitude": 77.6100,
+        "services": ["Surgery", "ICU"],
+    }
+    response = await client.post(
+        "/api/facilities",
+        json=payload,
+        headers=seed_data["headers"]["admin"],
+    )
+    assert response.status_code == 201
+    assert response.json()["name"] == "Admin General Hospital"
 
 
 @pytest.mark.asyncio

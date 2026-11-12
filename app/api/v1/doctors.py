@@ -16,7 +16,7 @@ from app.schemas.doctor import (
     DoctorScheduleDetailResponse,
     DoctorScheduleResponse,
 )
-from app.schemas.shared import AttendanceStatus, Page
+from app.schemas.shared import AttendanceStatus, Page, Role
 from app.services.doctor_service import DoctorServiceHandler
 
 router = APIRouter(prefix="/doctors", tags=["Doctors & Schedules"])
@@ -60,13 +60,10 @@ async def get_doctor_schedule(
 @router.post("", response_model=DoctorResponse, status_code=status.HTTP_201_CREATED)
 async def create_doctor(
     payload: DoctorCreate,
-    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new doctor.
-
-    Restricted to authorized STAFF and ADMIN roles.
-    """
+    """Register a new doctor (STAFF or ADMIN only)."""
     handler = DoctorServiceHandler(db)
     try:
         return await handler.create_doctor(payload)
@@ -87,13 +84,10 @@ async def create_doctor(
 async def create_doctor_schedule(
     id: UUID,
     payload: DoctorScheduleCreate,
-    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a planned doctor shift schedule (defaults to EXPECTED attendance).
-
-    Restricted to authorized STAFF and ADMIN roles.
-    """
+    """Add a planned doctor shift schedule (STAFF or ADMIN only, defaults to EXPECTED attendance)."""
     handler = DoctorServiceHandler(db)
     payload.doctor_id = id
     try:
@@ -116,7 +110,7 @@ async def verify_doctor_attendance(
     id: UUID,
     date: date = Query(..., description="Date to verify attendance for (YYYY-MM-DD)"),
     attendance_status: AttendanceStatus = Query(..., description="PRESENT or ABSENT"),
-    current_user: User = Depends(require_role(["STAFF", "ADMIN", "DOCTOR"])),
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value, Role.DOCTOR.value])),
     db: AsyncSession = Depends(get_db),
 ):
     """Record verified attendance (PRESENT / ABSENT) for a doctor.
@@ -142,7 +136,6 @@ async def verify_doctor_attendance(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"error": {"code": "FORBIDDEN", "message": "Doctors can only verify attendance for their own doctor profile."}},
             )
-
     handler = DoctorServiceHandler(db)
     try:
         return await handler.verify_attendance(

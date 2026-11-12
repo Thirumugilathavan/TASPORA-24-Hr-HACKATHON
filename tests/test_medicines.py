@@ -76,6 +76,19 @@ async def test_create_medicine(client: AsyncClient, seed_data: dict):
 
 
 @pytest.mark.asyncio
+async def test_create_medicine_anonymous_fails(client: AsyncClient, seed_data: dict):
+    """Anonymous callers cannot create medicine entries (returns 401)."""
+    payload = {
+        "name": "Unauth Med",
+        "generic_name": "Unauth Generic",
+        "strength": "100 mg",
+        "dosage_form": "Syrup",
+    }
+    response = await client.post("/api/medicines", json=payload)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_create_medicine_patient_forbidden(client: AsyncClient, seed_data: dict):
     """Verify patients cannot add medicines to catalogue (HTTP 403 Forbidden)."""
     patient_headers = seed_data["headers"]["patient"]
@@ -86,6 +99,24 @@ async def test_create_medicine_patient_forbidden(client: AsyncClient, seed_data:
     response = await client.post("/api/medicines", json=payload, headers=patient_headers)
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_medicine_admin_success(client: AsyncClient, seed_data: dict):
+    """ADMIN callers can create medicine entries (returns 201)."""
+    payload = {
+        "name": "Admin Azithromycin",
+        "generic_name": "Azithromycin",
+        "strength": "500 mg",
+        "dosage_form": "Tablet",
+    }
+    response = await client.post(
+        "/api/medicines",
+        json=payload,
+        headers=seed_data["headers"]["admin"],
+    )
+    assert response.status_code == 201
+    assert response.json()["name"] == "Admin Azithromycin"
 
 
 @pytest.mark.asyncio
@@ -118,3 +149,14 @@ async def test_create_duplicate_medicine_safe_handling(client: AsyncClient, seed
     assert r2.status_code == 201
     id2 = r2.json()["id"]
     assert id1 == id2
+
+
+@pytest.mark.asyncio
+async def test_public_medicine_listing_unrestricted(client: AsyncClient, seed_data: dict):
+    """Public search and listing on /api/medicines remains unrestricted without authentication."""
+    response = await client.get("/api/medicines")
+    assert response.status_code == 200
+    data = response.json()
+    assert "items" in data
+    assert "total" in data
+    assert data["total"] >= 3
