@@ -1,10 +1,12 @@
-from typing import Callable, List
+import secrets
+from typing import Callable, List, Optional
 from uuid import UUID
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
@@ -79,3 +81,53 @@ def require_role(allowed_roles: List[str]) -> Callable:
         return current_user
 
     return role_checker
+
+
+async def check_patient_ownership(
+    db: AsyncSession,
+    current_user: User,
+    patient_id: UUID,
+) -> bool:
+    """Verify whether patient_id belongs to current_user (either as User.id or Patient profile id),
+    or if caller is an authorized operational role acting on behalf of an existing patient.
+    """
+    if current_user.role == "PATIENT":
+        if patient_id == current_user.id:
+            return True
+
+        from app.models.patient import Patient
+
+        stmt = select(Patient.id).where(
+            Patient.id == patient_id,
+            Patient.user_id == current_user.id,
+        )
+        res = await db.execute(stmt)
+        return res.scalar_one_or_none() is not None
+
+    # For operational roles (ASHA, DOCTOR, STAFF, ADMIN), verify the patient actually exists
+    from app.models.patient import Patient
+
+    p_stmt = select(Patient.id).where((Patient.id == patient_id) | (Patient.user_id == patient_id))
+    if (await db.execute(p_stmt)).scalar_one_or_none() is not None:
+        return True
+
+    u_stmt = select(User.id).where(User.id == patient_id)
+    return (await db.execute(u_stmt)).scalar_one_or_none() is not None
+
+
+async def verify_ivr_api_key(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+) -> str:
+    """Verify X-API-Key header for telephony webhooks and IVR endpoints per API.md."""
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": {"code": "UNAUTHORIZED", "message": "Missing X-API-Key header"}},
+        )
+    expected_key = getattr(settings, "IVR_API_KEY", "carebridge-ivr-secret-api-key")
+    if not secrets.compare_digest(x_api_key, expected_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Invalid API key"}},
+        )
+    return x_api_key

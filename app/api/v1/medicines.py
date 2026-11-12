@@ -1,0 +1,47 @@
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.dependencies import require_role
+from app.models.user import User
+from app.schemas.medicine import MedicineCreate, MedicineResponse
+from app.schemas.shared import Page, Role
+from app.services.medicine_service import MedicineServiceHandler
+
+router = APIRouter(prefix="/medicines", tags=["Medicines"])
+
+
+@router.get("", response_model=Page[MedicineResponse])
+async def get_medicines(
+    q: Optional[str] = Query(None, description="Search query matching brand or generic name"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search medicine catalogue.
+
+    IMPORTANT MEDICAL SAFETY:
+    This endpoint provides catalogue information only.
+    It does NOT provide prescriptions, medical diagnosis, or dosage recommendations.
+    """
+    handler = MedicineServiceHandler(db)
+    items, total = await handler.search_medicines(query_text=q, skip=skip, limit=limit)
+    return Page(items=items, total=total)
+
+
+@router.post("", response_model=MedicineResponse, status_code=status.HTTP_201_CREATED)
+async def create_medicine(
+    payload: MedicineCreate,
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a medicine entry to the catalogue (STAFF or ADMIN only)."""
+    handler = MedicineServiceHandler(db)
+    try:
+        return await handler.create_medicine(payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "BAD_REQUEST", "message": str(e)}},
+        )
