@@ -5,6 +5,10 @@ from app.models.patient import Patient
 from app.models.request import HealthcareRequest
 from app.models.recommendation import Recommendation
 from app.models.appointment import Appointment
+from app.models.facility import Facility, FacilityService
+from app.models.doctor import Doctor, DoctorSchedule
+from app.models.medicine import Medicine
+from app.models.stock import StockReport, FacilityMedicineBelief
 
 __all__ = [
     "Base",
@@ -16,4 +20,11 @@ __all__ = [
     "HealthcareRequest",
     "Recommendation",
     "Appointment",
+    "Facility",
+    "FacilityService",
+    "Doctor",
+    "DoctorSchedule",
+    "Medicine",
+    "StockReport",
+    "FacilityMedicineBelief",
 ]

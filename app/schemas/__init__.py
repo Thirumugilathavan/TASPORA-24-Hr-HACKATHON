@@ -13,19 +13,21 @@ from app.schemas.patient_village import (
     PatientOut,
     PatientDetailOut,
 )
-
-__all__ = [
-    "RegisterIn",
-    "LoginIn",
-    "TokenOut",
-    "UserOut",
-    "RequestDetailOut",
-    "RecommendationCreateIn",
-    "AppointmentDetailOut",
-    "AppointmentCancelOut",
-    "VillageOut",
-    "VillageListOut",
-    "PatientIn",
-    "PatientOut",
-    "PatientDetailOut",
-]
+from app.schemas.facility import (
+    FacilityBase,
+    FacilityCreate,
+    FacilityResponse,
+    FacilityDetailResponse,
+    FacilityServiceResponse,
+    DoctorSummary,
+)
+from app.schemas.doctor import (
+    DoctorBase,
+    DoctorCreate,
+    DoctorResponse,
+    DoctorScheduleBase,
+    DoctorScheduleCreate,
+    DoctorScheduleResponse,
+    DoctorScheduleDetailResponse,
+)
+from app.schemas.medicine import MedicineBase, MedicineCreate, MedicineResponse
