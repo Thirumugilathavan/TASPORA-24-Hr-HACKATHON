@@ -13,7 +13,8 @@ class Village(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     district: Mapped[str] = mapped_column(String(255), nullable=False, default="", index=True)
-    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    subdistrict: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default="", index=True)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

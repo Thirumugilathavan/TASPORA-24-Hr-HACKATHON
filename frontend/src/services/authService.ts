@@ -73,6 +73,38 @@ export const authService = {
     return res.items || [];
   },
 
+  async searchVillages(query: string, limit: number = 20, state?: string): Promise<Village[]> {
+    if (!query || !query.trim()) {
+      return [];
+    }
+
+    if (config.isMockMode) {
+      await new Promise((r) => setTimeout(r, 100));
+      const q = query.toLowerCase().trim();
+      return MOCK_VILLAGES.filter((v) => {
+        const matchesName = v.name.toLowerCase().includes(q);
+        const matchesDistrict = v.district.toLowerCase().includes(q);
+        const matchesState = v.state ? v.state.toLowerCase().includes(q) : false;
+        const matchesSub = v.subdistrict ? v.subdistrict.toLowerCase().includes(q) : false;
+        return matchesName || matchesDistrict || matchesState || matchesSub;
+      }).slice(0, limit);
+    }
+
+    const params = new URLSearchParams({
+      q: query.trim(),
+      limit: String(limit),
+    });
+    if (state && state.trim()) {
+      params.append('state', state.trim());
+    }
+
+    const res = await apiRequest<PageResponse<Village> | Village[]>('/api/villages/search?' + params.toString());
+    if (Array.isArray(res)) {
+      return res;
+    }
+    return res.items || [];
+  },
+
   async getCurrentPatient(patientId?: string): Promise<Patient> {
     if (config.isMockMode) {
       const stored = localStorage.getItem('carebridge_patient');
