@@ -14,6 +14,7 @@ from app.api.v1.pincodes import router as pincodes_router
 from app.api.v1.ivr import router as ivr_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.notifications import router as notifications_router
+from app.api.v1.camps import router as camps_router
 
 api_router = APIRouter()
 
@@ -21,6 +22,7 @@ api_router = APIRouter()
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
 api_router.include_router(notifications_router)
+api_router.include_router(camps_router)
 
 # Member 1: Patient and Village Routers
 api_router.include_router(villages_router)

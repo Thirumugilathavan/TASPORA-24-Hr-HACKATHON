@@ -11,6 +11,7 @@ from app.models.medicine import Medicine
 from app.models.stock import StockReport, FacilityMedicineBelief
 from app.models.ivr import IVRSession, IVRInteraction, IVRAuthAttempt
 from app.models.notification import Notification
+from app.models.health_camp import HealthCampSource, HealthCamp, UserCampPreference
 
 __all__ = [
     "Base",
@@ -33,4 +34,7 @@ __all__ = [
     "IVRInteraction",
     "IVRAuthAttempt",
     "Notification",
+    "HealthCampSource",
+    "HealthCamp",
+    "UserCampPreference",
 ]

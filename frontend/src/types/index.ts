@@ -169,3 +169,102 @@ export interface Appointment {
   status: AppointmentStatus;
   created_at?: string;
 }
+
+export type CampCategory =
+  | 'GENERAL_HEALTH_CAMP'
+  | 'MOBILE_MEDICAL_UNIT'
+  | 'NCD_SCREENING'
+  | 'EYE_CAMP'
+  | 'MATERNAL_CHILD_HEALTH'
+  | 'VACCINATION_DRIVE'
+  | 'SPECIALIST_OUTREACH'
+  | string;
+
+export interface HealthCamp {
+  id: string;
+  title: string;
+  description: string;
+  category: CampCategory;
+  organizing_dept: string;
+  start_date: string;
+  end_date?: string;
+  venue_name: string;
+  full_address: string;
+  village?: string;
+  town?: string;
+  taluk?: string;
+  district: string;
+  latitude?: number;
+  longitude?: number;
+  services_offered: string[];
+  eligibility?: string;
+  registration_instructions?: string;
+  contact_info?: string;
+  source_id?: string;
+  source_org: string;
+  source_url: string;
+  publication_date?: string;
+  discovered_at: string;
+  last_checked_at: string;
+  verification_status: 'VERIFIED' | 'UNVERIFIED' | 'FLAGGED' | 'REJECTED';
+  event_status: 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED' | 'DATE_UNCONFIRMED';
+  followup_instructions?: string;
+  followup_facility_id?: string;
+  provenance: Record<string, any>;
+  distance_km?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthCampListResponse {
+  items: HealthCamp[];
+  total: number;
+  user_location?: { latitude: number; longitude: number };
+  filters_applied: Record<string, any>;
+}
+
+export interface DistrictCoverageItem {
+  district: string;
+  district_ta: string;
+  headquarters: string;
+  portal_url: string;
+  verified_events_count: number;
+  last_checked_at?: string;
+  check_status: 'SUCCESS' | 'PENDING' | 'ERROR';
+  coverage_status: 'VERIFIED_EVENTS_AVAILABLE' | 'NO_PUBLISHED_EVENTS' | 'INSUFFICIENT_DATA';
+}
+
+export interface DistrictCoverageResponse {
+  districts: DistrictCoverageItem[];
+  total_districts: number;
+  total_verified_camps: number;
+  districts_with_events_count: number;
+  monitored_sources_count: number;
+  last_collection_timestamp?: string;
+}
+
+export interface HealthCampSource {
+  id: string;
+  name: string;
+  organization: string;
+  source_url: string;
+  collector_type: string;
+  district?: string;
+  is_active: boolean;
+  check_interval_hours: number;
+  last_checked_at?: string;
+  last_status: string;
+  last_error?: string;
+  events_discovered_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCampPreference {
+  user_id: string;
+  opt_in: boolean;
+  preferred_districts: string[];
+  max_distance_km: number;
+  notify_categories: string[];
+}
+

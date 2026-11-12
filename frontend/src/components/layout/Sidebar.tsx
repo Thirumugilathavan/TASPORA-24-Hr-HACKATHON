@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   User,
   HeartHandshake,
+  HeartPulse,
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { to: '/', label: t('navDashboard', 'Dashboard'), icon: LayoutDashboard },
     { to: '/facilities', label: t('navFacilities', 'Find Healthcare'), icon: Hospital },
     { to: '/medicines', label: t('navMedicines', 'Medicine Availability'), icon: Pill },
+    { to: '/camps', label: t('navCamps', 'Health Camps'), icon: HeartPulse },
     { to: '/requests', label: t('navRequests', 'My Requests'), icon: ClipboardList },
     { to: '/appointments', label: t('navAppointments', 'Appointments'), icon: CalendarCheck },
     { to: '/profile', label: t('navProfile', 'Profile'), icon: User },

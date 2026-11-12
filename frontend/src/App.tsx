@@ -14,6 +14,7 @@ import { RequestsPage } from './pages/RequestsPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { IVRPage } from './pages/IVRPage';
+import { CampsPage } from './pages/CampsPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
         <Route path="medicines" element={<MedicinesPage />} />
         <Route path="requests" element={<RequestsPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
+        <Route path="camps" element={<CampsPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
