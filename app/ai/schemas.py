@@ -44,6 +44,8 @@ class AIChatRequest(BaseModel):
     village_id: Optional[UUID] = Field(None, description="Patient's home village UUID")
     location_context: Optional[str] = Field(None, description="Location context e.g. Tiruchengode, Rampur")
     user_role: Optional[str] = Field("PATIENT", description="User role (PATIENT, ASHA, STAFF, ADMIN)")
+    include_audio: Optional[bool] = Field(False, description="Whether to include synthesized audio response")
+    voice_name: Optional[str] = Field(None, description="Optional voice name (e.g. Nalini, Deepak)")
 
 
 class AIChatResponse(BaseModel):
@@ -55,6 +57,9 @@ class AIChatResponse(BaseModel):
     cards: List[AIChatCard] = Field(default_factory=list)
     rag_sources: List[Dict[str, Any]] = Field(default_factory=list)
     action_taken: Optional[str] = None
+    audio_base64: Optional[str] = Field(None, description="Base64 encoded WAV audio if synthesized")
+    audio_duration: Optional[float] = Field(None, description="Audio duration in seconds")
+    voice_provider: Optional[str] = Field(None, description="Voice provider name")
     disclaimer: str = (
         "CareBridge provides accessibility and coordination information only. "
         "It does not provide clinical diagnosis, prescriptions, or dosage advice. "
@@ -79,6 +84,7 @@ class VoiceSynthesizeRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000)
     language: str = Field("ta", description="'ta' for Tamil or 'en' for English")
     voice_gender: Optional[str] = Field("female", description="female or male")
+    voice_name: Optional[str] = Field(None, description="Optional voice name (Nalini, Bhavna, Deepak, etc.)")
 
 
 class VoiceSynthesizeResponse(BaseModel):

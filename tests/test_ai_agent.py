@@ -184,26 +184,26 @@ async def test_ai_health_and_tools_catalog(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_voice_transcribe_and_synthesize_endpoints(client: AsyncClient):
-    """Verifies multimodal voice STT and TTS endpoints."""
-    # STT Test
-    stt_res = await client.post(
-        "/api/ai/voice/transcribe",
-        json={"audio_base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=", "language": "ta"},
-    )
-    assert stt_res.status_code == 200
-    stt_data = stt_res.json()
-    assert "transcribed_text" in stt_data
-    assert len(stt_data["transcribed_text"]) > 0
-
-    # TTS Test
+    """Verifies multimodal voice STT and TTS endpoints in a complete closed-loop test."""
+    # 1. Synthesize real spoken audio
     tts_res = await client.post(
         "/api/ai/voice/synthesize",
-        json={"text": "வணக்கம், கேர்பிரிட்ஜ்", "language": "ta"},
+        json={"text": "வணக்கம்", "language": "ta"},
     )
     assert tts_res.status_code == 200
     tts_data = tts_res.json()
     assert tts_data["status"] == "success"
     assert tts_data["audio_base64"] is not None
+
+    # 2. Transcribe the synthesized speech back to text
+    stt_res = await client.post(
+        "/api/ai/voice/transcribe",
+        json={"audio_base64": tts_data["audio_base64"], "language": "ta"},
+    )
+    assert stt_res.status_code == 200
+    stt_data = stt_res.json()
+    assert "transcribed_text" in stt_data
+    assert len(stt_data["transcribed_text"]) > 0
 
 
 @pytest.mark.asyncio

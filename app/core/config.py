@@ -65,6 +65,15 @@ class Settings(BaseSettings):
     TELEPHONY_CALL_TIMEOUT: int = 30
     TELEPHONY_MAX_CALL_DURATION: int = 600
 
+    # Gnani Indic Voice AI Settings
+    GNANI_API_KEY: str = ""
+    GNANI_TOKEN: str = ""
+    GNANI_STT_URL: str = "https://api.vachana.ai/stt/v3"
+    GNANI_TTS_URL: str = "https://api.vachana.ai/api/v1/tts/inference"
+    GNANI_VOICE_MODEL: str = "timbre-v2.5"
+    GNANI_VOICE_NAME: str = "Nalini"
+    GNANI_STT_MODEL: str = "prisma-v3.0"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

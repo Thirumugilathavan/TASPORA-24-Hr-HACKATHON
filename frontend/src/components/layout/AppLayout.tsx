@@ -37,6 +37,12 @@ export const AppLayout: React.FC = () => {
 
   const { title, breadcrumb } = getPageMeta();
 
+  React.useEffect(() => {
+    const handleOpenAI = () => setIsAIAssistantOpen(true);
+    window.addEventListener('open-carebridge-ai', handleOpenAI);
+    return () => window.removeEventListener('open-carebridge-ai', handleOpenAI);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Top Demo Banner indicating mock/live mode */}

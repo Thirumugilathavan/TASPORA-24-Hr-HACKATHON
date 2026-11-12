@@ -102,6 +102,7 @@ async def synthesize_voice(request: VoiceSynthesizeRequest) -> VoiceSynthesizeRe
         result = await gnani_adapter.synthesize(
             text=request.text,
             language=request.language,
+            voice_name=request.voice_name,
             voice_gender=request.voice_gender or "female",
         )
         return VoiceSynthesizeResponse(
@@ -135,6 +136,15 @@ async def ai_health() -> AIHealthResponse:
         llm_provider="Local Semantic Tool Calling Engine (Deterministic & Fast)",
         voice_provider=v_status["provider"],
     )
+
+
+@router.get(
+    "/voice/status",
+    summary="Gnani Voice Provider Status & Voice Catalog",
+)
+async def get_voice_status() -> Dict[str, Any]:
+    """Returns active Gnani STT/TTS engine status, voice catalog, and cloud connectivity."""
+    return gnani_adapter.get_status()
 
 
 @router.get(

@@ -35,6 +35,53 @@ class CareBridgeAgent:
     def __init__(self):
         self.system_prompt = CAREBRIDGE_SYSTEM_PROMPT
 
+    async def _build_response(
+        self,
+        conversation_id: str,
+        response_text: str,
+        language: str,
+        intent: str,
+        tools_called: List[str],
+        cards: List[AIChatCard],
+        rag_sources: Optional[List[Dict[str, Any]]] = None,
+        action_taken: Optional[str] = None,
+        request: Optional[AIChatRequest] = None,
+    ) -> AIChatResponse:
+        audio_b64 = None
+        duration = None
+        v_provider = None
+
+        if request and request.include_audio:
+            try:
+                # Strip markdown syntax for natural-sounding speech synthesis
+                clean_text = re.sub(r"[*#_`\[\]()>-]", " ", response_text).strip()
+                clean_text = re.sub(r"\s+", " ", clean_text)[:800]
+                from app.ai.gnani_adapter import gnani_adapter
+                synth = await gnani_adapter.synthesize(
+                    text=clean_text,
+                    language=language,
+                    voice_name=request.voice_name,
+                )
+                audio_b64 = synth.get("audio_base64")
+                duration = synth.get("duration_seconds")
+                v_provider = synth.get("provider")
+            except Exception:
+                pass
+
+        return AIChatResponse(
+            conversation_id=conversation_id,
+            response_text=response_text,
+            language=language,
+            intent=intent,
+            tools_called=tools_called,
+            cards=cards,
+            rag_sources=rag_sources or [],
+            action_taken=action_taken,
+            audio_base64=audio_b64,
+            audio_duration=duration,
+            voice_provider=v_provider,
+        )
+
     def detect_language(self, text: str, user_preference: Optional[str] = "auto") -> str:
         """Detects whether user is speaking Tamil or English."""
         if user_preference in ["ta", "en"]:
@@ -143,7 +190,7 @@ class CareBridgeAgent:
                 + "\n".join(f"- {f}" for f in eg_data["nearest_24x7_facilities"])
             )
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text=resp_text,
                 language=lang,
@@ -151,6 +198,7 @@ class CareBridgeAgent:
                 tools_called=tools_called,
                 cards=cards,
                 action_taken="TRIGGER_EMERGENCY_PROTOCOL",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -197,7 +245,7 @@ class CareBridgeAgent:
                 "See available facilities and doctor schedules below:"
             )
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text=refusal_text,
                 language=lang,
@@ -205,6 +253,7 @@ class CareBridgeAgent:
                 tools_called=tools_called,
                 cards=cards,
                 action_taken="NON_DIAGNOSTIC_REDIRECT",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -266,7 +315,7 @@ class CareBridgeAgent:
 
             lines.append("\n*CareBridge distinguishes physically verified check-ins (PRESENT) from planned shifts (EXPECTED) to eliminate wasted trips.*")
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text="\n".join(lines),
                 language=lang,
@@ -274,6 +323,7 @@ class CareBridgeAgent:
                 tools_called=tools_called,
                 cards=cards,
                 action_taken="FETCH_DOCTOR_SCHEDULES",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -332,7 +382,7 @@ class CareBridgeAgent:
 
             lines.append("\n*Availability states are computed dynamically using Bayesian decay on weighted staff and ASHA reports.*")
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text="\n".join(lines),
                 language=lang,
@@ -340,6 +390,7 @@ class CareBridgeAgent:
                 tools_called=tools_called,
                 cards=cards,
                 action_taken="FETCH_MEDICINE_BELIEFS",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -394,7 +445,7 @@ class CareBridgeAgent:
                         f"  - Why recommended: Minimizes the product of travel cost and failure risk.\n"
                     )
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text="\n".join(lines),
                 language=lang,
@@ -402,6 +453,7 @@ class CareBridgeAgent:
                 tools_called=tools_called,
                 cards=cards,
                 action_taken="CALCULATE_EXPECTED_LOSS",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -467,7 +519,7 @@ class CareBridgeAgent:
                     f"*Sources: {', '.join(s['document'] for s in rag_sources)}*"
                 )
 
-            return AIChatResponse(
+            return await self._build_response(
                 conversation_id=conv_id,
                 response_text=explanation,
                 language=lang,
@@ -476,6 +528,7 @@ class CareBridgeAgent:
                 cards=cards,
                 rag_sources=rag_sources,
                 action_taken="RAG_DOCUMENT_RETRIEVAL",
+                request=request,
             )
 
         # -------------------------------------------------------------
@@ -557,7 +610,7 @@ class CareBridgeAgent:
             else "\n*மேலே உள்ள வசதி அட்டை மூலம் நேரடியாக முன்பதிவு செய்யலாம்.*"
         )
 
-        return AIChatResponse(
+        return await self._build_response(
             conversation_id=conv_id,
             response_text="\n".join(lines),
             language=lang,
@@ -565,6 +618,7 @@ class CareBridgeAgent:
             tools_called=tools_called,
             cards=cards,
             action_taken="RETRIEVE_AND_DISPLAY_FACILITIES",
+            request=request,
         )
 
 
