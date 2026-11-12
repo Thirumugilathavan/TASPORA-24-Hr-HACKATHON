@@ -36,6 +36,16 @@ class Settings(BaseSettings):
     # Simulation Transparency Flag
     IS_SIMULATED: bool = True
 
+    # IVR & Voice Access Settings
+    IVR_API_KEY: str = "carebridge-ivr-secret-api-key"
+    IVR_PROVIDER: str = "mock"
+    IVR_SESSION_TIMEOUT_MINUTES: int = 10
+    IVR_MAX_AUTH_ATTEMPTS: int = 3
+    IVR_AUTH_LOCKOUT_MINUTES: int = 15
+    IVR_DEFAULT_LANGUAGE: str = "ta"
+    IVR_AUDIO_BASE_URL: str = ""
+    IVR_EMERGENCY_NUMBER: str = "108"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

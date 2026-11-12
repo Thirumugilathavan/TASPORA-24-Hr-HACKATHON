@@ -10,6 +10,7 @@ from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.requests import router as requests_router
 from app.api.v1.stock import router as stock_router
 from app.api.v1.villages import router as villages_router
+from app.api.v1.ivr import router as ivr_router
 
 api_router = APIRouter()
 
@@ -31,3 +32,6 @@ api_router.include_router(stock_router)
 api_router.include_router(requests_router)
 api_router.include_router(recommendations_router)
 api_router.include_router(appointments_router)
+
+# CareBridge Voice Access: IVR & Feature Phone Router
+api_router.include_router(ivr_router)

@@ -107,5 +107,25 @@ Items are sorted in ascending order of `expected_loss` to direct rural patients 
 
 ---
 
-## 5. Medical Safety
-No diagnosis and no dose advice in any response, voice prompt, or recommendation. CareBridge is a healthcare accessibility and logistics coordination platform, not a diagnostic engine.
+## 5. Voice Access & Button Phone IVR (Person 1 / Voice Access)
+| Method | Path | Body / Query | Notes |
+|---|---|---|---|
+| POST | /api/ivr/webhook | Form URL-encoded (Twilio) or JSON (Mock) | Carrier webhook. Returns TwiML XML or JSON instructions |
+| POST | /api/ivr/call/start | caller_phone, call_sid (opt), language (opt) | Initiates voice session (201 Created). Header: X-API-Key |
+| POST | /api/ivr/call/input | call_sid, digits | Processes button-phone DTMF keypad input. Header: X-API-Key |
+| GET  | /api/ivr/session/{id} | id (Session UUID) | Returns live diagnostic state, language, and verification status |
+| POST | /api/ivr/call/hangup | call_sid, digits (opt) | Gracefully ends call session. Status -> COMPLETED |
+| POST | /api/ivr/lookup | phone, medicine_code | Simplified voice lookup returning plain spoken availability |
+| POST | /api/ivr/feedback | phone, facility_id, medicine_code, got_it | Simplified caller feedback. Tagged as PATIENT feedback |
+
+### IVR System & Security Rules
+1. **DTMF Keypad Only:** The IVR is strictly button-phone driven (no smartphone apps, internet, or mandatory speech recognition required).
+2. **Authentication & Rate Limiting:** All endpoints require `X-API-Key`. Personal health actions (Request creation, Appointment booking, Status/Cancellation) require entering a 4-digit PIN (default: last 4 digits of registered phone number). Maximum 3 attempts before a 15-minute brute-force lockout is enforced and the call is terminated.
+3. **Public Unauthenticated Menus:** Facility discovery, doctor attendance check, medicine stock check, and 108 emergency guidance are publicly accessible without authentication.
+4. **Immediate Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch guidance and nearest emergency hospital announcement without authentication barriers.
+5. **Universal Key Standards:** Key `9` hangs up gracefully, `0` / `*` returns to Main Menu, `8` repeats audio prompt, `#` confirms multi-digit input.
+
+---
+
+## 6. Medical Safety
+No diagnosis and no dose advice in any response, voice prompt, or recommendation. CareBridge is a healthcare accessibility and logistics coordination platform, not a diagnostic engine. Emergency guidance directs immediately to 108 ambulance dispatch and nearest certified hospital.
