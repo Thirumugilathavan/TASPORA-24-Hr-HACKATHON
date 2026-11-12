@@ -5,6 +5,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.patient import Patient
+    from app.models.doctor import Doctor
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -18,3 +19,4 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="user", uselist=False)
+    doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", back_populates="user", uselist=False)

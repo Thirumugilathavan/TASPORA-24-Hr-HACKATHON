@@ -1,9 +1,13 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import uuid
 from sqlalchemy import Date, DateTime, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.facility import Facility
+    from app.models.user import User
 
 
 class Doctor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -16,12 +20,20 @@ class Doctor(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     specialization: Mapped[str] = mapped_column(String(150), nullable=False)
     qualification: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     contact_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     facility: Mapped["Facility"] = relationship("Facility", back_populates="doctors")
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="doctor")
     schedules: Mapped[List["DoctorSchedule"]] = relationship(
         "DoctorSchedule",
         back_populates="doctor",
