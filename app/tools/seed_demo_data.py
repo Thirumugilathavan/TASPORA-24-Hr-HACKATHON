@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.core.security import hash_password
 from app.models.base import Base
@@ -38,6 +39,10 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
         owns_session = True
 
     try:
+        # Prevent seeding in production environment
+        if settings.ENVIRONMENT.lower() == "production":
+            return False
+
         # Check if already seeded
         fac_count = (await db.execute(select(func.count(Facility.id)))).scalar_one()
         if fac_count > 0:

@@ -17,8 +17,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     try:
-        from app.tools.seed_demo_data import seed_all_demo_data
-        await seed_all_demo_data()
+        if settings.ENVIRONMENT.lower() != "production":
+            from app.tools.seed_demo_data import seed_all_demo_data
+            await seed_all_demo_data()
     except Exception:
         pass
     yield
