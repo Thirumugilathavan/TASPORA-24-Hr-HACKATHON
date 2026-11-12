@@ -26,6 +26,8 @@ export interface Village {
   id: string;
   name: string;
   district: string;
+  state?: string;
+  subdistrict?: string;
   latitude: number;
   longitude: number;
   is_synthetic?: boolean;
