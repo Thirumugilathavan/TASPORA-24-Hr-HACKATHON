@@ -37,6 +37,8 @@ class IVRResponse(BaseModel):
     finish_on_key: str = "#"
     timeout_seconds: int = 5
     hangup: bool = False
+    transfer_number: Optional[str] = None
+    action_url: Optional[str] = None
     session_status: str = "IN_PROGRESS"
     current_menu: str = "MAIN_MENU"
     language: str = "ta"
@@ -94,3 +96,21 @@ class IVRFeedbackIn(BaseModel):
     facility_id: UUID
     medicine_code: str
     got_it: bool
+
+
+class OutboundCallIn(BaseModel):
+    """Payload to trigger an outbound call or callback."""
+    to_phone: str
+    patient_id: Optional[UUID] = None
+    purpose: str = "ASHA_CALLBACK"  # "ASHA_CALLBACK", "APPOINTMENT_REMINDER", etc.
+
+
+class OutboundCallOut(BaseModel):
+    """Result of an outbound call dispatch."""
+    call_sid: str
+    to_phone: str
+    from_phone: str
+    status: str
+    provider: str
+    created_at: datetime
+

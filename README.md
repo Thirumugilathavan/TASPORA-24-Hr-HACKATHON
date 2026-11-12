@@ -58,9 +58,13 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 ### 5. Voice Access & Button Phone IVR
 - **Zero Smartphone / Internet Dependency:** Ordinary keypad / feature phones access CareBridge services entirely over cellular voice networks via DTMF button tones.
 - **Bilingual Interface:** Spoken audio prompts in Tamil (`ta`) and English (`en`).
+- **Real-Time Telecom Integration:** Native carrier webhooks (`POST /api/ivr/webhooks/incoming`, `/continue`, `/status`) generating standard TwiML XML (`<Gather>`, `<Say language="ta-IN">`, `<Dial>`, `<Hangup>`).
+- **Cryptographic Signature Verification:** Strict HMAC-SHA1 validation (`X-Twilio-Signature`) securing inbound webhooks against spoofing.
+- **Outbound Calling & ASHA Callbacks:** Automated outbound callbacks (`POST /api/ivr/callbacks/initiate`) strictly conforming to Indian calling hours (08:00 to 20:00 IST).
 - **Public & Protected Workflows:** Public directory of nearby facilities, verified doctor schedules, and medicine availability. Protected actions (healthcare request creation, appointment booking, status checks/cancellations) require 4-digit PIN verification.
-- **Security & Lockout:** 3 failed PIN attempts trigger a 15-minute brute-force lockout. Dedicated `X-API-Key` protects carrier webhooks. Predictable phone-derived PINs are strictly demo-only and disabled in production.
+- **Security & Lockout:** 3 failed PIN attempts trigger a 15-minute brute-force lockout. Dedicated `X-API-Key` protects administrative endpoints. Predictable phone-derived PINs are strictly demo-only and disabled in production.
 - **Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch advice and emergency hospital routing without authentication barriers.
+- **Live Call Transfer:** Key `0` from Main Menu supports live call transfer (`<Dial>`) to a human health desk representative when configured.
 - **Provider Agnostic:** Pluggable adapter architecture supporting Mock (JSON / CLI simulator) and Twilio (TwiML XML).
 
 ### 6. AI Healthcare Assistant, Tool Calling, RAG & Voice Access
@@ -79,9 +83,9 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 1. **Medical Safety & Clinical Judgment:** CareBridge supports healthcare accessibility, coordination, and loss-minimized facility routing. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage advice, or automated medication substitution. All clinical decisions remain solely with qualified healthcare professionals.
 2. **Straight-Line Distance:** Distance calculations use approximate straight-line geographical distance (Haversine formula), not actual road network travel distance or real-world transit topography.
 3. **Simulated Geography & Data:** Demo facilities, stock probabilities, and attendance schedules operate in evaluation/demonstration mode for hackathon validation with synthetic disclosures (`is_synthetic: true`).
-4. **Known Technical Limitations:**
+4. **Telecom Regulatory Compliance:** Live phone calling requires a provisioned Indian virtual number (+91) with TRAI / DoT enterprise KYC verification. In non-production or sandbox environments, developer sandboxes and the built-in mock CLI simulator allow complete end-to-end evaluation with zero telecom fees.
+5. **Known Technical Limitations:**
    - **ASHA Village Scoping:** ASHA workers currently have cross-village access pending administrative organizational hierarchy mapping.
-   - **Twilio Webhook Security:** External carrier deployment requires an API gateway passing `X-API-Key` or reverse-proxy signature verification before live telecom carrier routing.
 
 ---
 
