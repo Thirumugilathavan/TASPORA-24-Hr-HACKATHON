@@ -125,6 +125,21 @@ export const authService = {
     return res.items || [];
   },
 
+  async registerCustomVillage(data: {
+    name: string;
+    district: string;
+    state?: string;
+    subdistrict?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+  }): Promise<Village> {
+    return await apiRequest<Village>('/api/villages/custom', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getCurrentPatient(patientId?: string): Promise<Patient> {
     if (config.isMockMode) {
       const stored = localStorage.getItem('carebridge_patient');

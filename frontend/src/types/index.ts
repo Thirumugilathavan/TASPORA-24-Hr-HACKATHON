@@ -100,6 +100,9 @@ export interface NearbyFacilityListResponse {
     subdistrict?: string;
     village_id?: string;
     patient_id?: string;
+    is_expanded?: boolean;
+    effective_radius_km?: number;
+    initial_radius_km?: number;
   };
   radius_km: number;
 }

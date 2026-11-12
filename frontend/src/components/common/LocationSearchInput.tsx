@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Search, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { MapPin, Search, X, Loader2, CheckCircle2, AlertCircle, PlusCircle, Building } from 'lucide-react';
 import { Village } from '../../types';
 import { authService } from '../../services/authService';
 import { useTranslation } from '../../context/LanguageContext';
@@ -22,7 +22,12 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   className = '',
 }) => {
   const { t } = useTranslation();
-  const effectivePlaceholder = placeholder || t('searchVillagePlaceholder', 'Type village, town, or city name (e.g. Rampur, Bilaspur, Tiruchirappalli)...');
+  const effectivePlaceholder =
+    placeholder ||
+    t(
+      'searchVillagePlaceholder',
+      'Type village, town, or PIN code (e.g. Rampur, Ariyalur, 637211)...'
+    );
 
   const [query, setQuery] = useState('');
   const [selectedVillage, setSelectedVillage] = useState<Village | null>(null);
@@ -31,6 +36,15 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Manual Locality Fallback Modal State
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualDistrict, setManualDistrict] = useState('');
+  const [manualState, setManualState] = useState('Tamil Nadu');
+  const [manualPincode, setManualPincode] = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,11 +65,9 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        // If query doesn't match selected village, restore or clear
         if (selectedVillage) {
           setQuery(formatVillageLabel(selectedVillage));
         } else if (query.trim() && !selectedVillageId) {
-          // Unselected text left in box
           setHasInteracted(true);
         }
       }
@@ -95,7 +107,6 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     setQuery(newText);
     setHasInteracted(true);
 
-    // Invalidation rule: typing/editing text invalidates existing selection
     if (selectedVillage || selectedVillageId) {
       setSelectedVillage(null);
       onSelect(null);
@@ -191,7 +202,6 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     return v.name;
   };
 
-  // Highlight matching characters in text
   const renderHighlightedText = (text: string, highlight: string) => {
     if (!highlight.trim()) return <span>{text}</span>;
     const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -209,6 +219,37 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
         )}
       </span>
     );
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualName.trim() || !manualDistrict.trim()) {
+      setManualError('Please provide both locality name and district.');
+      return;
+    }
+
+    if (manualPincode.trim() && !/^[1-9]\d{5}$/.test(manualPincode.trim())) {
+      setManualError('Please provide a valid 6-digit Indian PIN code (e.g. 600001).');
+      return;
+    }
+
+    try {
+      setManualLoading(true);
+      setManualError(null);
+      const customV = await authService.registerCustomVillage({
+        name: manualName.trim(),
+        district: manualDistrict.trim(),
+        state: manualState.trim() || 'Tamil Nadu',
+        pincode: manualPincode.trim() || undefined,
+      });
+
+      handleSelectVillage(customV);
+      setShowManualModal(false);
+    } catch (err: any) {
+      setManualError(err.message || 'Failed to register custom location.');
+    } finally {
+      setManualLoading(false);
+    }
   };
 
   const isInvalid = required && hasInteracted && !selectedVillageId;
@@ -307,7 +348,9 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
 
                   <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap">
                     {village.subdistrict && village.subdistrict !== village.name && (
-                      <span>{t('taluk', 'Taluk:')} {village.subdistrict}</span>
+                      <span>
+                        {t('taluk', 'Taluk:')} {village.subdistrict}
+                      </span>
                     )}
                     {village.subdistrict && village.state && <span>•</span>}
                     {village.state && <span className="font-medium text-slate-600">{village.state}</span>}
@@ -318,32 +361,175 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
           ) : !isLoading && query.trim().length >= 2 ? (
             <li className="px-4 py-4 text-center text-xs text-slate-500">
               <Search className="w-5 h-5 mx-auto text-slate-300 mb-1.5" />
-              <span>{t('noLocationsFound', { query })}</span>
+              <span>{t('noLocationsFound', `No verified locations found matching "${query}"`)}</span>
               <p className="mt-1 text-[11px] text-slate-400">
-                {t('trySearchingDistrict', 'Try searching by district or sub-district name, or check for typos.')}
+                {t('trySearchingDistrict', 'Check for spelling or try searching by district or PIN code.')}
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setManualName(query.trim());
+                  setShowManualModal(true);
+                  setIsOpen(false);
+                }}
+                className="mt-2.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors inline-flex items-center gap-1"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                {t('manualLocationFallback', 'Enter locality & PIN code manually')}
+              </button>
             </li>
           ) : null}
         </ul>
       )}
 
-      {/* Validation status feedback */}
-      {selectedVillage ? (
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-700">
-          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />
-          <span>
-            {t('verified', 'Verified:')} <strong>{selectedVillage.name}</strong> ({selectedVillage.district}
-            {selectedVillage.state ? `, ${selectedVillage.state}` : ''})
+      {/* Validation status feedback & Manual Fallback Link */}
+      <div className="mt-1.5 flex items-center justify-between text-xs">
+        {selectedVillage ? (
+          <div className="flex items-center gap-1.5 text-emerald-700">
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />
+            <span>
+              {t('verified', 'Verified:')} <strong>{selectedVillage.name}</strong> ({selectedVillage.district}
+              {selectedVillage.state ? `, ${selectedVillage.state}` : ''})
+            </span>
+          </div>
+        ) : isInvalid ? (
+          <div className="flex items-center gap-1.5 text-rose-600">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{t('selectValidLocationError', 'Please select a location or enter manually below.')}</span>
+          </div>
+        ) : (
+          <span className="text-[11px] text-slate-400">
+            {t('searchVillagesHelper', 'Search 625k+ Census settlements or enter 6-digit PIN.')}
           </span>
-        </div>
-      ) : isInvalid ? (
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-rose-600">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>{t('selectValidLocationError', 'Please select a valid location from the search suggestions.')}</span>
-        </div>
-      ) : (
-        <div className="mt-1 text-[11px] text-slate-400">
-          {t('searchVillagesHelper', 'Search over 600,000 official Indian villages, towns, and cities.')}
+        )}
+
+        <button
+          type="button"
+          onClick={() => setShowManualModal(true)}
+          className="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold hover:underline inline-flex items-center gap-1 ml-auto"
+        >
+          <Building className="w-3 h-3" />
+          <span>{t('manualFallbackBtn', 'Locality not listed?')}</span>
+        </button>
+      </div>
+
+      {/* Manual Locality Entry Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  {t('manualLocationTitle', 'Enter Unlisted Village or Locality')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManualModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              {t(
+                'manualLocationDesc',
+                'If your specific village, hamlet, or town is unlisted, enter its details with postal PIN code for geographic resolution.'
+              )}
+            </p>
+
+            {manualError && (
+              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{manualError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleManualSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {t('localityName', 'Locality / Village / Town Name')} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="e.g. Chitlapakkam, Periyakulam, Rampur"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {t('district', 'District')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualDistrict}
+                    onChange={(e) => setManualDistrict(e.target.value)}
+                    placeholder="e.g. Madurai, Namakkal"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {t('pincode', 'PIN Code (6 digits)')}
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={manualPincode}
+                    onChange={(e) => setManualPincode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 625001"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {t('state', 'State')}
+                </label>
+                <input
+                  type="text"
+                  value={manualState}
+                  onChange={(e) => setManualState(e.target.value)}
+                  placeholder="e.g. Tamil Nadu"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  {t('cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualLoading}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors inline-flex items-center gap-1.5"
+                >
+                  {manualLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{t('saving', 'Resolving...')}</span>
+                    </>
+                  ) : (
+                    <span>{t('confirmLocation', 'Confirm & Select Locality')}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

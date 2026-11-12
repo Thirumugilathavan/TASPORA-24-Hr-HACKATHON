@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Menu, Bell, Globe, LogOut, ChevronDown, UserCircle2, Bot } from 'lucide-react';
+import { Menu, Globe, LogOut, ChevronDown, UserCircle2, Bot } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { LANGUAGES } from '../../lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
 import { LanguageCode } from '../../lib/i18n';
 import { AIAssistantModal } from '../assistant/AIAssistantModal';
+import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -99,17 +100,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
           )}
         </div>
 
-        {/* Notification visual bell icon */}
-        <div className="relative">
-          <button
-            type="button"
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors relative"
-            title={t('notificationsDemo', 'Notifications (UI demonstration element)')}
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-healthcare-500 ring-2 ring-white" />
-          </button>
-        </div>
+        {/* Real In-App Notification Dropdown */}
+        <NotificationDropdown />
 
         {/* User Profile dropdown */}
         <div className="relative">

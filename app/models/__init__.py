@@ -10,6 +10,7 @@ from app.models.doctor import Doctor, DoctorSchedule
 from app.models.medicine import Medicine
 from app.models.stock import StockReport, FacilityMedicineBelief
 from app.models.ivr import IVRSession, IVRInteraction, IVRAuthAttempt
+from app.models.notification import Notification
 
 __all__ = [
     "Base",
@@ -31,4 +32,5 @@ __all__ = [
     "IVRSession",
     "IVRInteraction",
     "IVRAuthAttempt",
+    "Notification",
 ]

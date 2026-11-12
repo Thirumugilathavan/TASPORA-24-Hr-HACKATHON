@@ -16,6 +16,9 @@ export interface NearbyFacilityParams {
   patient_id?: string;
   radius_km?: number;
   facility_type?: string;
+  ownership?: string;
+  query?: string;
+  auto_expand?: boolean;
   skip?: number;
   limit?: number;
 }
@@ -40,6 +43,15 @@ export const facilityService = {
     }
     if (params.facility_type && params.facility_type !== 'ALL') {
       queryParams.append('facility_type', params.facility_type);
+    }
+    if (params.ownership && params.ownership !== 'ALL') {
+      queryParams.append('ownership', params.ownership);
+    }
+    if (params.query && params.query.trim()) {
+      queryParams.append('query', params.query.trim());
+    }
+    if (params.auto_expand !== undefined) {
+      queryParams.append('auto_expand', params.auto_expand ? 'true' : 'false');
     }
     if (params.skip !== undefined) {
       queryParams.append('skip', params.skip.toString());

@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -6,6 +6,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.patient import Patient
     from app.models.doctor import Doctor
+    from app.models.notification import Notification
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -20,3 +21,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="user", uselist=False)
     doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", back_populates="user", uselist=False)
+    notifications: Mapped[List["Notification"]] = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        order_by="desc(Notification.created_at)",
+    )

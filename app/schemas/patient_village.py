@@ -58,6 +58,16 @@ class VillageIn(BaseModel):
         return cleaned
 
 
+class CustomVillageCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    district: str = Field(..., min_length=1, max_length=255)
+    state: Optional[str] = Field(default="Tamil Nadu", max_length=100)
+    subdistrict: Optional[str] = Field(default=None, max_length=255)
+    pincode: Optional[str] = Field(default=None, max_length=10)
+    latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
+
+
 class VillageListOut(Page[VillageOut]):
     pass
 

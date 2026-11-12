@@ -99,6 +99,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         const params: Parameters<typeof facilityService.getNearbyFacilities>[0] = {
           radius_km: radiusKm,
           facility_type: selectedType === 'ALL' ? undefined : selectedType,
+          auto_expand: true,
           limit: PAGE_SIZE,
           skip: offset,
         };

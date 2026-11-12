@@ -1,7 +1,7 @@
 import math
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -126,13 +126,18 @@ class FacilityServiceHandler:
         patient_id: Optional[UUID] = None,
         radius_km: float = 10.0,
         facility_type: Optional[str] = None,
+        ownership: Optional[str] = None,
+        query: Optional[str] = None,
         limit: int = 20,
         skip: int = 0,
+        auto_expand: bool = True,
     ) -> NearbyFacilityList:
         """
         Calculates geographic distance and returns nearby healthcare facilities
         ranked in strict ascending order of distance (nearest first).
         Uses indexed bounding-box query for sub-millisecond retrieval across 147k+ facilities.
+        Supports multi-criteria search (name, PIN code, taluk, district), ownership filtering,
+        and automatic radius expansion when no local centers are in range.
         """
         resolved_lat: float
         resolved_lon: float
@@ -192,36 +197,114 @@ class FacilityServiceHandler:
         if radius_km <= 0 or radius_km > 500:
             raise ValueError("radius_km must be between 0.1 and 500.0 km")
 
-        # Compute bounding box using index on (latitude, longitude)
-        lat_delta = radius_km / 111.0
-        cos_lat = max(math.cos(math.radians(resolved_lat)), 0.01)
-        lon_delta = radius_km / (111.0 * cos_lat)
+        effective_radius = radius_km
+        if query and query.strip() and effective_radius < 50.0:
+            # Broaden initial radius when user actively searches for a specific hospital/locality
+            effective_radius = max(effective_radius, 50.0)
 
-        min_lat = resolved_lat - lat_delta
-        max_lat = resolved_lat + lat_delta
-        min_lon = resolved_lon - lon_delta
-        max_lon = resolved_lon + lon_delta
+        def build_stmt(curr_radius: float):
+            lat_delta = curr_radius / 111.0
+            cos_lat = max(math.cos(math.radians(resolved_lat)), 0.01)
+            lon_delta = curr_radius / (111.0 * cos_lat)
 
-        stmt = select(Facility).where(
-            Facility.latitude.between(min_lat, max_lat),
-            Facility.longitude.between(min_lon, max_lon),
-        )
+            min_lat = resolved_lat - lat_delta
+            max_lat = resolved_lat + lat_delta
+            min_lon = resolved_lon - lon_delta
+            max_lon = resolved_lon + lon_delta
 
-        if facility_type and facility_type.upper() != "ALL":
-            ft = facility_type.upper()
-            if ft in ("HOSPITAL", "THO", "DHO"):
-                stmt = stmt.where(func.upper(Facility.facility_type).in_(["HOSPITAL", "THO", "DHO"]))
-            elif ft in ("SCE", "SUB_CENTRE", "SUB-CENTRE", "SUB_CENTER", "SUB-CENTER"):
-                stmt = stmt.where(func.upper(Facility.facility_type).in_(["SCE", "SUB_CENTRE", "SUB_CENTER"]))
-            elif ft == "PHC":
-                stmt = stmt.where(func.upper(Facility.facility_type) == "PHC")
-            elif ft == "CHC":
-                stmt = stmt.where(func.upper(Facility.facility_type) == "CHC")
-            else:
-                stmt = stmt.where(func.upper(Facility.facility_type) == ft)
+            stmt = select(Facility).where(
+                Facility.latitude.between(min_lat, max_lat),
+                Facility.longitude.between(min_lon, max_lon),
+            )
 
-        result = await self.db.execute(stmt)
-        candidates = result.scalars().all()
+            # Facility type filter (inclusive of official classifications and hospitals)
+            if facility_type and facility_type.upper() != "ALL":
+                ft = facility_type.upper()
+                if ft in ("HOSPITAL", "THO", "DHO"):
+                    stmt = stmt.where(
+                        or_(
+                            func.upper(Facility.facility_type).in_(["HOSPITAL", "THO", "DHO"]),
+                            Facility.name.ilike("%hospital%"),
+                            Facility.name.ilike("%medical college%"),
+                        )
+                    )
+                elif ft in ("SCE", "SUB_CENTRE", "SUB-CENTRE", "SUB_CENTER", "SUB-CENTER"):
+                    stmt = stmt.where(
+                        or_(
+                            func.upper(Facility.facility_type).in_(["SCE", "SUB_CENTRE", "SUB_CENTER"]),
+                            Facility.name.ilike("%sub-centre%"),
+                            Facility.name.ilike("%sub centre%"),
+                        )
+                    )
+                elif ft == "PHC":
+                    stmt = stmt.where(
+                        or_(
+                            func.upper(Facility.facility_type) == "PHC",
+                            Facility.name.ilike("%primary health%"),
+                        )
+                    )
+                elif ft == "CHC":
+                    stmt = stmt.where(
+                        or_(
+                            func.upper(Facility.facility_type) == "CHC",
+                            Facility.name.ilike("%community health%"),
+                        )
+                    )
+                elif ft == "PHARMACY":
+                    stmt = stmt.where(
+                        or_(
+                            func.upper(Facility.facility_type) == "PHARMACY",
+                            Facility.name.ilike("%pharmacy%"),
+                            Facility.name.ilike("%jan aushadhi%"),
+                        )
+                    )
+                else:
+                    stmt = stmt.where(func.upper(Facility.facility_type) == ft)
+
+            # Ownership filter (Government vs Private vs All)
+            if ownership and ownership.upper() != "ALL":
+                own = ownership.upper()
+                if own in ("GOVERNMENT", "GOV", "PUBLIC"):
+                    stmt = stmt.where(
+                        or_(
+                            Facility.ownership.ilike("%Government%"),
+                            Facility.ownership.is_(None),
+                            Facility.source == "nic",
+                        )
+                    )
+                elif own in ("PRIVATE", "NON-GOVERNMENT"):
+                    stmt = stmt.where(Facility.ownership.ilike("%Private%"))
+                else:
+                    stmt = stmt.where(func.upper(Facility.ownership) == own)
+
+            # Multi-criteria text query (name, district, subdistrict/taluk, address)
+            if query and query.strip():
+                clean_q = f"%{query.strip()}%"
+                stmt = stmt.where(
+                    or_(
+                        Facility.name.ilike(clean_q),
+                        Facility.district.ilike(clean_q),
+                        Facility.subdistrict.ilike(clean_q),
+                        Facility.address.ilike(clean_q),
+                    )
+                )
+
+            return stmt
+
+        # Execute candidate search
+        result = await self.db.execute(build_stmt(effective_radius))
+        candidates = list(result.scalars().all())
+
+        # If zero candidates and auto_expand is requested, step up search radius
+        if not candidates and auto_expand:
+            for step_radius in [25.0, 50.0, 100.0]:
+                if step_radius > effective_radius:
+                    res_expanded = await self.db.execute(build_stmt(step_radius))
+                    c_exp = list(res_expanded.scalars().all())
+                    if c_exp:
+                        candidates = c_exp
+                        effective_radius = step_radius
+                        break
 
         # Compute exact Haversine distance and filter
         ranked = []
@@ -233,7 +316,7 @@ class FacilityServiceHandler:
             except ValueError:
                 continue
 
-            if exact_dist <= radius_km:
+            if exact_dist <= effective_radius:
                 ranked.append((f, exact_dist))
 
         # Automatic distance-based ranking: ascending distance, stable tie-break by name
@@ -273,6 +356,9 @@ class FacilityServiceHandler:
             "longitude": resolved_lon,
             "source": resolved_source,
             "label": resolved_name,
+            "effective_radius_km": effective_radius,
+            "initial_radius_km": radius_km,
+            "is_expanded": effective_radius > radius_km,
             **resolved_meta,
         }
 
@@ -282,7 +368,7 @@ class FacilityServiceHandler:
             items=items,
             total=total_matching,
             resolved_location=resolved_location_info,
-            radius_km=radius_km,
+            radius_km=effective_radius,
             skip=skip,
             limit=limit,
             has_more=has_more,

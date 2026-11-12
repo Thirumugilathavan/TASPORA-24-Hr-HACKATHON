@@ -42,12 +42,14 @@ export const FacilitiesPage: React.FC = () => {
   // Filter & Query State
   const [radiusKm, setRadiusKm] = useState<number>(10);
   const [selectedType, setSelectedType] = useState<string>('ALL');
+  const [selectedOwnership, setSelectedOwnership] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
   // Results State
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [, setResolvedMeta] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
+  const [resolvedMeta, setResolvedMeta] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,13 @@ export const FacilitiesPage: React.FC = () => {
   const [hasMore, setHasMore] = useState<boolean>(false);
 
   const PAGE_SIZE = 24;
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   // Modals
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
@@ -115,6 +124,9 @@ export const FacilitiesPage: React.FC = () => {
         const params: Parameters<typeof facilityService.getNearbyFacilities>[0] = {
           radius_km: radiusKm,
           facility_type: selectedType === 'ALL' ? undefined : selectedType,
+          ownership: selectedOwnership === 'ALL' ? undefined : selectedOwnership,
+          query: debouncedSearch.trim() || undefined,
+          auto_expand: true,
           limit: PAGE_SIZE,
           skip: offset,
         };
@@ -147,7 +159,7 @@ export const FacilitiesPage: React.FC = () => {
         setLoadingMore(false);
       }
     },
-    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, t]
+    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, selectedOwnership, debouncedSearch, t]
   );
 
   useEffect(() => {
@@ -210,17 +222,8 @@ export const FacilitiesPage: React.FC = () => {
     );
   };
 
-  // Client-side text filter on the currently loaded page/results
-  const filteredFacilities = facilities.filter((fac) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase().trim();
-    return (
-      fac.name.toLowerCase().includes(q) ||
-      (fac.district && fac.district.toLowerCase().includes(q)) ||
-      (fac.address && fac.address.toLowerCase().includes(q)) ||
-      (fac.subdistrict && fac.subdistrict.toLowerCase().includes(q))
-    );
-  });
+  // Use facilities returned from the backend multi-criteria search
+  const filteredFacilities = facilities;
 
   const currentLocationLabel = usingGps
     ? `Device GPS (${gpsCoords?.lat.toFixed(4)}, ${gpsCoords?.lon.toFixed(4)})`
@@ -344,28 +347,53 @@ export const FacilitiesPage: React.FC = () => {
         )}
 
         {/* Filters & Radius Controls */}
-        <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Radius Selector */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-semibold text-slate-600 mr-1">{t('searchRadius', 'Search Radius:')}</span>
-            {RADIUS_OPTIONS.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRadiusKm(r)}
-                className={`px-3 py-1 text-xs rounded-lg font-semibold transition-all ${
-                  radiusKm === r
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {r} km
-              </button>
-            ))}
+        <div className="pt-3 border-t border-slate-100 flex flex-col gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            {/* Radius Selector */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-semibold text-slate-600 mr-1">{t('searchRadius', 'Search Radius:')}</span>
+              {RADIUS_OPTIONS.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRadiusKm(r)}
+                  className={`px-3 py-1 text-xs rounded-lg font-semibold transition-all ${
+                    radiusKm === r
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {r} km
+                </button>
+              ))}
+            </div>
+
+            {/* Ownership Filter */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+              <span className="text-xs font-semibold text-slate-600 mr-1">{t('facilityOwnership', 'Ownership:')}</span>
+              {[
+                { label: t('allOwnership', 'All Ownership'), value: 'ALL' },
+                { label: t('ownershipGov', 'Government'), value: 'GOVERNMENT' },
+                { label: t('ownershipPrivate', 'Private'), value: 'PRIVATE' },
+              ].map((own) => (
+                <button
+                  key={own.value}
+                  onClick={() => setSelectedOwnership(own.value)}
+                  className={`px-3 py-1 text-xs rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                    selectedOwnership === own.value
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {own.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Facility Type Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1 flex-shrink-0" />
+            <span className="text-xs font-semibold text-slate-600 mr-1">{t('facilityType', 'Type:')}</span>
             {typeFilterOptions.map((type) => (
               <button
                 key={type.value}
@@ -403,6 +431,19 @@ export const FacilitiesPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Auto-expanded radius banner */}
+      {resolvedMeta?.is_expanded && (
+        <div className="p-3 bg-teal-50 rounded-xl border border-teal-200 text-xs text-teal-900 flex items-center gap-2">
+          <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
+          <span>
+            {t(
+              'expandedRadiusNotice',
+              `Search radius automatically expanded to ${resolvedMeta.effective_radius_km} km because no facilities were found in the initial ${resolvedMeta.initial_radius_km} km.`
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Low Count Progressive Expansion Banner */}
       {!loading && totalCount > 0 && totalCount < 4 && radiusKm < 50 && (
@@ -539,10 +580,13 @@ export const FacilitiesPage: React.FC = () => {
                         {t('availabilityNotVerified', 'Availability not verified')}
                       </span>
                       {fac.ownership && (
-                        <span className="text-[11px] text-slate-400">
-                          {fac.ownership}
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          {fac.ownership === 'Government' ? t('ownershipGov', 'Government') : fac.ownership}
                         </span>
                       )}
+                      <span className="text-[10px] text-slate-400">
+                        {fac.source === 'nic' ? 'NIC / MOHFW' : `Source: ${fac.source || 'NIC'}`}
+                      </span>
                     </div>
                   </div>
 

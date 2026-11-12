@@ -13,12 +13,14 @@ from app.api.v1.villages import router as villages_router
 from app.api.v1.pincodes import router as pincodes_router
 from app.api.v1.ivr import router as ivr_router
 from app.api.v1.ai import router as ai_router
+from app.api.v1.notifications import router as notifications_router
 
 api_router = APIRouter()
 
 # Phase 1 Foundation Routers
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
+api_router.include_router(notifications_router)
 
 # Member 1: Patient and Village Routers
 api_router.include_router(villages_router)

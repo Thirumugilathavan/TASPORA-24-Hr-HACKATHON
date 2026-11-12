@@ -1,11 +1,25 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.schemas.patient_village import VillageListOut
+from app.schemas.patient_village import CustomVillageCreateIn, VillageListOut, VillageOut
 from app.services.village_service import VillageService
 
 router = APIRouter(prefix="/villages", tags=["Villages"])
+
+
+@router.post(
+    "/custom",
+    response_model=VillageOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a custom or unlisted village/locality",
+    description="Registers a user's local settlement with postal PIN resolution and district geolocation.",
+)
+async def create_custom_village(
+    payload: CustomVillageCreateIn,
+    db: AsyncSession = Depends(get_db),
+) -> VillageOut:
+    return await VillageService.create_custom_village(db=db, data=payload)
 
 
 @router.get(
