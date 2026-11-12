@@ -6,11 +6,11 @@ import { FacilityDetailModal } from '../components/facilities/FacilityDetailModa
 import { BookAppointmentModal } from '../components/appointments/BookAppointmentModal';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
-import { EmptyState } from '../components/common/EmptyState';
 import { Facility, Village, NearbyFacilityListResponse } from '../types';
 import { facilityService } from '../services/facilityService';
-import { FACILITY_TYPE_LABELS } from '../lib/constants';
+import { getFacilityTypeLabel } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 import {
   MapPin,
   Navigation,
@@ -27,16 +27,9 @@ import {
 
 const RADIUS_OPTIONS = [5, 10, 25, 50, 100];
 
-const TYPE_FILTER_OPTIONS = [
-  { label: 'All Centers', value: 'ALL' },
-  { label: 'Sub-Centres (SCE)', value: 'SCE' },
-  { label: 'Primary Health (PHC)', value: 'PHC' },
-  { label: 'Community Health (CHC)', value: 'CHC' },
-  { label: 'Hospitals (THO/DHO)', value: 'HOSPITAL' },
-];
-
 export const FacilitiesPage: React.FC = () => {
-  const { user, currentPatient } = useAuth();
+  const { currentPatient } = useAuth();
+  const { t } = useTranslation();
 
   // Location State
   const [activeLocation, setActiveLocation] = useState<Village | null>(null);
@@ -54,7 +47,7 @@ export const FacilitiesPage: React.FC = () => {
   // Results State
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [resolvedMeta, setResolvedMeta] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
+  const [, setResolvedMeta] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +59,14 @@ export const FacilitiesPage: React.FC = () => {
   // Modals
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
   const [bookingFacility, setBookingFacility] = useState<Facility | null>(null);
+
+  const typeFilterOptions = [
+    { label: t('allCenters', 'All Centers'), value: 'ALL' },
+    { label: t('typeSubCentres', 'Sub-Centres (SCE)'), value: 'SCE' },
+    { label: t('typePhcs', 'Primary Health (PHC)'), value: 'PHC' },
+    { label: t('typeChcs', 'Community Health (CHC)'), value: 'CHC' },
+    { label: t('typeHospitals', 'Hospitals (THO/DHO)'), value: 'HOSPITAL' },
+  ];
 
   // Initialize location from registered user profile or session
   useEffect(() => {
@@ -140,13 +141,13 @@ export const FacilitiesPage: React.FC = () => {
         setPageOffset(offset);
         setHasMore((offset + (res.items || []).length) < (res.total || 0));
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch nearby facilities from registry.');
+        setError(err.message || t('errorTitle', 'Failed to fetch nearby facilities from registry.'));
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType]
+    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, t]
   );
 
   useEffect(() => {
@@ -225,7 +226,7 @@ export const FacilitiesPage: React.FC = () => {
     ? `Device GPS (${gpsCoords?.lat.toFixed(4)}, ${gpsCoords?.lon.toFixed(4)})`
     : activeLocation
     ? `${activeLocation.name}, ${activeLocation.district}${activeLocation.state ? `, ${activeLocation.state}` : ''}`
-    : 'No location selected';
+    : t('empty', 'No location selected');
 
   const isUserRegisteredVillage =
     !usingGps &&
@@ -236,8 +237,8 @@ export const FacilitiesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Healthcare Facilities Directory"
-        subtitle="Dynamic straight-line distance ranking from your registered location using official MOHFW/NIC registry"
+        title={t('facilitiesTitle', 'Healthcare Facilities Directory')}
+        subtitle={t('facilitiesSubtitle', 'Dynamic straight-line distance ranking from your registered location using official MOHFW/NIC registry')}
       />
 
       {/* Location Resolution Bar */}
@@ -250,18 +251,18 @@ export const FacilitiesPage: React.FC = () => {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Reference Location:
+                  {t('referenceLocation', 'Reference Location:')}
                 </span>
                 {isUserRegisteredVillage && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                    Registered Profile Location
+                    {t('registeredProfileLocation', 'Registered Profile Location')}
                   </span>
                 )}
                 {usingGps && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-100 text-sky-800">
                     <Navigation className="w-3 h-3 text-sky-600" />
-                    Live Device GPS
+                    {t('usingGpsLocation', 'Live Device GPS')}
                   </span>
                 )}
               </div>
@@ -283,7 +284,7 @@ export const FacilitiesPage: React.FC = () => {
               onClick={() => setIsChangingLocation(!isChangingLocation)}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors"
             >
-              {isChangingLocation ? 'Hide Location Selector' : 'Select / Change Location'}
+              {isChangingLocation ? t('hideLocation', 'Hide Location Selector') : t('selectChangeLocation', 'Select / Change Location')}
             </button>
 
             <button
@@ -296,14 +297,14 @@ export const FacilitiesPage: React.FC = () => {
               }`}
             >
               <Navigation className={`w-3.5 h-3.5 ${usingGps ? 'text-sky-600' : 'text-slate-500'}`} />
-              {gpsLoading ? 'Acquiring GPS...' : usingGps ? 'Using GPS' : 'Use Device GPS'}
+              {gpsLoading ? t('acquiringGps', 'Acquiring GPS...') : usingGps ? t('usingGpsLocation', 'Using GPS') : t('useDeviceGps', 'Use Device GPS')}
             </button>
 
             <button
               onClick={() => loadFacilities(0, false)}
               disabled={loading}
               className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Refresh nearby facilities"
+              title={t('refresh', 'Refresh nearby facilities')}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
@@ -315,22 +316,22 @@ export const FacilitiesPage: React.FC = () => {
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in fade-in duration-200">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Select Your Village, Town, or City
+                {t('selectVillageTitle', 'Select Your Village, Town, or City')}
               </h4>
               <button
                 onClick={() => setIsChangingLocation(false)}
                 className="text-xs text-slate-400 hover:text-slate-600"
               >
-                Close ✕
+                {t('close', 'Close')} ✕
               </button>
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              Search nationwide database of 625,000+ Indian settlements to dynamically resolve accurate latitude and longitude coordinates.
+              {t('selectVillageDesc', 'Search nationwide database of 625,000+ Indian settlements to dynamically resolve accurate latitude and longitude coordinates.')}
             </p>
             <LocationSearchInput
               selectedVillageId={activeLocation?.id || ''}
               onSelect={handleLocationSelect}
-              placeholder="Type village, town, or city name (e.g. Alangulam, Erode, Tiruchirappalli, Bilaspur)..."
+              placeholder={t('searchVillagePlaceholder', 'Type village, town, or city name...')}
             />
           </div>
         )}
@@ -346,7 +347,7 @@ export const FacilitiesPage: React.FC = () => {
         <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Radius Selector */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-semibold text-slate-600 mr-1">Search Radius:</span>
+            <span className="text-xs font-semibold text-slate-600 mr-1">{t('searchRadius', 'Search Radius:')}</span>
             {RADIUS_OPTIONS.map((r) => (
               <button
                 key={r}
@@ -365,7 +366,7 @@ export const FacilitiesPage: React.FC = () => {
           {/* Facility Type Filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1 flex-shrink-0" />
-            {TYPE_FILTER_OPTIONS.map((type) => (
+            {typeFilterOptions.map((type) => (
               <button
                 key={type.value}
                 onClick={() => setSelectedType(type.value)}
@@ -388,17 +389,17 @@ export const FacilitiesPage: React.FC = () => {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Filter loaded results by name, place, district..."
+            placeholder={t('searchFacilitiesPlaceholder', 'Filter loaded results by name, place, district...')}
           />
         </div>
 
         <div className="text-xs text-slate-500 font-medium w-full md:w-auto text-left md:text-right">
           {totalCount > 0 ? (
             <span>
-              Showing <strong>{facilities.length}</strong> of <strong>{totalCount}</strong> facilities within {radiusKm} km (closest first)
+              {t('showingFacilitiesWithin', { count: facilities.length, total: totalCount, radius: radiusKm })}
             </span>
           ) : (
-            <span>Radius: {radiusKm} km</span>
+            <span>{t('searchRadius', 'Search Radius:')} {radiusKm} km</span>
           )}
         </div>
       </div>
@@ -409,45 +410,45 @@ export const FacilitiesPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <span>
-              Only <strong>{totalCount}</strong> eligible {totalCount === 1 ? 'facility' : 'facilities'} found within {radiusKm} km of your location.
+              {t('foundFacilitiesCount', { count: totalCount, radius: radiusKm })}
             </span>
           </div>
           <button
             onClick={() => setRadiusKm(radiusKm === 5 ? 10 : radiusKm === 10 ? 25 : 50)}
             className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs transition-colors self-start sm:self-auto"
           >
-            Expand Search Radius →
+            {t('expandSearchRadius', 'Expand Search Radius →')}
           </button>
         </div>
       )}
 
       {/* Main Facilities Content */}
       {loading ? (
-        <LoadingState message={`Calculating distances from ${currentLocationLabel}...`} />
+        <LoadingState message={t('calculatingDistances', { location: currentLocationLabel })} />
       ) : error ? (
         <ErrorState message={error} onRetry={() => loadFacilities(0, false)} />
       ) : !activeLocation && !usingGps ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-4">
           <Compass className="w-12 h-12 text-emerald-600 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-800">Please Select Your Location</h3>
+          <h3 className="text-lg font-bold text-slate-800">{t('selectVillageTitle', 'Please Select Your Location')}</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            To view healthcare facilities automatically ranked by geographic distance, please select your village, town, or city above or enable device GPS.
+            {t('selectVillageDesc', 'To view healthcare facilities automatically ranked by geographic distance, please select your village, town, or city above or enable device GPS.')}
           </p>
           <button
             onClick={() => setIsChangingLocation(true)}
             className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 transition-colors"
           >
-            Select Village / City
+            {t('selectVillageCityBtn', 'Select Village / City')}
           </button>
         </div>
       ) : filteredFacilities.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-4">
           <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="text-base font-bold text-slate-800">
-            No healthcare facilities found within {radiusKm} km
+            {t('noFacilitiesWithin', { radius: radiusKm })}
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            There are no matching facilities within {radiusKm} km of {currentLocationLabel}. Try expanding your search radius to locate available regional centers.
+            {t('noFacilitiesWithinDesc', { radius: radiusKm, location: currentLocationLabel })}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
             {radiusKm < 25 && (
@@ -455,7 +456,7 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(25)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Expand to 25 km
+                {t('expandTo25km', 'Expand to 25 km')}
               </button>
             )}
             {radiusKm < 50 && (
@@ -463,7 +464,7 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(50)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Expand to 50 km
+                {t('expandTo50km', 'Expand to 50 km')}
               </button>
             )}
             {radiusKm < 100 && (
@@ -471,45 +472,50 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(100)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Expand to 100 km
+                {t('expandTo100km', 'Expand to 100 km')}
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Facilities Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="space-y-4">
+          {/* Facility Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredFacilities.map((fac, idx) => {
-              const typeLabel = FACILITY_TYPE_LABELS[fac.facility_type] || fac.facility_type;
-              const isFirst = idx === 0 && pageOffset === 0;
+              const typeLabel = getFacilityTypeLabel(fac.facility_type, t);
+              const isClosest = idx === 0 && pageOffset === 0;
 
               return (
                 <div
                   key={fac.id}
-                  className={`bg-white rounded-2xl border p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
-                    isFirst ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-slate-200/90'
+                  className={`bg-white rounded-2xl border p-5 transition-all duration-200 flex flex-col justify-between ${
+                    isClosest
+                      ? 'border-emerald-300 ring-2 ring-emerald-400/20 shadow-md'
+                      : 'border-slate-200/90 hover:border-slate-300 shadow-sm'
                   }`}
                 >
                   <div className="space-y-2.5">
-                    {/* Top Row: Rank & Distance Badge */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Header: Rank + Type + Distance */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-md font-bold ${
-                            isFirst ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${
+                            isClosest
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          #{idx + 1} {isFirst ? 'Closest' : ''}
+                          #{idx + 1} {isClosest ? t('closest', 'Closest') : ''}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
                           {typeLabel}
                         </span>
                       </div>
 
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
                         <MapPin className="w-3 h-3 text-emerald-700" />
-                        {fac.distance_km !== undefined ? `${fac.distance_km} km away` : 'Near you'}
+                        {fac.distance_km !== undefined ? t('kmAway', { dist: fac.distance_km }) : t('nearYou', 'Near you')}
                       </span>
                     </div>
 
@@ -527,10 +533,10 @@ export const FacilitiesPage: React.FC = () => {
                     <div className="pt-2 flex flex-wrap items-center gap-2">
                       <span
                         className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
-                        title="Operational attendance and stock require live verification"
+                        title={t('availabilityTooltip', 'Operational attendance and stock require live verification')}
                       >
                         <Info className="w-3 h-3 text-slate-400" />
-                        Availability not verified
+                        {t('availabilityNotVerified', 'Availability not verified')}
                       </span>
                       {fac.ownership && (
                         <span className="text-[11px] text-slate-400">
@@ -550,7 +556,7 @@ export const FacilitiesPage: React.FC = () => {
                         className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors py-1"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        Directions ↗
+                        {t('directionsExternal', 'Directions ↗')}
                       </a>
                     ) : (
                       <div />
@@ -562,7 +568,7 @@ export const FacilitiesPage: React.FC = () => {
                         onClick={() => setSelectedFacility(fac)}
                         className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1"
                       >
-                        Details
+                        {t('details', 'Details')}
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
 
@@ -571,7 +577,7 @@ export const FacilitiesPage: React.FC = () => {
                         onClick={() => setBookingFacility(fac)}
                         className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
                       >
-                        Book Slot
+                        {t('bookSlot', 'Book Slot')}
                       </button>
                     </div>
                   </div>
@@ -591,11 +597,11 @@ export const FacilitiesPage: React.FC = () => {
                 {loadingMore ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-                    Loading additional facilities...
+                    {t('loadingMore', 'Loading additional facilities...')}
                   </>
                 ) : (
                   <>
-                    Show More Nearby Facilities ({facilities.length} of {totalCount})
+                    {t('showMoreFacilities', { count: facilities.length, total: totalCount })}
                     <ChevronRight className="w-4 h-4 text-slate-500" />
                   </>
                 )}

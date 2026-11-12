@@ -1,8 +1,11 @@
 import React from 'react';
 import { config } from '../../lib/config';
 import { Database, Sparkles, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useTranslation } from '../../context/LanguageContext';
 
 export const DemoBanner: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`w-full py-1.5 px-4 text-xs font-medium flex items-center justify-between border-b ${
@@ -20,11 +23,13 @@ export const DemoBanner: React.FC = () => {
         <span>
           {config.isMockMode ? (
             <>
-              <strong>Demo Evaluation Mode:</strong> Displaying simulated rural healthcare and stock data for demonstration.
+              <strong>{t('demoEvalMode', 'Demo Evaluation Mode:')} </strong>
+              {t('demoEvalDesc', 'Displaying simulated rural healthcare and stock data for demonstration.')}
             </>
           ) : (
             <>
-              <strong>Live Backend Connected:</strong> Targeting API server at <code className="font-mono">{config.apiBaseUrl}</code>.
+              <strong>{t('liveBackendConnected', 'Live Backend Connected:')} </strong>
+              {t('targetingApiServer', 'Targeting API server at')} <code className="font-mono">{config.apiBaseUrl}</code>.
             </>
           )}
         </span>
@@ -32,7 +37,7 @@ export const DemoBanner: React.FC = () => {
 
       <div className="flex items-center gap-3">
         <span className="text-[11px] text-slate-500 hidden sm:inline">
-          Backend Integration Switch:
+          {t('backendSwitch', 'Backend Integration Switch:')}
         </span>
         <button
           type="button"
@@ -42,15 +47,15 @@ export const DemoBanner: React.FC = () => {
               ? 'bg-amber-100/70 border-amber-300 text-amber-900 hover:bg-amber-200'
               : 'bg-emerald-100/70 border-emerald-300 text-emerald-900 hover:bg-emerald-200'
           }`}
-          title="Toggle between mock demonstration data and live backend calls"
+          title={t('toggleBackendTitle', 'Toggle between mock demonstration data and live backend calls')}
         >
           {config.isMockMode ? (
             <>
-              <ToggleLeft className="h-3.5 w-3.5 text-amber-700" /> Switch to Live Backend
+              <ToggleLeft className="h-3.5 w-3.5 text-amber-700" /> {t('switchToLive', 'Switch to Live Backend')}
             </>
           ) : (
             <>
-              <ToggleRight className="h-3.5 w-3.5 text-emerald-700" /> Switch to Demo Mode
+              <ToggleRight className="h-3.5 w-3.5 text-emerald-700" /> {t('switchToDemo', 'Switch to Demo Mode')}
             </>
           )}
         </button>

@@ -3,6 +3,7 @@ import { HealthcareRequest, Medicine, RequestType, Urgency } from '../../types';
 import { medicineService } from '../../services/medicineService';
 import { requestService } from '../../services/requestService';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { X, Send, AlertCircle, Loader2 } from 'lucide-react';
 
 interface CreateRequestModalProps {
@@ -30,6 +31,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   preselectedMedicineId,
 }) => {
   const { currentPatient, user } = useAuth();
+  const { t } = useTranslation();
+
   const initMed = initialMedicineId || preselectedMedicineId || '';
   const initType = initialRequestType || (initMed ? 'REFILL' : 'CONSULTATION');
 
@@ -59,7 +62,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
-      setError('Please provide a brief description of your healthcare request.');
+      setError(t('describeSymptomsPlaceholder', 'Please provide a brief description of your healthcare request.'));
       return;
     }
 
@@ -88,7 +91,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to submit healthcare request';
+      const msg = err instanceof Error ? err.message : t('errorTitle', 'Failed to submit healthcare request');
       setError(msg);
     } finally {
       setIsSubmitting(false);
@@ -101,9 +104,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/60">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Create Healthcare Request</h3>
+            <h3 className="text-lg font-bold text-slate-900">{t('submitRequestTitle', 'Submit Healthcare Request')}</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              CareBridge will analyze nearby facilities and available medicines.
+              {t('createRequestSubtitle', 'CareBridge will analyze nearby facilities and available medicines.')}
             </p>
           </div>
           <button
@@ -126,14 +129,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {/* Request Type */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              What kind of healthcare service do you need?
+              {t('whatKindOfService', 'What kind of healthcare service do you need?')}
             </label>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
-                { type: 'CONSULTATION', label: 'Doctor Consultation' },
-                { type: 'REFILL', label: 'Medicine Refill' },
-                { type: 'CHECKUP', label: 'Routine Checkup' },
-                { type: 'DIAGNOSTIC', label: 'Diagnostic Test' },
+                { type: 'CONSULTATION', label: t('reqConsultation', 'Doctor Consultation') },
+                { type: 'REFILL', label: t('reqRefill', 'Medicine Refill') },
+                { type: 'CHECKUP', label: t('reqCheckup', 'Routine Checkup') },
+                { type: 'DIAGNOSTIC', label: t('reqDiagnostic', 'Diagnostic Test') },
               ].map((opt) => (
                 <button
                   key={opt.type}
@@ -155,14 +158,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {requestType === 'REFILL' && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Select Medicine to Refill
+                {t('selectMedicineRefill', 'Select Medicine to Refill')}
               </label>
               <select
                 value={medicineId}
                 onChange={(e) => setMedicineId(e.target.value)}
                 className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               >
-                <option value="">Select from essential medicine list...</option>
+                <option value="">{t('selectMedicinePlaceholder', 'Select from essential medicine list...')}</option>
                 {medicines.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} ({m.code})
@@ -175,13 +178,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Description / Symptoms
+              {t('describeSymptoms', 'Description / Symptoms')}
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Need monthly diabetes medication, or persistent fever and body ache since yesterday..."
+              placeholder={t('describeSymptomsPlaceholder', 'e.g. Need monthly diabetes medication, or persistent fever and body ache since yesterday...')}
               className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
           </div>
@@ -189,13 +192,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {/* Urgency */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Urgency Level
+              {t('urgencyLevel', 'Urgency Level')}
             </label>
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
-                { val: 'NORMAL', label: 'Routine (Normal)' },
-                { val: 'PRIORITY', label: 'Priority (Within 1-2 days)' },
-                { val: 'URGENT', label: 'Urgent (Today)' },
+                { val: 'NORMAL', label: t('urgencyNormal', 'Routine (Normal)') },
+                { val: 'PRIORITY', label: t('urgencyPriority', 'Priority (Within 1-2 days)') },
+                { val: 'URGENT', label: t('urgencyUrgent', 'Urgent (Today)') },
               ].map((u) => (
                 <button
                   key={u.val}
@@ -212,7 +215,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               ))}
             </div>
             <p className="mt-1 text-[11px] text-slate-400 italic">
-              Note: Urgency selection guides routing and does not replace emergency medical triage.
+              {t('urgencyGuidanceNote', 'Note: Urgency selection guides routing and does not replace emergency medical triage.')}
             </p>
           </div>
 
@@ -224,7 +227,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               disabled={isSubmitting}
               className="px-4 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
             >
-              Cancel
+              {t('cancel', 'Cancel')}
             </button>
             <button
               type="submit"
@@ -233,11 +236,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('submittingRequest', 'Submitting...')}
                 </>
               ) : (
                 <>
-                  <Send className="h-3.5 w-3.5" /> Submit Request
+                  <Send className="h-3.5 w-3.5" /> {t('submitRequestBtn', 'Submit Request')}
                 </>
               )}
             </button>

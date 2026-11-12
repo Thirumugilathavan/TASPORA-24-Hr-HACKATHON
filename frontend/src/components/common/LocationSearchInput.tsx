@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Search, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Village } from '../../types';
 import { authService } from '../../services/authService';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface LocationSearchInputProps {
   selectedVillageId: string;
@@ -17,9 +18,12 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   onSelect,
   required = false,
   disabled = false,
-  placeholder = 'Type village, town, or city name (e.g. Rampur, Bilaspur, Tiruchirappalli)...',
+  placeholder,
   className = '',
 }) => {
+  const { t } = useTranslation();
+  const effectivePlaceholder = placeholder || t('searchVillagePlaceholder', 'Type village, town, or city name (e.g. Rampur, Bilaspur, Tiruchirappalli)...');
+
   const [query, setQuery] = useState('');
   const [selectedVillage, setSelectedVillage] = useState<Village | null>(null);
   const [suggestions, setSuggestions] = useState<Village[]>([]);
@@ -171,7 +175,6 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   };
 
   const formatVillageLabel = (v: Village): string => {
-    const parts = [v.name];
     const hierarchy = [];
     if (v.subdistrict && v.subdistrict !== v.name && v.subdistrict !== v.district) {
       hierarchy.push(v.subdistrict);
@@ -239,7 +242,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
             }
           }}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={effectivePlaceholder}
           className={`w-full pl-9 pr-16 py-2 border rounded-lg text-sm bg-white focus:outline-none transition-all ${
             isInvalid
               ? 'border-rose-300 focus:ring-2 focus:ring-rose-400'
@@ -256,8 +259,8 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              title="Clear location selection"
-              aria-label="Clear location"
+              title={t('clear', 'Clear')}
+              aria-label={t('clear', 'Clear')}
               className="p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
             >
               <X className="w-4 h-4" />
@@ -265,7 +268,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
           )}
 
           {selectedVillage && !isLoading && (
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-label="Verified Location" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-label={t('verified', 'Verified')} />
           )}
         </div>
       </div>
@@ -275,7 +278,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
         <ul
           id="location-autocomplete-list"
           role="listbox"
-          aria-label="Location suggestions"
+          aria-label={t('selectVillageTitle', 'Location suggestions')}
           className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-300/40 divide-y divide-slate-100 focus:outline-none"
         >
           {suggestions.length > 0 ? (
@@ -304,7 +307,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
 
                   <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap">
                     {village.subdistrict && village.subdistrict !== village.name && (
-                      <span>Taluk: {village.subdistrict}</span>
+                      <span>{t('taluk', 'Taluk:')} {village.subdistrict}</span>
                     )}
                     {village.subdistrict && village.state && <span>•</span>}
                     {village.state && <span className="font-medium text-slate-600">{village.state}</span>}
@@ -315,9 +318,9 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
           ) : !isLoading && query.trim().length >= 2 ? (
             <li className="px-4 py-4 text-center text-xs text-slate-500">
               <Search className="w-5 h-5 mx-auto text-slate-300 mb-1.5" />
-              <span>No locations matching &ldquo;{query}&rdquo; found.</span>
+              <span>{t('noLocationsFound', { query })}</span>
               <p className="mt-1 text-[11px] text-slate-400">
-                Try searching by district or sub-district name, or check for typos.
+                {t('trySearchingDistrict', 'Try searching by district or sub-district name, or check for typos.')}
               </p>
             </li>
           ) : null}
@@ -329,18 +332,18 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
         <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-700">
           <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />
           <span>
-            Verified: <strong>{selectedVillage.name}</strong> ({selectedVillage.district}
+            {t('verified', 'Verified:')} <strong>{selectedVillage.name}</strong> ({selectedVillage.district}
             {selectedVillage.state ? `, ${selectedVillage.state}` : ''})
           </span>
         </div>
       ) : isInvalid ? (
         <div className="mt-1 flex items-center gap-1.5 text-xs text-rose-600">
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Please select a valid location from the search suggestions.</span>
+          <span>{t('selectValidLocationError', 'Please select a valid location from the search suggestions.')}</span>
         </div>
       ) : (
         <div className="mt-1 text-[11px] text-slate-400">
-          Search over 600,000 official Indian villages, towns, and cities.
+          {t('searchVillagesHelper', 'Search over 600,000 official Indian villages, towns, and cities.')}
         </div>
       )}
     </div>

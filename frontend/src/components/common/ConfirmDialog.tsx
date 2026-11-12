@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -16,13 +17,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   isOpen,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   isDestructive = false,
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
+
+  const displayConfirm = confirmLabel || t('confirm', 'Confirm');
+  const displayCancel = cancelLabel || t('cancel', 'Cancel');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/40 backdrop-blur-sm animate-in fade-in duration-150">
@@ -48,7 +53,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            {cancelLabel}
+            {displayCancel}
           </button>
           <button
             type="button"
@@ -59,7 +64,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 : 'bg-healthcare-600 hover:bg-healthcare-700 focus:ring-2 focus:ring-healthcare-500/20'
             }`}
           >
-            {confirmLabel}
+            {displayConfirm}
           </button>
         </div>
       </div>

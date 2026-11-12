@@ -55,9 +55,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <HeartHandshake className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-lg font-bold text-navy-900 tracking-tight">CareBridge</span>
+              <span className="text-lg font-bold text-navy-900 tracking-tight">{t('appName', 'CareBridge')}</span>
               <span className="block text-[10px] uppercase font-semibold text-healthcare-700 tracking-wider">
-                Rural Healthcare
+                {t('ruralHealthcare', 'Rural Healthcare')}
               </span>
             </div>
           </div>
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <button
             onClick={onClose}
             className="md:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-            aria-label="Close sidebar"
+            aria-label={t('closeSidebar', 'Close sidebar')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-slate-100 bg-slate-50/70 m-3 rounded-xl text-xs text-slate-500">
           <p className="font-semibold text-slate-700">{t('tagline', 'No Wasted Trips. Better Access.')}</p>
           <p className="mt-0.5 text-[11px] leading-relaxed">
-            Contact your local ASHA worker or village health representative for in-person support.
+            {t('ashaSupportNotice', 'Contact your local ASHA worker or village health representative for in-person support.')}
           </p>
         </div>
       </aside>

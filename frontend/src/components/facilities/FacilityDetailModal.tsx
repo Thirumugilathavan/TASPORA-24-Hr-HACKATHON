@@ -1,8 +1,9 @@
 import React from 'react';
 import { Facility } from '../../types';
-import { FACILITY_TYPE_LABELS } from '../../lib/constants';
+import { getFacilityTypeLabel } from '../../lib/constants';
 import { formatDistance, formatDate } from '../../lib/utils';
-import { X, MapPin, Phone, Clock, Stethoscope, CheckCircle, Calendar } from 'lucide-react';
+import { useTranslation } from '../../context/LanguageContext';
+import { X, MapPin, Phone, Stethoscope, CheckCircle, Calendar } from 'lucide-react';
 import { StatusBadge } from '../common/StatusBadge';
 
 interface FacilityDetailModalProps {
@@ -16,6 +17,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
   onClose,
   onBookAppointment,
 }) => {
+  const { t } = useTranslation();
   if (!facility) return null;
 
   return (
@@ -25,12 +27,12 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
         <div className="flex items-start justify-between p-6 border-b border-slate-100 bg-slate-50/50">
           <div>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-healthcare-100 text-healthcare-800 mb-2">
-              {FACILITY_TYPE_LABELS[facility.facility_type] || facility.facility_type}
+              {getFacilityTypeLabel(facility.facility_type, t)}
             </span>
             <h3 className="text-xl font-bold text-navy-900">{facility.name}</h3>
             <p className="mt-1 text-xs text-slate-500 flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-slate-400" />
-              {facility.address || `${facility.district} District`} • {formatDistance(facility.distance_km)}
+              {facility.address || `${facility.district} ${t('district', 'District')}`} • {formatDistance(facility.distance_km, t)}
             </p>
           </div>
           <button
@@ -49,7 +51,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               <div className="flex items-center gap-2.5 text-slate-700">
                 <Phone className="h-4 w-4 text-healthcare-600 flex-shrink-0" />
                 <span>
-                  <strong className="text-slate-900 block">Phone Helpline:</strong>
+                  <strong className="text-slate-900 block">{t('phoneHelpline', 'Phone Helpline:')}</strong>
                   {facility.contact_number}
                 </span>
               </div>
@@ -58,14 +60,14 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               <div className="flex items-center gap-2.5 text-slate-700">
                 <MapPin className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                 <span>
-                  <strong className="text-slate-900 block">Navigation:</strong>
+                  <strong className="text-slate-900 block">{t('navigation', 'Navigation:')}</strong>
                   <a
                     href={facility.directions_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-emerald-700 hover:underline font-semibold"
                   >
-                    Open in Google Maps ↗
+                    {t('openInGoogleMaps', 'Open in Google Maps ↗')}
                   </a>
                 </span>
               </div>
@@ -74,7 +76,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               <div className="flex items-center gap-2.5 text-slate-700">
                 <span className="h-4 w-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center text-slate-600">G</span>
                 <span>
-                  <strong className="text-slate-900 block">Facility Ownership:</strong>
+                  <strong className="text-slate-900 block">{t('facilityOwnership', 'Facility Ownership:')}</strong>
                   {facility.ownership}
                 </span>
               </div>
@@ -84,17 +86,17 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
           {/* Operational Availability Note */}
           <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 text-xs text-amber-900">
             <p className="font-semibold flex items-center gap-1.5">
-              <span>⚠️</span> Availability Not Verified
+              <span>⚠️ </span> {t('availNotVerified', 'Availability Not Verified')}
             </p>
             <p className="text-[11px] text-amber-800 mt-0.5">
-              Distances are calculated geographically from your location. Live attendance and medicine stock are subject to real-time verification before travel.
+              {t('availNotVerifiedDesc', 'Distances are calculated geographically from your location. Live attendance and medicine stock are subject to real-time verification before travel.')}
             </p>
           </div>
 
           {/* Doctors on Duty */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
-              <Stethoscope className="h-4 w-4 text-healthcare-700" /> Doctors & Medical Staff
+              <Stethoscope className="h-4 w-4 text-healthcare-700" /> {t('doctorsMedicalStaff', 'Doctors & Medical Staff')}
             </h4>
             {facility.doctors && facility.doctors.length > 0 ? (
               <div className="space-y-2.5">
@@ -113,7 +115,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
                       )}
                       {doc.last_verified_at && (
                         <p className="text-[10px] text-slate-400 mt-1">
-                          Verified {formatDate(doc.last_verified_at)}
+                          {t('verified', 'Verified')} {formatDate(doc.last_verified_at, t)}
                         </p>
                       )}
                     </div>
@@ -121,14 +123,14 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic">No specific doctor schedules registered for this facility.</p>
+              <p className="text-xs text-slate-500 italic">{t('noDoctorSchedules', 'No specific doctor schedules registered for this facility.')}</p>
             )}
           </div>
 
           {/* Services Provided */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-healthcare-700" /> Available Healthcare Services
+              <CheckCircle className="h-4 w-4 text-healthcare-700" /> {t('availServices', 'Available Healthcare Services')}
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {(facility.services || []).length > 0 ? (
@@ -142,7 +144,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-slate-500 italic col-span-2">Standard primary outpatient and emergency care services available.</p>
+                <p className="text-xs text-slate-500 italic col-span-2">{t('standardServicesDesc', 'Standard primary outpatient and emergency care services available.')}</p>
               )}
             </div>
           </div>
@@ -151,7 +153,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 px-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            Directions and travel advisory provided upon booking.
+            {t('travelAdvisoryNotice', 'Directions and travel advisory provided upon booking.')}
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -159,7 +161,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
             >
-              Close
+              {t('close', 'Close')}
             </button>
             <button
               type="button"
@@ -169,7 +171,7 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               }}
               className="px-4 py-2 text-xs font-semibold text-white bg-healthcare-600 rounded-lg hover:bg-healthcare-700 shadow-sm flex items-center gap-1.5"
             >
-              <Calendar className="h-3.5 w-3.5" /> Book Appointment Here
+              <Calendar className="h-3.5 w-3.5" /> {t('bookAppointmentHere', 'Book Appointment Here')}
             </button>
           </div>
         </div>

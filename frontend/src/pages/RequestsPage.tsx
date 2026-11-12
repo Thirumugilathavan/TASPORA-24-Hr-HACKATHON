@@ -10,13 +10,16 @@ import { EmptyState } from '../components/common/EmptyState';
 import { HealthcareRequest, RecommendationItem } from '../types';
 import { requestService } from '../services/requestService';
 import { recommendationService } from '../services/recommendationService';
+import { getRequestTypeLabel } from '../lib/constants';
 import { useNotification } from '../context/NotificationContext';
-import { PlusCircle, Sparkles, Filter, X } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
+import { PlusCircle, Sparkles, Filter } from 'lucide-react';
 
 const STATUS_FILTERS = ['ALL', 'PENDING', 'RECOMMENDED', 'BOOKED', 'COMPLETED'];
 
 export const RequestsPage: React.FC = () => {
   const { notify } = useNotification();
+  const { t } = useTranslation();
 
   const [requests, setRequests] = useState<HealthcareRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ export const RequestsPage: React.FC = () => {
         handleSelectRequest(data[0]);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load requests.');
+      setError(err.message || t('errorTitle', 'Failed to load requests.'));
     } finally {
       setLoading(false);
     }
@@ -70,12 +73,13 @@ export const RequestsPage: React.FC = () => {
     }
   };
 
-  const handleSelectRecommendation = (item: RecommendationItem) => {
-    if (!selectedRequest) return;
-    setBookingDetails({
-      facilityId: item.facility_id,
-      requestId: selectedRequest.id,
-    });
+  const handleSelectRecommendation = (rec: RecommendationItem) => {
+    if (selectedRequest) {
+      setBookingDetails({
+        facilityId: rec.facility_id,
+        requestId: selectedRequest.id,
+      });
+    }
   };
 
   const filteredRequests = requests.filter((r) => {
@@ -83,19 +87,36 @@ export const RequestsPage: React.FC = () => {
     return r.status === statusFilter;
   });
 
+  const getStatusFilterLabel = (status: string) => {
+    switch (status) {
+      case 'ALL':
+        return t('filterAllRequests', 'All Requests');
+      case 'PENDING':
+        return t('filterPending', 'Pending');
+      case 'RECOMMENDED':
+        return t('filterRecommended', 'Recommended');
+      case 'BOOKED':
+        return t('filterBooked', 'Booked');
+      case 'COMPLETED':
+        return t('filterCompleted', 'Completed');
+      default:
+        return status;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
-          title="Care Requests & AI Optimization"
-          subtitle="Smart routing minimizing travel cost and avoiding stockout risk for rural patients"
+          title={t('requestsTitle', 'Healthcare Requests & AI Routing')}
+          subtitle={t('requestsSubtitle', 'Track your requests, consultations, and AI-recommended care options')}
         />
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl shadow-sm transition-colors flex-shrink-0"
         >
           <PlusCircle className="w-4 h-4" />
-          Create Care Request
+          {t('createNewRequest', 'Create Request')}
         </button>
       </div>
 
@@ -112,21 +133,21 @@ export const RequestsPage: React.FC = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {s}
+            {getStatusFilterLabel(s)}
           </button>
         ))}
       </div>
 
       {/* Main Two-Column Layout */}
       {loading ? (
-        <LoadingState message="Loading care requests..." />
+        <LoadingState message={t('fetchingRequests', 'Fetching your healthcare requests...')} />
       ) : error ? (
         <ErrorState message={error} onRetry={loadRequests} />
       ) : filteredRequests.length === 0 ? (
         <EmptyState
-          title="No requests found"
-          message="No healthcare requests found for this filter. Create one to get started."
-          actionLabel="Create Request"
+          title={t('noRequestsFound', 'No requests found')}
+          message={t('noRequestsFoundDesc', 'No healthcare requests found for this filter. Create one to get started.')}
+          actionLabel={t('createNewRequest', 'Create Request')}
           onAction={() => setIsCreateModalOpen(true)}
         />
       ) : (
@@ -134,7 +155,7 @@ export const RequestsPage: React.FC = () => {
           {/* Requests List (5 cols on large screens) */}
           <div className="lg:col-span-5 space-y-3">
             <h3 className="text-sm font-semibold text-slate-700 px-1">
-              Requests List ({filteredRequests.length})
+              {t('requestsTitle', 'Requests')} ({filteredRequests.length})
             </h3>
             {filteredRequests.map((req) => (
               <div
@@ -161,10 +182,10 @@ export const RequestsPage: React.FC = () => {
                 <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
                   <div>
                     <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider">
-                      Selected Request
+                      {t('selectedRequest', 'Selected Request')}
                     </span>
                     <h3 className="text-base font-semibold text-slate-900 mt-0.5">
-                      {selectedRequest.request_type} — {selectedRequest.description}
+                      {getRequestTypeLabel(selectedRequest.request_type, t)} — {selectedRequest.description}
                     </h3>
                   </div>
                   <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
@@ -181,9 +202,9 @@ export const RequestsPage: React.FC = () => {
             ) : (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 text-center text-slate-500">
                 <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium">Select a request from the list</p>
+                <p className="text-sm font-medium">{t('selectRequestFromList', 'Select a request from the list')}</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  View automated Bayesian facility suitability and expected travel loss rankings
+                  {t('viewAutomatedSuitability', 'View automated Bayesian facility suitability and expected travel loss rankings')}
                 </p>
               </div>
             )}
@@ -198,7 +219,7 @@ export const RequestsPage: React.FC = () => {
         onCreated={(newReq) => {
           setRequests([newReq, ...requests]);
           handleSelectRequest(newReq);
-          notify('Request created and optimized route calculated!', 'success');
+          notify(t('requestSubmittedNotify', 'Healthcare request submitted successfully with AI routing!'), 'success');
         }}
       />
 

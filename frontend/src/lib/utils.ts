@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(dateString?: string): string {
-  if (!dateString) return 'Date unavailable';
+export function formatDate(dateString?: string, t?: (key: string, fallback?: string) => string): string {
+  if (!dateString) return t ? t('dateUnavailable', 'Date unavailable') : 'Date unavailable';
   try {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
@@ -34,11 +34,11 @@ export function formatTime(timeString?: string): string {
   return timeString;
 }
 
-export function formatDistance(distanceKm?: number): string {
+export function formatDistance(distanceKm?: number, t?: (key: string, params?: any) => string): string {
   if (distanceKm === undefined || distanceKm === null) {
-    return 'Distance unavailable';
+    return t ? t('distanceUnavailable', 'Distance unavailable') : 'Distance unavailable';
   }
-  return `${distanceKm} km away`;
+  return t ? t('kmAway', { dist: distanceKm }) : `${distanceKm} km away`;
 }
 
 export function formatCurrency(amount?: number): string {

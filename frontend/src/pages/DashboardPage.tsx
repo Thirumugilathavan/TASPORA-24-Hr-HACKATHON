@@ -2,18 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
-  Pill,
   ClipboardList,
   Calendar,
   PlusCircle,
   MapPin,
   ArrowRight,
-  Sparkles,
   PhoneCall,
   Activity,
   HeartPulse,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 import { StatCard } from '../components/common/StatCard';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
@@ -21,7 +20,6 @@ import { AppointmentCard } from '../components/appointments/AppointmentCard';
 import { BookAppointmentModal } from '../components/appointments/BookAppointmentModal';
 import { CreateRequestModal } from '../components/requests/CreateRequestModal';
 import { RequestCard } from '../components/requests/RequestCard';
-import { FacilityDetailModal } from '../components/facilities/FacilityDetailModal';
 import { NearbyFacilitiesSection } from '../components/facilities/NearbyFacilitiesSection';
 import { Facility, HealthcareRequest, Appointment } from '../types';
 import { facilityService } from '../services/facilityService';
@@ -29,11 +27,13 @@ import { requestService } from '../services/requestService';
 import { appointmentService } from '../services/appointmentService';
 import { useNotification } from '../context/NotificationContext';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { formatDate } from '../lib/utils';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, currentPatient } = useAuth();
   const { notify } = useNotification();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export const DashboardPage: React.FC = () => {
   // Modals state
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
+  const [, setSelectedFacility] = useState<Facility | null>(null);
 
   // Cancel dialog
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
@@ -75,7 +75,7 @@ export const DashboardPage: React.FC = () => {
       setRequests(reqData);
       setAppointments(apptData);
     } catch (err: any) {
-      setError(err.message || 'Unable to load dashboard data. Please check connection.');
+      setError(err.message || t('errorTitle', 'Unable to load dashboard data. Please check connection.'));
     } finally {
       setLoading(false);
     }
@@ -85,18 +85,18 @@ export const DashboardPage: React.FC = () => {
     if (!cancelTarget) return;
     try {
       await appointmentService.cancelAppointment(cancelTarget.id);
-      notify('Appointment cancelled successfully.', 'info');
+      notify(t('appointmentCancelledNotify', 'Appointment cancelled successfully.'), 'info');
       setCancelTarget(null);
       // Refresh appointments
       const updated = await appointmentService.getAppointments();
       setAppointments(updated);
     } catch (err: any) {
-      notify(err.message || 'Failed to cancel appointment', 'error');
+      notify(err.message || t('errorTitle', 'Failed to cancel appointment'), 'error');
     }
   };
 
   if (loading) {
-    return <LoadingState message="Loading your healthcare dashboard..." />;
+    return <LoadingState message={t('loadingDashboard', 'Loading your healthcare dashboard...')} />;
   }
 
   if (error) {
@@ -115,16 +115,16 @@ export const DashboardPage: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-medium text-emerald-100 mb-2">
             <HeartPulse className="w-3.5 h-3.5" />
-            Rural Healthcare Coordination Active
+            {t('ruralCoordActive', 'Rural Healthcare Coordination Active')}
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Welcome back, {user?.name || 'Patient'}!
+            {t('welcomeBack', { name: user?.name || t('rolePatient', 'Patient') })}
           </h1>
           <p className="text-emerald-100 text-sm mt-1 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-300" />
-            Home Village: <strong>{currentPatient?.village?.name || 'Thiruvallur District'}</strong>
+            {t('homeVillage', 'Home Village:')} <strong>{currentPatient?.village?.name || 'Thiruvallur District'}</strong>
             <span className="text-emerald-300">•</span>
-            Registered Phone: <strong>{user?.phone || '9876543210'}</strong>
+            {t('registeredPhone', 'Registered Phone:')} <strong>{user?.phone || '9876543210'}</strong>
           </p>
         </div>
 
@@ -134,14 +134,14 @@ export const DashboardPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-800 font-medium text-sm rounded-xl shadow-sm hover:bg-emerald-50 transition-colors"
           >
             <PlusCircle className="w-4 h-4 text-emerald-600" />
-            Create Request
+            {t('createNewRequest', 'Create Request')}
           </button>
           <button
             onClick={() => setIsBookModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-medium text-sm rounded-xl border border-white/20 transition-colors"
           >
             <Calendar className="w-4 h-4" />
-            Book Visit
+            {t('bookVisit', 'Book Visit')}
           </button>
         </div>
       </div>
@@ -149,27 +149,27 @@ export const DashboardPage: React.FC = () => {
       {/* Stats Overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Nearby Facilities"
+          title={t('statNearbyFacilities', 'Nearby Facilities')}
           value={facilities.length}
-          subtitle={currentPatient?.village?.name ? `Near ${currentPatient.village.name}` : 'Ranked by distance'}
+          subtitle={currentPatient?.village?.name ? t('subtitleNearVillage', { village: currentPatient.village.name }) : t('subtitleRankedByDistance', 'Ranked by distance')}
           icon={<Building2 className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
-          title="Active Requests"
+          title={t('statActiveRequests', 'Active Requests')}
           value={pendingRequests.length}
-          subtitle="Awaiting dispatch or visits"
+          subtitle={t('subtitleAwaitingDispatch', 'Awaiting dispatch or visits')}
           icon={<ClipboardList className="w-5 h-5 text-sky-600" />}
         />
         <StatCard
-          title="Upcoming Visits"
+          title={t('statUpcomingVisits', 'Upcoming Visits')}
           value={upcomingAppointments.length}
-          subtitle="Confirmed doctor slots"
+          subtitle={t('subtitleConfirmedSlots', 'Confirmed doctor slots')}
           icon={<Calendar className="w-5 h-5 text-amber-600" />}
         />
         <StatCard
-          title="ASHA Support"
-          value="Online"
-          subtitle="Village health coordinator"
+          title={t('statAshaSupport', 'ASHA Support')}
+          value={t('online', 'Online')}
+          subtitle={t('subtitleVillageCoordinator', 'Village health coordinator')}
           icon={<Activity className="w-5 h-5 text-purple-600" />}
         />
       </div>
@@ -188,14 +188,14 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Upcoming Appointments</h2>
-                <p className="text-xs text-slate-500">Scheduled consultations at primary centers</p>
+                <h2 className="text-base font-semibold text-slate-900">{t('upcomingAppointments', 'Upcoming Appointments')}</h2>
+                <p className="text-xs text-slate-500">{t('scheduledConsultations', 'Scheduled consultations at primary centers')}</p>
               </div>
               <button
                 onClick={() => navigate('/appointments')}
                 className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
-                View all ({appointments.length})
+                {t('viewAll', 'View all')} ({appointments.length})
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -203,14 +203,14 @@ export const DashboardPage: React.FC = () => {
             {upcomingAppointments.length === 0 ? (
               <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">No appointments scheduled</p>
-                <p className="text-xs text-slate-400 mt-0.5">Need to see a doctor at the local PHC?</p>
+                <p className="text-sm font-medium text-slate-600">{t('noAppointmentsScheduled', 'No appointments scheduled')}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t('needToSeeDoctor', 'Need to see a doctor at the local PHC?')}</p>
                 <button
                   onClick={() => setIsBookModalOpen(true)}
                   className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100/70 hover:bg-emerald-100 rounded-lg transition-colors"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  Book an Appointment
+                  {t('bookAnAppointment', 'Book an Appointment')}
                 </button>
               </div>
             ) : (
@@ -230,14 +230,14 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Recent Healthcare Requests</h2>
-                <p className="text-xs text-slate-500">Refill, consultation, and diagnostic requests</p>
+                <h2 className="text-base font-semibold text-slate-900">{t('recentRequests', 'Recent Healthcare Requests')}</h2>
+                <p className="text-xs text-slate-500">{t('recentRequestsSub', 'Refill, consultation, and diagnostic requests')}</p>
               </div>
               <button
                 onClick={() => navigate('/requests')}
                 className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
-                View all ({requests.length})
+                {t('viewAll', 'View all')} ({requests.length})
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -245,16 +245,16 @@ export const DashboardPage: React.FC = () => {
             {requests.length === 0 ? (
               <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">No recent requests</p>
+                <p className="text-sm font-medium text-slate-600">{t('noRecentRequests', 'No recent requests')}</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Submit a request for medicine refills or specialist checks
+                  {t('submitRequestForMeds', 'Submit a request for medicine refills or specialist checks')}
                 </p>
                 <button
                   onClick={() => setIsRequestModalOpen(true)}
                   className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100/70 hover:bg-emerald-100 rounded-lg transition-colors"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  Create Request
+                  {t('createNewRequest', 'Create Request')}
                 </button>
               </div>
             ) : (
@@ -279,27 +279,27 @@ export const DashboardPage: React.FC = () => {
               <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
                 <HeartPulse className="w-4 h-4 text-emerald-600" />
               </span>
-              <h2 className="text-sm font-bold text-slate-900">No Wasted Trips Policy</h2>
+              <h2 className="text-sm font-bold text-slate-900">{t('noWastedTripsPolicy', 'No Wasted Trips Policy')}</h2>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              CareBridge ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.
+              {t('noWastedTripsDesc', 'CareBridge ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.')}
             </p>
             <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5 text-slate-600">
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                <span className="text-emerald-600">✓</span> 147k+ Government Health Centers
+                <span className="text-emerald-600">✓</span> {t('verifiedGovCount', '147k+ Government Health Centers')}
               </p>
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                <span className="text-emerald-600">✓</span> Real Census coordinate resolution
+                <span className="text-emerald-600">✓</span> {t('realCensusResolution', 'Real Census coordinate resolution')}
               </p>
               <p className="text-[11px] text-slate-500 pt-1">
-                Before travelling for urgent medication or specialist care, create a request or confirm attendance.
+                {t('advisoryNotice', 'Before travelling for urgent medication or specialist care, create a request or confirm attendance.')}
               </p>
             </div>
             <button
               onClick={() => navigate('/facilities')}
               className="mt-3.5 w-full py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center justify-center gap-1.5"
             >
-              Browse All Facilities Directory
+              {t('browseAllFacilities', 'Browse All Facilities Directory')}
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -308,10 +308,10 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 text-white shadow-sm">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-emerald-400" />
-              Emergency Help Desks
+              {t('emergencyHelpDesks', 'Emergency Help Desks')}
             </h3>
             <p className="text-xs text-slate-300 mt-1">
-              Direct hotlines for ambulance and maternal support:
+              {t('emergencyHelplineSub', 'Direct hotlines for ambulance and maternal support:')}
             </p>
 
             <div className="mt-4 space-y-2">
@@ -319,15 +319,15 @@ export const DashboardPage: React.FC = () => {
                 href="tel:108"
                 className="flex items-center justify-between p-2.5 rounded-lg bg-white/10 hover:bg-white/15 transition-colors text-sm"
               >
-                <span className="font-medium">108 Emergency Ambulance</span>
-                <span className="px-2 py-0.5 rounded bg-rose-500/80 text-white font-bold text-xs">FREE</span>
+                <span className="font-medium">{t('emergencyAmbulance108', '108 Emergency Ambulance')}</span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/80 text-white font-bold text-xs">{t('free', 'FREE')}</span>
               </a>
               <a
                 href="tel:102"
                 className="flex items-center justify-between p-2.5 rounded-lg bg-white/10 hover:bg-white/15 transition-colors text-sm"
               >
-                <span className="font-medium">102 Janani Shishu Helpline</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/80 text-white font-bold text-xs">FREE</span>
+                <span className="font-medium">{t('jananiHelpline102', '102 Janani Shishu Helpline')}</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/80 text-white font-bold text-xs">{t('free', 'FREE')}</span>
               </a>
             </div>
           </div>
@@ -338,39 +338,25 @@ export const DashboardPage: React.FC = () => {
       <CreateRequestModal
         isOpen={isRequestModalOpen}
         onClose={() => setIsRequestModalOpen(false)}
-        onCreated={(req) => {
-          setRequests([req, ...requests]);
-          notify('Request submitted successfully with AI routing!', 'success');
-        }}
+        onCreated={() => loadDashboardData()}
       />
 
       <BookAppointmentModal
         isOpen={isBookModalOpen}
         onClose={() => setIsBookModalOpen(false)}
-        onSuccess={(appt) => {
-          setAppointments([appt, ...appointments]);
-        }}
+        onSuccess={() => loadDashboardData()}
       />
 
-      {selectedFacility && (
-        <FacilityDetailModal
-          facility={selectedFacility}
-          onClose={() => setSelectedFacility(null)}
-          onBookAppointment={() => {
-            setSelectedFacility(null);
-            setIsBookModalOpen(true);
-          }}
-        />
-      )}
-
-      {/* Cancel Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!cancelTarget}
-        title="Cancel Appointment"
-        message={`Are you sure you want to cancel your appointment at ${cancelTarget?.facility_name} on ${cancelTarget?.appointment_date}?`}
-        confirmLabel="Yes, Cancel"
-        cancelLabel="Keep Appointment"
-        isDestructive
+        title={t('cancelApptTitle', 'Cancel Appointment')}
+        message={t('cancelApptMessage', {
+          facility: cancelTarget?.facility_name || '',
+          date: cancelTarget ? formatDate(cancelTarget.appointment_date, t) : '',
+        })}
+        confirmLabel={t('yesCancel', 'Yes, Cancel')}
+        cancelLabel={t('cancel', 'Cancel')}
+        isDestructive={true}
         onConfirm={handleConfirmCancel}
         onCancel={() => setCancelTarget(null)}
       />

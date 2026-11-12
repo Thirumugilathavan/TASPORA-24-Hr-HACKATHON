@@ -1,8 +1,9 @@
 import React from 'react';
 import { Facility } from '../../types';
 import { formatDistance } from '../../lib/utils';
-import { FACILITY_TYPE_LABELS } from '../../lib/constants';
-import { MapPin, Stethoscope, ChevronRight, Phone, Clock } from 'lucide-react';
+import { getFacilityTypeLabel } from '../../lib/constants';
+import { useTranslation } from '../../context/LanguageContext';
+import { MapPin, Stethoscope, ChevronRight, Clock } from 'lucide-react';
 
 interface FacilityCardProps {
   facility: Facility;
@@ -15,7 +16,8 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
   onViewDetails,
   onBookAppointment,
 }) => {
-  const typeLabel = FACILITY_TYPE_LABELS[facility.facility_type] || facility.facility_type;
+  const { t } = useTranslation();
+  const typeLabel = getFacilityTypeLabel(facility.facility_type, t);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 hover:border-healthcare-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
@@ -26,14 +28,14 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
           </span>
           <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5 text-slate-400" />
-            {formatDistance(facility.distance_km)}
+            {formatDistance(facility.distance_km, t)}
           </span>
         </div>
 
         <h3 className="text-base font-bold text-navy-900 leading-snug">{facility.name}</h3>
 
         <p className="mt-1.5 text-xs text-slate-500 line-clamp-1">
-          {facility.address || `${facility.village_name || 'Rural block'}, District ${facility.district}`}
+          {facility.address || `${facility.village_name || t('ruralBlock', 'Rural block')}, ${t('district', 'District')} ${facility.district}`}
         </p>
 
         {facility.operating_hours && (
@@ -65,7 +67,7 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
             ))}
             {facility.services.length > 3 && (
               <span className="text-[11px] px-1.5 py-0.5 text-slate-400 font-medium">
-                +{facility.services.length - 3} more
+                +{facility.services.length - 3} {t('more', 'more')}
               </span>
             )}
           </div>
@@ -78,7 +80,7 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
           onClick={() => onViewDetails(facility)}
           className="text-xs font-semibold text-healthcare-700 hover:text-healthcare-800 flex items-center gap-1 transition-colors py-1"
         >
-          View Facility Details <ChevronRight className="h-3.5 w-3.5" />
+          {t('viewFacilityDetails', 'View Facility Details')} <ChevronRight className="h-3.5 w-3.5" />
         </button>
 
         {onBookAppointment && (
@@ -87,7 +89,7 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
             onClick={() => onBookAppointment(facility)}
             className="px-3 py-1.5 bg-healthcare-600 hover:bg-healthcare-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
           >
-            Book Visit
+            {t('bookVisit', 'Book Visit')}
           </button>
         )}
       </div>

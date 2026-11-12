@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import { Facility, Village, NearbyFacilityListResponse } from '../../types';
 import { facilityService } from '../../services/facilityService';
-import { FACILITY_TYPE_LABELS } from '../../lib/constants';
+import { getFacilityTypeLabel } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { LocationSearchInput } from '../common/LocationSearchInput';
 
 interface NearbyFacilitiesSectionProps {
@@ -28,6 +29,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
   initialRadius = 10,
 }) => {
   const { currentPatient } = useAuth();
+  const { t } = useTranslation();
 
   const [activeLocation, setActiveLocation] = useState<Village | null>(null);
   const [isChangingLocation, setIsChangingLocation] = useState(false);
@@ -39,7 +41,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [resolvedLocation, setResolvedLocation] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
+  const [, setResolvedLocation] = useState<NearbyFacilityListResponse['resolved_location'] | null>(null);
   const [pageOffset, setPageOffset] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(false);
 
@@ -123,13 +125,13 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         setPageOffset(offset);
         setHasMore((offset + (res.items || []).length) < (res.total || 0));
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch nearby healthcare facilities.');
+        setError(err.message || t('errorTitle', 'Failed to fetch nearby healthcare facilities.'));
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [radiusKm, selectedType, usingGps, gpsCoords, activeLocation]
+    [radiusKm, selectedType, usingGps, gpsCoords, activeLocation, t]
   );
 
   useEffect(() => {
@@ -196,18 +198,18 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
 
   const radiusOptions = [5, 10, 25, 50, 100];
   const typeFilterOptions = [
-    { value: 'ALL', label: 'All Types' },
-    { value: 'SCE', label: 'Sub-Centres (SCE)' },
-    { value: 'PHC', label: 'PHCs' },
-    { value: 'CHC', label: 'CHCs' },
-    { value: 'HOSPITAL', label: 'Hospitals' },
+    { value: 'ALL', label: t('all', 'All') },
+    { value: 'SCE', label: t('typeSubCentres', 'Sub-Centres (SCE)') },
+    { value: 'PHC', label: t('typePhcs', 'Primary Health (PHC)') },
+    { value: 'CHC', label: t('typeChcs', 'Community Health (CHC)') },
+    { value: 'HOSPITAL', label: t('typeHospitals', 'Hospitals (THO/DHO)') },
   ];
 
   const currentLocationLabel = usingGps
     ? `Device GPS (${gpsCoords?.lat.toFixed(4)}, ${gpsCoords?.lon.toFixed(4)})`
     : activeLocation
     ? `${activeLocation.name}, ${activeLocation.district}${activeLocation.state ? `, ${activeLocation.state}` : ''}`
-    : 'No location selected';
+    : t('empty', 'No location selected');
 
   const isUserRegisteredVillage =
     !usingGps &&
@@ -226,9 +228,9 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                 <Compass className="w-5 h-5 text-emerald-600" />
               </span>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Healthcare Facilities Near You</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('facilitiesNearYou', 'Healthcare Facilities Near You')}</h2>
                 <p className="text-xs text-slate-500">
-                  Automatically ranked by straight-line distance from your registered location (closest facility first)
+                  {t('facilitiesNearYouSub', 'Automatically ranked by straight-line distance from your registered location (closest facility first)')}
                 </p>
               </div>
             </div>
@@ -240,7 +242,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
               onClick={() => setIsChangingLocation(!isChangingLocation)}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors"
             >
-              {isChangingLocation ? 'Hide Location' : 'Change Location'}
+              {isChangingLocation ? t('close', 'Close') : t('selectChangeLocation', 'Select / Change Location')}
             </button>
 
             <button
@@ -254,14 +256,14 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
               title={usingGps ? 'Click to switch back to registered village' : 'Use live device GPS coordinates'}
             >
               <Navigation className={`w-3.5 h-3.5 ${usingGps ? 'text-sky-600' : 'text-slate-500'}`} />
-              {gpsLoading ? 'Acquiring GPS...' : usingGps ? 'Using GPS Location' : 'Use My GPS'}
+              {gpsLoading ? t('acquiringGps', 'Acquiring GPS...') : usingGps ? t('usingGpsLocation', 'Using GPS Location') : t('useDeviceGps', 'Use Device GPS')}
             </button>
 
             <button
               onClick={() => fetchNearby(0, false)}
               disabled={loading}
               className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Refresh nearby facilities"
+              title={t('refresh', 'Refresh')}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
@@ -272,12 +274,12 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium">
             <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-            Location: <strong className="text-slate-900">{currentLocationLabel}</strong>
+            <span className="text-slate-500">{t('referenceLocation', 'Reference Location:')}</span> <strong className="text-slate-900">{currentLocationLabel}</strong>
           </span>
           {isUserRegisteredVillage && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-800">
               <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-              Registered Profile
+              {t('registeredProfileLocation', 'Registered Profile Location')}
             </span>
           )}
           {activeLocation?.latitude && !usingGps && (
@@ -292,19 +294,19 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
           <div className="mt-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Select Village, Town, or City
+                {t('selectVillageTitle', 'Select Your Village, Town, or City')}
               </h4>
               <button
                 onClick={() => setIsChangingLocation(false)}
                 className="text-xs text-slate-400 hover:text-slate-600"
               >
-                Close ✕
+                {t('close', 'Close')} ✕
               </button>
             </div>
             <LocationSearchInput
               selectedVillageId={activeLocation?.id || ''}
               onSelect={handleLocationSelect}
-              placeholder="Search Indian village, town, or city to resolve coordinates..."
+              placeholder={t('searchVillagePlaceholder', 'Type village, town, or city name...')}
             />
           </div>
         )}
@@ -320,7 +322,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
           {/* Radius Selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-slate-600 mr-1">Search Radius:</span>
+            <span className="text-xs font-semibold text-slate-600 mr-1">{t('searchRadius', 'Search Radius:')}</span>
             {radiusOptions.map((r) => (
               <button
                 key={r}
@@ -338,7 +340,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
 
           {/* Type Filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto">
-            <span className="text-xs font-semibold text-slate-600 mr-1">Filter Type:</span>
+            <span className="text-xs font-semibold text-slate-600 mr-1">{t('filter', 'Filter')}:</span>
             {typeFilterOptions.map((opt) => (
               <button
                 key={opt.value}
@@ -361,8 +363,8 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center text-center">
             <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-medium text-slate-700">Calculating distances to nearby facilities...</p>
-            <p className="text-xs text-slate-400 mt-1">Searching official MOHFW registry within {radiusKm} km</p>
+            <p className="text-sm font-medium text-slate-700">{t('calculatingDistancesRegistry', 'Calculating distances to nearby facilities...')}</p>
+            <p className="text-xs text-slate-400 mt-1">{t('searchingRegistryWithin', { radius: radiusKm })}</p>
           </div>
         ) : error ? (
           <div className="py-8 text-center bg-rose-50 rounded-lg border border-rose-200 p-4">
@@ -372,29 +374,29 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
               onClick={() => fetchNearby(0, false)}
               className="mt-3 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-lg transition-colors"
             >
-              Retry
+              {t('retry', 'Retry')}
             </button>
           </div>
         ) : !activeLocation && !usingGps ? (
           <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6 space-y-3">
             <Compass className="w-8 h-8 text-slate-400 mx-auto" />
-            <p className="text-sm font-semibold text-slate-800">Please Select Your Location</p>
+            <p className="text-sm font-semibold text-slate-800">{t('selectVillageTitle', 'Select Your Village, Town, or City')}</p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Select your registered village or town above to view nearby healthcare facilities.
+              {t('selectVillageDesc', 'Search nationwide database of 625,000+ Indian settlements to dynamically resolve accurate latitude and longitude coordinates.')}
             </p>
             <button
               onClick={() => setIsChangingLocation(true)}
               className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
             >
-              Select Village / City
+              {t('selectVillageCityBtn', 'Select Village / City')}
             </button>
           </div>
         ) : facilities.length === 0 ? (
           <div className="py-10 text-center">
             <Building2 className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <h3 className="text-sm font-bold text-slate-800">No healthcare facilities found within {radiusKm} km</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('noFacilitiesWithin', { radius: radiusKm })}</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              There are no matching facilities within {radiusKm} km of {currentLocationLabel}. Try expanding your search radius to locate available regional centers.
+              {t('noFacilitiesWithinDesc', { radius: radiusKm, location: currentLocationLabel })}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2">
               {radiusKm < 25 && (
@@ -402,7 +404,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                   onClick={() => setRadiusKm(25)}
                   className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
                 >
-                  Expand to 25 km
+                  {t('expandTo25km', 'Expand to 25 km')}
                 </button>
               )}
               {radiusKm < 50 && (
@@ -410,7 +412,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                   onClick={() => setRadiusKm(50)}
                   className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
                 >
-                  Expand to 50 km
+                  {t('expandTo50km', 'Expand to 50 km')}
                 </button>
               )}
               {radiusKm < 100 && (
@@ -418,7 +420,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                   onClick={() => setRadiusKm(100)}
                   className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
                 >
-                  Expand to 100 km
+                  {t('expandTo100km', 'Expand to 100 km')}
                 </button>
               )}
             </div>
@@ -427,13 +429,13 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
               <span>
-                Found <strong>{totalCount}</strong> eligible {totalCount === 1 ? 'facility' : 'facilities'} within {radiusKm} km
+                {t('showingFacilitiesWithin', { count: facilities.length, total: totalCount, radius: radiusKm })}
               </span>
-              <span className="text-emerald-700 font-medium">Ranked #1 (closest) to #{facilities.length}</span>
+              <span className="text-emerald-700 font-medium">{t('rankedClosestTo', { count: facilities.length })}</span>
             </div>
 
             {facilities.map((fac, idx) => {
-              const typeLabel = FACILITY_TYPE_LABELS[fac.facility_type] || fac.facility_type;
+              const typeLabel = getFacilityTypeLabel(fac.facility_type, t);
               const isClosest = idx === 0 && pageOffset === 0;
 
               return (
@@ -456,7 +458,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                               : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          #{idx + 1} {isClosest ? 'Closest' : ''}
+                          #{idx + 1} {isClosest ? t('closest', 'Closest') : ''}
                         </span>
 
                         {/* Facility Type Badge */}
@@ -467,7 +469,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                         {/* Distance Badge */}
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
                           <MapPin className="w-3 h-3 text-emerald-700" />
-                          {fac.distance_km !== undefined ? `${fac.distance_km} km away` : 'Near you'}
+                          {fac.distance_km !== undefined ? t('kmAway', { dist: fac.distance_km }) : t('nearYou', 'Near you')}
                         </span>
                       </div>
 
@@ -485,14 +487,14 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <span
                           className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
-                          title="Operational hours and real-time attendance require active staff/ASHA verification"
+                          title={t('availabilityTooltip', 'Operational hours and real-time attendance require active staff/ASHA verification')}
                         >
                           <Info className="w-3 h-3 text-slate-400" />
-                          Availability not verified
+                          {t('availabilityNotVerified', 'Availability not verified')}
                         </span>
                         {fac.ownership && (
                           <span className="text-[11px] text-slate-400">
-                            Ownership: <span className="text-slate-600 font-medium">{fac.ownership}</span>
+                            {t('facilityOwnership', 'Facility Ownership:')} <span className="text-slate-600 font-medium">{fac.ownership}</span>
                           </span>
                         )}
                       </div>
@@ -508,7 +510,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          Directions
+                          {t('directions', 'Directions')}
                         </a>
                       )}
                       {onSelectFacility && (
@@ -516,7 +518,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                           onClick={() => onSelectFacility(fac)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
                         >
-                          Details
+                          {t('details', 'Details')}
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -537,11 +539,11 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
                   {loadingMore ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                      Loading more...
+                      {t('loadingMore', 'Loading more...')}
                     </>
                   ) : (
                     <>
-                      Show More Facilities ({facilities.length} of {totalCount})
+                      {t('showMoreFacilities', { count: facilities.length, total: totalCount })}
                       <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                     </>
                   )}

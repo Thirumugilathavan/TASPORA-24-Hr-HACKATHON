@@ -2,7 +2,8 @@ import React from 'react';
 import { Medicine, StockAvailabilityItem } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { formatDate, formatDistance } from '../../lib/utils';
-import { Pill, MapPin, Building2, Clock, AlertTriangle } from 'lucide-react';
+import { useTranslation } from '../../context/LanguageContext';
+import { Pill, Building2, Clock, AlertTriangle } from 'lucide-react';
 
 interface MedicineCardProps {
   medicine: Medicine;
@@ -17,7 +18,9 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
   availability,
   onRequestRefill,
 }) => {
+  const { t } = useTranslation();
   const items = stockItems || availability || [];
+
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 hover:border-healthcare-300 transition-all duration-200">
       <div className="flex items-start justify-between gap-4">
@@ -48,7 +51,7 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
             onClick={() => onRequestRefill(medicine)}
             className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 bg-healthcare-50 text-healthcare-800 border border-healthcare-200 rounded-lg hover:bg-healthcare-100 transition-colors shadow-2xs"
           >
-            Request Refill
+            {t('requestRefill', 'Request Refill')}
           </button>
         )}
       </div>
@@ -56,7 +59,7 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
       {/* Reported Stock Locations */}
       <div className="mt-4 pt-3.5 border-t border-slate-100">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5">
-          Reported Facility Availability
+          {t('stockLikelihoodTitle', 'Reported Facility Availability')}
         </p>
 
         {items && items.length > 0 ? (
@@ -70,11 +73,11 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
                   <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
                   <div>
                     <span className="font-semibold text-slate-900 block sm:inline">
-                      {item.facility_name || 'Designated Facility'}
+                      {item.facility_name || t('designatedFacility', 'Designated Facility')}
                     </span>
                     {item.distance_km !== undefined && (
                       <span className="text-slate-500 text-[11px] sm:ml-2">
-                        ({formatDistance(item.distance_km)})
+                        ({formatDistance(item.distance_km, t)})
                       </span>
                     )}
                   </div>
@@ -85,7 +88,7 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
 
                   {item.last_report_at && (
                     <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Reported {formatDate(item.last_report_at)}
+                      <Clock className="h-3 w-3" /> {t('reportedOn', 'Reported')} {formatDate(item.last_report_at, t)}
                     </span>
                   )}
                 </div>
@@ -94,13 +97,13 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({
           </div>
         ) : (
           <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-500 text-center italic">
-            No active availability reports logged for this medicine in neighboring centers.
+            {t('noStockReports', 'No active availability reports logged for this medicine in neighboring centers.')}
           </div>
         )}
 
         <p className="mt-2 text-[11px] text-slate-500 italic flex items-center gap-1">
           <AlertTriangle className="h-3 w-3 text-amber-500 inline" />
-          Availability status represents recent field reports and may vary with real-time dispensary demand.
+          {t('stockDisclaimer', 'Availability status represents recent field reports and may vary with real-time dispensary demand.')}
         </p>
       </div>
     </div>

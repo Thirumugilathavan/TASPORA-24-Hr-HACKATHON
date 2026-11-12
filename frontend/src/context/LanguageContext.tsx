@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { LanguageCode, getTranslation } from '../lib/i18n';
 
 interface LanguageContextType {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
-  t: (key: string, fallback?: string) => string;
+  t: (key: string, fallbackOrParams?: string | Record<string, any>, params?: Record<string, any>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -27,8 +27,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const t = (key: string, fallback?: string) => {
-    return getTranslation(language, key, fallback);
+  const t = (key: string, fallbackOrParams?: string | Record<string, any>, params?: Record<string, any>) => {
+    return getTranslation(language, key, fallbackOrParams, params);
   };
 
   return (

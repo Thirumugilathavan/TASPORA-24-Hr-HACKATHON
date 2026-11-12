@@ -21,7 +21,7 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim() || !password) {
-      setError('Please provide both phone number and password.');
+      setError(t('invalidCredentials', 'Please provide both phone number and password.'));
       return;
     }
 
@@ -29,10 +29,10 @@ export const LoginPage: React.FC = () => {
       setLoading(true);
       setError(null);
       await login(phone.trim(), password);
-      notify('Welcome back to CareBridge!', 'success');
+      notify(t('welcomeNotify', 'Welcome back to CareBridge!'), 'success');
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || t('errorTitle', 'Login failed. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export const LoginPage: React.FC = () => {
 
   const handleDemoLogin = () => {
     loginDemoUser();
-    notify('Logged in as Demo Patient!', 'success');
+    notify(t('welcomeNotify', 'Logged in as Demo Patient!'), 'success');
     navigate('/');
   };
 
@@ -58,15 +58,15 @@ export const LoginPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">CareBridge</h1>
-          <p className="text-sm text-slate-600 mt-1">Rural Healthcare Accessibility & Coordination</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'CareBridge')}</h1>
+          <p className="text-sm text-slate-600 mt-1">{t('taglineSub', 'Rural Healthcare Accessibility & Coordination Platform')}</p>
         </div>
 
         {/* Card */}
         <div className="mt-8 bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-800">Sign In to Your Account</h2>
-            <p className="text-xs text-slate-500 mt-1">Access medical facilities, stock checks, and appointments</p>
+            <h2 className="text-xl font-semibold text-slate-800">{t('signInTitle', 'Sign In to Your Account')}</h2>
+            <p className="text-xs text-slate-500 mt-1">{t('signInSubtitle', 'Access medical facilities, stock checks, and appointments')}</p>
           </div>
 
           {error && (
@@ -78,7 +78,7 @@ export const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Registered Phone Number
+                {t('registeredPhone', 'Registered Phone Number')}
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -86,7 +86,7 @@ export const LoginPage: React.FC = () => {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g. 9876543210"
+                  placeholder={t('enterPhonePlaceholder', 'e.g. 9876543210')}
                   required
                   className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
@@ -94,14 +94,14 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('password', 'Password')}</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder={t('enterPasswordPlaceholder', 'Enter your password')}
                   required
                   className="w-full pl-9 pr-10 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
@@ -121,7 +121,7 @@ export const LoginPage: React.FC = () => {
               className="w-full mt-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <LogIn className="w-4 h-4" />
-              {loading ? 'Signing in...' : t('signIn', 'Sign In')}
+              {loading ? t('signingIn', 'Signing In...') : t('signInBtn', 'Sign In')}
             </button>
           </form>
 
@@ -133,7 +133,7 @@ export const LoginPage: React.FC = () => {
               className="w-full py-2 px-3 border border-emerald-300 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
             >
               <Zap className="w-3.5 h-3.5 text-amber-300" />
-              One-Click Demo Patient Login
+              {t('demoLogin', 'One-Click Demo Patient Login')}
             </button>
             <button
               type="button"
@@ -141,14 +141,14 @@ export const LoginPage: React.FC = () => {
               className="w-full py-2 px-3 border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-800 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              Fill Demo Credentials (9876543210)
+              {t('demoFill', 'Fill Demo Credentials (9876543210)')}
             </button>
           </div>
 
           <div className="mt-6 text-center text-xs text-slate-500">
-            Don't have an account yet?{' '}
+            {t('dontHaveAccount', "Don't have an account yet?")}{' '}
             <Link to="/register" className="font-semibold text-emerald-600 hover:text-emerald-700">
-              {t('register', 'Register as New Patient')}
+              {t('registerHere', 'Register as New Patient')}
             </Link>
           </div>
         </div>

@@ -5,28 +5,30 @@ import { Header } from './Header';
 import { DemoBanner } from '../common/DemoBanner';
 import { EmergencyNotice } from '../common/EmergencyNotice';
 import { ToastContainer } from '../common/Toast';
+import { useTranslation } from '../../context/LanguageContext';
 
 export const AppLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const { t } = useTranslation();
 
   // Map route to human-readable page titles and breadcrumbs
   const getPageMeta = () => {
     switch (location.pathname) {
       case '/':
-        return { title: 'Patient Overview', breadcrumb: 'Dashboard' };
+        return { title: t('appName', 'CareBridge'), breadcrumb: t('navDashboard', 'Dashboard') };
       case '/facilities':
-        return { title: 'Find Healthcare Facilities', breadcrumb: 'Healthcare Directory' };
+        return { title: t('facilitiesTitle', 'Healthcare Facilities Directory'), breadcrumb: t('navFacilities', 'Find Healthcare') };
       case '/medicines':
-        return { title: 'Medicine Stock & Availability', breadcrumb: 'Pharmacy & Supplies' };
+        return { title: t('medicinesTitle', 'Essential Medicines & Inventory Availability'), breadcrumb: t('navMedicines', 'Medicine Stock') };
       case '/requests':
-        return { title: 'My Healthcare Requests', breadcrumb: 'Care Coordination' };
+        return { title: t('requestsTitle', 'Healthcare Requests & AI Routing'), breadcrumb: t('navRequests', 'Healthcare Requests') };
       case '/appointments':
-        return { title: 'Scheduled Appointments', breadcrumb: 'Consultations' };
+        return { title: t('appointmentsTitle', 'Scheduled Appointments'), breadcrumb: t('navAppointments', 'Appointments') };
       case '/profile':
-        return { title: 'Patient Profile & Preferences', breadcrumb: 'Account' };
+        return { title: t('profileTitle', 'Patient Profile & Settings'), breadcrumb: t('navProfile', 'My Profile') };
       default:
-        return { title: 'CareBridge', breadcrumb: 'Portal' };
+        return { title: t('appName', 'CareBridge'), breadcrumb: t('ruralHealthcare', 'Rural Healthcare') };
     }
   };
 
