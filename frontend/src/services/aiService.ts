@@ -70,7 +70,7 @@ export interface VoiceSynthesizeResponse {
 
 export const aiService = {
   /**
-   * Send user message to CareBridge AI Assistant
+   * Send user message to NALAM AI AI Assistant
    */
   async sendMessage(request: AIChatRequest): Promise<AIChatResponse> {
     return apiRequest<AIChatResponse>('/api/ai/chat', {

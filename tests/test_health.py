@@ -9,7 +9,7 @@ async def test_health_check_endpoint(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["project"] == "CareBridge"
+    assert data["project"] == "NALAM AI"
     assert data["simulated_mode"] is True
     assert "disclosure" in data
     assert "synthetic" in data["disclosure"].lower()

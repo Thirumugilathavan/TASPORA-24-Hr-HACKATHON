@@ -1,4 +1,4 @@
-"""FastAPI AI Assistant Router for CareBridge.
+"""FastAPI AI Assistant Router for NALAM AI.
 
 Exposes endpoints for:
 - /api/ai/chat: Closed-loop tool calling & RAG healthcare assistant
@@ -143,7 +143,7 @@ async def ai_health() -> AIHealthResponse:
     summary="Registered AI Tools Catalog",
 )
 async def list_ai_tools() -> List[ToolDefinition]:
-    """Catalogues all live backend tools accessible by the CareBridge AI Assistant."""
+    """Catalogues all live backend tools accessible by the NALAM AI AI Assistant."""
     return [
         ToolDefinition(
             name="search_facilities_tool",

@@ -56,8 +56,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     if (messages.length === 0) {
       const welcomeText =
         language === 'ta'
-          ? 'வணக்கம்! நான் கேர்பிரிட்ஜ் (CareBridge) AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் இருப்பு, மருந்துகள் மற்றும் குறைந்த இழப்பு பரிந்துரைகள் பற்றி என்னிடம் கேட்கலாம்.'
-          : 'Hello! I am your CareBridge AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), check verified doctor attendance, medicine stock, or explain loss-minimizing recommendations.';
+          ? 'வணக்கம்! நான் NALAM AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் இருப்பு, மருந்துகள் மற்றும் குறைந்த இழப்பு பரிந்துரைகள் பற்றி என்னிடம் கேட்கலாம்.'
+          : 'Hello! I am your NALAM AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), check verified doctor attendance, medicine stock, or explain loss-minimizing recommendations.';
 
       setMessages([
         {
@@ -92,8 +92,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       icon: <Pill className="w-3.5 h-3.5 text-indigo-600" />,
     },
     {
-      en: 'How does CareBridge calculate healthcare recommendations?',
-      ta: 'கேர்பிரிட்ஜ் பரிந்துரைகளை எவ்வாறு கணக்கிடுகிறது?',
+      en: 'How does NALAM AI calculate healthcare recommendations?',
+      ta: 'NALAM AI பரிந்துரைகளை எவ்வாறு கணக்கிடுகிறது?',
       icon: <FileText className="w-3.5 h-3.5 text-purple-600" />,
     },
     {
@@ -231,7 +231,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-bold text-base tracking-wide">
-                  {language === 'ta' ? 'கேர்பிரிட்ஜ் AI உதவியாளர்' : 'CareBridge AI Assistant'}
+                  {language === 'ta' ? 'NALAM AI உதவியாளர்' : 'NALAM AI Assistant'}
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -490,8 +490,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
           {/* Legal / Clinical Disclaimer */}
           <div className="mt-2 text-[10px] text-slate-400 text-center leading-tight">
             {language === 'ta'
-              ? 'கேர்பிரிட்ஜ் வழிகாட்டுதல் தகவல் மட்டுமே. இது மருத்துவ நோயறிதல் அல்லது மருந்துச் சீட்டுகளை வழங்காது. அவசர நிலைக்கு 108 அழைக்கவும்.'
-              : 'CareBridge provides logistical coordination only. Does not provide clinical diagnosis or prescriptions. For medical emergencies, call 108 immediately.'}
+              ? 'NALAM AI வழிகாட்டுதல் தகவல் மட்டுமே. இது மருத்துவ நோயறிதல் அல்லது மருந்துச் சீட்டுகளை வழங்காது. அவசர நிலைக்கு 108 அழைக்கவும்.'
+              : 'NALAM AI provides logistical coordination only. Does not provide clinical diagnosis or prescriptions. For medical emergencies, call 108 immediately.'}
           </div>
         </div>
       </div>

@@ -81,7 +81,7 @@ export const RegisterPage: React.FC = () => {
         consentGiven
       );
 
-      notify(t('welcomeNotify', 'Registration successful! Welcome to CareBridge.'), 'success');
+      notify(t('welcomeNotify', 'Registration successful! Welcome to NALAM AI.'), 'success');
       navigate('/');
     } catch (err: any) {
       setError(err.message || t('errorTitle', 'Registration failed. Please check your information.'));
@@ -100,7 +100,7 @@ export const RegisterPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'CareBridge')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'NALAM AI')}</h1>
           <p className="text-sm text-slate-600 mt-1">{t('taglineSub', 'Rural Healthcare Accessibility & Coordination')}</p>
         </div>
 
@@ -264,7 +264,7 @@ export const RegisterPage: React.FC = () => {
                   className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <span>
-                  {t('consentGranted', 'I consent to sharing my healthcare requirements, medication history, and status updates with authorized CareBridge health workers, doctors, and primary health centres.')}
+                  {t('consentGranted', 'I consent to sharing my healthcare requirements, medication history, and status updates with authorized NALAM AI health workers, doctors, and primary health centres.')}
                 </span>
               </label>
             </div>
@@ -284,7 +284,7 @@ export const RegisterPage: React.FC = () => {
           {/* Footer Link */}
           <div className="mt-6 text-center text-xs text-slate-600 space-y-2">
             <div>
-              {t('alreadyHaveAccount', 'Already have a CareBridge account?')}{' '}
+              {t('alreadyHaveAccount', 'Already have a NALAM AI account?')}{' '}
               <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
                 {t('signInHere', 'Sign in here')}
               </Link>

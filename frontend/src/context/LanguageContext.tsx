@@ -17,7 +17,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return stored as LanguageCode;
       }
     }
-    return 'ta'; // Tamil default for CareBridge Tamil Nadu platform context
+    return 'ta'; // Tamil default for NALAM AI Tamil Nadu platform context
   });
 
   const setLanguage = (lang: LanguageCode) => {

@@ -1,6 +1,6 @@
-# CareBridge — Live Hackathon Demonstration Guide
+# NALAM AI — Live Hackathon Demonstration Guide
 
-**Project:** CareBridge – AI-Powered Rural Healthcare Accessibility & Coordination Platform  
+**Project:** NALAM AI – AI-Powered Rural Healthcare Accessibility & Coordination Platform  
 **Tagline:** *No Wasted Trips. Better Access. Continuous Care.*  
 **Primary Evaluator Channel:** Web Application (React + TypeScript) + Voice Keypad (CLI IVR Simulator)
 
@@ -87,7 +87,7 @@ python -m app.tools.ivr_simulator --phone 9876543203 --lang ta
 
 ## 3. The Core Differentiator: Uncertainty-Aware Journey Routing
 
-Unlike generic hospital appointment apps (which assume doctors are always present and pharmacies are fully stocked), **CareBridge solves the rural reality**:
+Unlike generic hospital appointment apps (which assume doctors are always present and pharmacies are fully stocked), **NALAM AI solves the rural reality**:
 1. **Belief States:** Medicines are tracked via probability $P(\text{available}) \in [0.0, 1.0]$ and confidence $c \in [0.0, 1.0]$.
 2. **Attendance Truth:** Distinguishes planned roster (`EXPECTED`) from physical biometric/self check-in (`PRESENT`).
 3. **Loss-Minimization:** Calculates the risk of a wasted 30 km journey before the patient boards a rural bus.
@@ -96,4 +96,4 @@ Unlike generic hospital appointment apps (which assume doctors are always presen
 
 ## 4. Medical Safety & Clinical Scope
 
-> **Clinical Disclaimer:** CareBridge is an access and logistical coordination platform. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage calculations, or drug substitutions. All clinical treatment decisions remain exclusively with licensed doctors.
+> **Clinical Disclaimer:** NALAM AI is an access and logistical coordination platform. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage calculations, or drug substitutions. All clinical treatment decisions remain exclusively with licensed doctors.

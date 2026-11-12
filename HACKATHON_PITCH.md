@@ -1,4 +1,4 @@
-# CareBridge — 3-Minute Hackathon Pitch Script
+# NALAM AI — 3-Minute Hackathon Pitch Script
 
 **Speaker Time:** Exactly 3 Minutes (approx. 400–450 words)  
 **Presenter Tone:** Empathetic, confident, technologically rigorous  
@@ -20,20 +20,20 @@
 
 ---
 
-### [0:40 – 1:30] The Solution: What is CareBridge?
+### [0:40 – 1:30] The Solution: What is NALAM AI?
 
-*"Meet **CareBridge** — our AI-powered rural healthcare accessibility and coordination platform.*
+*"Meet **NALAM AI** — our AI-powered rural healthcare accessibility and coordination platform.*
 
 *Our tagline is our promise: **No Wasted Trips. Better Access. Continuous Care.***
 
-*CareBridge bridges this gap through two critical breakthroughs:*
+*NALAM AI bridges this gap through two critical breakthroughs:*
 
-*First, **Uncertainty-Aware Trip Routing.** CareBridge doesn't just tell you the closest clinic. It evaluates doctor presence, and computes probabilistic medicine stock availability from frontline ASHA and staff reports.*
+*First, **Uncertainty-Aware Trip Routing.** NALAM AI doesn't just tell you the closest clinic. It evaluates doctor presence, and computes probabilistic medicine stock availability from frontline ASHA and staff reports.*
 
 *Then, using an **Expected Loss Algorithm**, it calculates the risk of a wasted trip:  
 $\text{Expected Loss} = \text{Failure Probability} \times \text{Travel Distance}$.*
 
-*If the clinic 2 kilometers away has an 80% chance of being out of stock, CareBridge safely routes you to the Community Health Centre 5 kilometers away where stock is confirmed LIKELY—saving you hours of suffering and a wasted trip."*
+*If the clinic 2 kilometers away has an 80% chance of being out of stock, NALAM AI safely routes you to the Community Health Centre 5 kilometers away where stock is confirmed LIKELY—saving you hours of suffering and a wasted trip."*
 
 ---
 
@@ -50,19 +50,19 @@ $\text{Expected Loss} = \text{Failure Probability} \times \text{Travel Distance}
 
 *(Show the IVR Terminal Simulator)*
 
-*CareBridge works seamlessly over ordinary 2G button phones. By dialing our IVR service, any villager can navigate in spoken Tamil or English using their telephone keypad: check doctor shifts, check medicine availability, and book confirmed appointment slots—with zero internet dependency."*
+*NALAM AI works seamlessly over ordinary 2G button phones. By dialing our IVR service, any villager can navigate in spoken Tamil or English using their telephone keypad: check doctor shifts, check medicine availability, and book confirmed appointment slots—with zero internet dependency."*
 
 ---
 
 ### [2:20 – 3:00] Impact & Conclusion
 
-*"Judges, CareBridge has been fully engineered and tested:*
+*"Judges, NALAM AI has been fully engineered and tested:*
 - *134 automated unit, security, integration, and E2E tests.*
 - *Strict non-diagnostic boundaries: we coordinate access, leaving medical diagnosis to licensed doctors.*
 - *Zero double-booking through partial database unique constraints.*
 
 *Healthcare access shouldn't depend on luck, and it shouldn't depend on owning an expensive smartphone.*
 
-*With CareBridge, we ensure: **No Wasted Trips. Better Access. Continuous Care.***
+*With NALAM AI, we ensure: **No Wasted Trips. Better Access. Continuous Care.***
 
 *Thank you, and we welcome your questions!"*

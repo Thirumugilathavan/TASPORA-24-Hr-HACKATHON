@@ -93,7 +93,7 @@ async def test_carrier_inbound_and_continue_flow(client: AsyncClient, monkeypatc
     assert "<Response>" in xml1
     assert "<Gather" in xml1
     assert 'action="/api/ivr/webhooks/continue"' in xml1
-    assert "CareBridge" in xml1
+    assert "NALAM AI" in xml1
 
     # 2. Continue Webhook (Select Tamil - Digits: 1)
     res2 = await client.post(

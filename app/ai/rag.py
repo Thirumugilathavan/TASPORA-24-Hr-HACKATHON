@@ -1,7 +1,7 @@
-"""CareBridge RAG (Retrieval-Augmented Generation) Knowledge Engine.
+"""NALAM AI RAG (Retrieval-Augmented Generation) Knowledge Engine.
 
 Indexes project architectural documentation, algorithm specifications, API contracts,
-and IVR workflows to answer queries about CareBridge design, implementation, and loss calculations.
+and IVR workflows to answer queries about NALAM AI design, implementation, and loss calculations.
 """
 import math
 import os
@@ -29,7 +29,7 @@ class DocumentChunk:
 
 
 class RAGKnowledgeEngine:
-    """In-memory semantic document chunker and BM25 retriever for CareBridge documentation."""
+    """In-memory semantic document chunker and BM25 retriever for NALAM AI documentation."""
 
     DOC_FILES = [
         "STOCK_ALGORITHM.md",
@@ -137,7 +137,7 @@ class RAGKnowledgeEngine:
                 ))
 
     def retrieve(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
-        """BM25 scoring retrieval over indexed CareBridge documentation."""
+        """BM25 scoring retrieval over indexed NALAM AI documentation."""
         if not self.chunks:
             self.build_index()
 

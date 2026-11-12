@@ -8,8 +8,8 @@ class IVRPromptService:
     @staticmethod
     def get_welcome_prompt() -> str:
         return (
-            "CareBridge-க்கு வரவேற்கிறோம். உங்கள் சுகாதார சேவை உதவியாளர். "
-            "Welcome to CareBridge healthcare assistant. "
+            "NALAM AI-க்கு வரவேற்கிறோம். உங்கள் சுகாதார சேவை உதவியாளர். "
+            "Welcome to NALAM AI healthcare assistant. "
             "தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."
         )
 
@@ -75,7 +75,7 @@ class IVRPromptService:
             )
         return (
             "For medical emergencies, please immediately dial 108 ambulance service or visit your nearest hospital. "
-            "CareBridge IVR cannot replace emergency dispatch. Press 0 for main menu, or press 9 to end call."
+            "NALAM AI IVR cannot replace emergency dispatch. Press 0 for main menu, or press 9 to end call."
         )
 
     @staticmethod
@@ -345,8 +345,8 @@ class IVRPromptService:
     @staticmethod
     def get_goodbye(lang: str = "ta") -> str:
         if lang == "ta":
-            return "CareBridge-ஐ தொடர்பு கொண்டதற்கு நன்றி. நலமுடன் வாழ்க. வணக்கம்."
-        return "Thank you for calling CareBridge. Stay healthy. Goodbye."
+            return "NALAM AI-ஐ தொடர்பு கொண்டதற்கு நன்றி. நலமுடன் வாழ்க. வணக்கம்."
+        return "Thank you for calling NALAM AI. Stay healthy. Goodbye."
 
     @staticmethod
     def get_invalid_input(lang: str = "ta") -> str:
@@ -398,12 +398,12 @@ class IVRPromptService:
     def get_outbound_greeting(purpose: str = "ASHA_CALLBACK", lang: str = "ta") -> str:
         if lang == "ta":
             return (
-                "வணக்கம்! இது CareBridge சுகாதார மையத்திலிருந்து வரும் அழைப்பு. "
+                "வணக்கம்! இது NALAM AI சுகாதார மையத்திலிருந்து வரும் அழைப்பு. "
                 "உங்கள் சுகாதார உதவி கோரிக்கை தொடர்பாக அழைக்கின்றோம். "
                 "தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."
             )
         return (
-            "Hello! This is CareBridge rural healthcare service following up on your healthcare request. "
+            "Hello! This is NALAM AI rural healthcare service following up on your healthcare request. "
             "For Tamil, press 1. For English, press 2."
         )
 

@@ -10,7 +10,7 @@ from app.schemas.shared import AppointmentStatus, AttendanceStatus, Role, Urgenc
 
 @pytest.mark.asyncio
 async def test_full_carebridge_e2e_workflow(client: AsyncClient, db_session):
-    """End-to-End Integration Test covering the complete CareBridge rural healthcare lifecycle.
+    """End-to-End Integration Test covering the complete NALAM AI rural healthcare lifecycle.
 
     Step 1: Patient registration
     Step 2: Authentication & JWT login

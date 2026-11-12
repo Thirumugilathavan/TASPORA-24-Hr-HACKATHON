@@ -15,8 +15,8 @@ class IVRSimulationService:
 
     PROMPTS = {
         "welcome": {
-            "ta": "CareBridge கிராமப்புற சுகாதார உதவி மையத்திற்கு வரவேற்கிறோம். தமிழில் தொடர 1-ஐ அழுத்தவும். Welcome to CareBridge rural health helpline. For English, press 2.",
-            "en": "Welcome to CareBridge rural health helpline. For English, press 2. தமிழில் தொடர 1-ஐ அழுத்தவும்.",
+            "ta": "வணக்கம்! NALAM AI கிராமப்புற சுகாதார உதவி மையத்திற்கு வரவேற்கிறோம். அருகிலுள்ள சுகாதார நிலையங்களைக் கண்டறியவும் சுகாதாரத் தகவல்களைப் பெறவும் நாங்கள் உங்களுக்கு உதவுகிறோம். தமிழில் தொடர 1-ஐ அழுத்தவும். Welcome to NALAM AI Healthcare Assistance. For English, press 2.",
+            "en": "Welcome to NALAM AI Healthcare Assistance. We help you find nearby healthcare facilities and access healthcare information. For English, press 2. தமிழில் தொடர 1-ஐ அழுத்தவும்.",
         },
         "main_menu": {
             "ta": (
@@ -50,7 +50,7 @@ class IVRSimulationService:
         },
         "services_info": {
             "ta": (
-                "கிடைக்கும் சுகாதார சேவைகள்: "
+                "NALAM AI வழங்கும் சுகாதார சேவைகள்: "
                 "1. ஆரம்ப சுகாதார நிலையங்கள் (PHC) - புறநோயாளிகள் சிகிச்சை, தாய் சேய் நலப் பரிசோதனை மற்றும் இலவச அத்தியாவசிய மருந்துகள். "
                 "2. சமூக சுகாதார நிலையங்கள் (CHC) - 30 படுக்கை வசதி, அறுவை சிகிச்சை மற்றும் குழந்தைகள் நலம். "
                 "3. துணை சுகாதார நிலையங்கள் (Sub-Centre) - கிராம அளவில் முதல் நிலை சிகிச்சை மற்றும் தடுப்பூசி சேவைகள். "
@@ -58,7 +58,7 @@ class IVRSimulationService:
                 "இந்த தகவலை மீண்டும் கேட்க 9-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
             ),
             "en": (
-                "Available Healthcare Services: "
+                "NALAM AI Available Healthcare Services: "
                 "1. Primary Health Centres (PHCs) provide outpatient care, maternal consultations, basic lab diagnostics, and free essential medicines. "
                 "2. Community Health Centres (CHCs) offer 30-bed in-patient care, emergency surgical care, and obstetric specialists. "
                 "3. Health Sub-Centres provide village-level first-contact primary care and child immunizations. "
@@ -72,7 +72,7 @@ class IVRSimulationService:
                 "தேசிய அவசர உதவி எண்: 112. "
                 "இலவச அரசு ஆம்புலன்ஸ் சேவை: 108. "
                 "மாநில அரசு சுகாதார ஆலோசனை உதவி எண்: 104. "
-                "CareBridge கட்டணமில்லா உதவி மையம்: 1800-202-CARE (1800-202-2273). "
+                "NALAM AI கட்டணமில்லா உதவி மையம்: 1800-202-CARE (1800-202-2273). "
                 "உங்கள் கிராமத்து ஆஷா பணியாளரை நேரடியாகவும் தொடர்புகொள்ளலாம். "
                 "மீண்டும் கேட்க 9-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
             ),
@@ -81,7 +81,7 @@ class IVRSimulationService:
                 "National Emergency Response Support: 112. "
                 "Free Government Ambulance: 108. "
                 "State Health Information Helpline: 104. "
-                "CareBridge Toll-Free Support Desk: 1800-202-CARE (1800-202-2273). "
+                "NALAM AI Toll-Free Support Desk: 1800-202-CARE (1800-202-2273). "
                 "You can also reach out to your village ASHA worker for local support. "
                 "Press 9 to repeat this information. Press 0 to return to the main menu."
             ),
@@ -99,8 +99,8 @@ class IVRSimulationService:
             "en": "No healthcare facilities found within a 50 kilometre radius of this location. Please try another PIN code or search by village.",
         },
         "call_ended": {
-            "ta": "CareBridge சுகாதார உதவி மையத்தை அழைத்ததற்கு நன்றி. நலமாக இருங்கள். அழைப்பு முடிந்தது.",
-            "en": "Thank you for calling CareBridge Rural Healthcare Helpline. Stay healthy. Call ended.",
+            "ta": "NALAM AI சுகாதார உதவி மையத்தை அழைத்ததற்கு நன்றி. நலமாக இருங்கள். அழைப்பு முடிந்தது.",
+            "en": "Thank you for calling NALAM AI Healthcare Assistance. Stay healthy. Call ended.",
         },
     }
 

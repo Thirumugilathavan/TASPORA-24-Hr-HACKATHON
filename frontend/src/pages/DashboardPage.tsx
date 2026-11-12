@@ -282,7 +282,7 @@ export const DashboardPage: React.FC = () => {
               <h2 className="text-sm font-bold text-slate-900">{t('noWastedTripsPolicy', 'No Wasted Trips Policy')}</h2>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {t('noWastedTripsDesc', 'CareBridge ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.')}
+              {t('noWastedTripsDesc', 'NALAM AI ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.')}
             </p>
             <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5 text-slate-600">
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">

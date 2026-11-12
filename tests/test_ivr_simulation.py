@@ -77,7 +77,7 @@ async def test_simulated_ivr_start_call(client: AsyncClient):
     data = resp.json()
     assert data["status"] == "IN_PROGRESS"
     assert data["current_menu"] == "LANGUAGE_SELECT"
-    assert "CareBridge" in data["speak_text"]
+    assert "NALAM AI" in data["speak_text"]
     assert data["gather_dtmf"] is True
     assert len(data["options"]) == 2
 

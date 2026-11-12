@@ -1,10 +1,10 @@
-# CareBridge Stock Intelligence Algorithm
+# NALAM AI Stock Intelligence Algorithm
 
 ## 1. Overview & Objectives
 
 In rural healthcare accessibility, determining whether a facility currently has a required medicine in stock cannot rely solely on infrequent batch inventory reports. Ground realities change rapidly due to sudden patient rushes, delayed replenishment, or localized supply chain disruptions.
 
-The **CareBridge Stock Intelligence Algorithm** maintains a continuous, probabilistic belief state for every `(facility_id, medicine_id)` pair. It models medicine availability as:
+The **NALAM AI Stock Intelligence Algorithm** maintains a continuous, probabilistic belief state for every `(facility_id, medicine_id)` pair. It models medicine availability as:
 1. **$p_{\text{available}} \in [0.0, 1.0]$**: The posterior probability that the medicine is in stock.
 2. **$\text{confidence} \in [0.0, 1.0]$**: The empirical strength, freshness, and consistency of the evidence.
 3. **$\text{label} \in \{\text{LIKELY}, \text{UNCERTAIN}, \text{UNLIKELY}\}$**: Human- and decision-friendly categorical triage.
@@ -112,7 +112,7 @@ $$0.0 \le \text{confidence} \le 1.0$$
 
 ## 5. Decision Labels
 
-Categorical labels are assigned strictly according to the CareBridge API contract thresholds:
+Categorical labels are assigned strictly according to the NALAM AI API contract thresholds:
 
 | Condition | Label | Meaning |
 | :--- | :--- | :--- |

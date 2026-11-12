@@ -106,7 +106,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900">{t('submitRequestTitle', 'Submit Healthcare Request')}</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {t('createRequestSubtitle', 'CareBridge will analyze nearby facilities and available medicines.')}
+              {t('createRequestSubtitle', 'NALAM AI will analyze nearby facilities and available medicines.')}
             </p>
           </div>
           <button

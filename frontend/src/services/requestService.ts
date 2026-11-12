@@ -108,7 +108,7 @@ export const requestService = {
             failure_probability: 0.12,
             expected_loss: 4,
             doctor_status: 'PRESENT',
-            explanation: 'Automated CareBridge recommendation: Balanced proximity with verified staff attendance and high medicine stock.',
+            explanation: 'Automated NALAM AI recommendation: Balanced proximity with verified staff attendance and high medicine stock.',
           },
           {
             rank: 2,

@@ -1,6 +1,6 @@
-# CareBridge Voice Access (IVR) — API Specification
+# NALAM AI Voice Access (IVR) — API Specification
 
-The CareBridge Voice Access module exposes a set of REST and Webhook endpoints enabling telephony carriers (e.g., Twilio, Exotel) and simulation tools to drive DTMF-based button-phone healthcare access.
+The NALAM AI Voice Access module exposes a set of REST and Webhook endpoints enabling telephony carriers (e.g., Twilio, Exotel) and simulation tools to drive DTMF-based button-phone healthcare access.
 
 ---
 
@@ -16,7 +16,7 @@ X-API-Key: <IVR_API_KEY>
 - If `X-API-Key` is invalid, the API returns `403 Forbidden`.
 - Constant-time string comparison (`secrets.compare_digest`) prevents timing side-channel attacks.
 
-Standard CareBridge error envelope is returned on failure:
+Standard NALAM AI error envelope is returned on failure:
 ```json
 {
   "error": {
@@ -49,7 +49,7 @@ Standard CareBridge error envelope is returned on failure:
 ## 1. Carrier Telephony Webhooks (Live Calling)
 
 ### `POST /api/ivr/webhooks/incoming`
-Carrier entrypoint when an inbound call reaches the CareBridge virtual telephone number.
+Carrier entrypoint when an inbound call reaches the NALAM AI virtual telephone number.
 - **Authentication:** Verified via `X-Twilio-Signature` header (HMAC-SHA1). Returns `403 Forbidden` if signature is invalid.
 - **Format:** `application/x-www-form-urlencoded` from carrier.
 - **Output:** TwiML XML with `<Gather>` listening for language selection (Tamil: 1, English: 2) pointing to `/api/ivr/webhooks/continue`.
@@ -135,7 +135,7 @@ Starts a voice access session for a caller phone number.
 ```json
 {
   "call_sid": "call-custom-sid-1001",
-  "speak_text": "CareBridge-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2.",
+  "speak_text": "NALAM AI-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2.",
   "audio_url": null,
   "gather_dtmf": true,
   "num_digits": 1,
@@ -226,7 +226,7 @@ Terminates an active session and plays the polite goodbye prompt.
 ```json
 {
   "call_sid": "call-custom-sid-1001",
-  "speak_text": "CareBridge-ஐ பயன்படுத்தியதற்கு நன்றி. நலம் பெறுங்கள்.",
+  "speak_text": "NALAM AI-ஐ பயன்படுத்தியதற்கு நன்றி. நலம் பெறுங்கள்.",
   "gather_dtmf": false,
   "hangup": true,
   "session_status": "COMPLETED",

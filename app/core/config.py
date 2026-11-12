@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "CareBridge"
+    PROJECT_NAME: str = "NALAM AI"
     API_V1_PREFIX: str = "/api"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True

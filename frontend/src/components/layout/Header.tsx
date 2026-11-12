@@ -47,12 +47,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* CareBridge AI Assistant Launcher */}
+        {/* NALAM AI Healthcare Assistant Launcher */}
         <button
           type="button"
           onClick={() => setIsAIOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-teal-600 via-teal-700 to-navy-800 hover:from-teal-700 hover:to-navy-900 rounded-lg shadow-2xs hover:shadow-xs transition-all border border-teal-500/30"
-          title="CareBridge AI Healthcare Assistant"
+          title="NALAM AI Healthcare Assistant"
         >
           <Bot className="h-4 w-4 text-teal-200" />
           <span className="hidden sm:inline">{language === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</span>

@@ -1,6 +1,6 @@
-# CareBridge — Hackathon Presentation Outline
+# NALAM AI — Hackathon Presentation Outline
 
-**Project Name:** CareBridge  
+**Project Name:** NALAM AI  
 **Tagline:** *No Wasted Trips. Better Access. Continuous Care.*  
 **Track:** Healthcare Accessibility, AI Systems & Rural Public Infrastructure  
 
@@ -22,7 +22,7 @@
 
 ---
 
-## 3. Our Solution: CareBridge
+## 3. Our Solution: NALAM AI
 An AI-powered, bilingual healthcare coordination platform accessible via **both Web (Vite/React)** and **Ordinary Button Phones (Voice/IVR)** that minimizes wasted trips by reasoning over uncertainty.
 
 ---
@@ -70,11 +70,11 @@ An AI-powered, bilingual healthcare coordination platform accessible via **both 
 ---
 
 ## 6. The Breakthrough Innovation: Uncertainty-Aware Trip Routing
-Existing appointment apps assume binary availability ($1$ or $0$). CareBridge treats rural healthcare as a **decision under uncertainty**:
+Existing appointment apps assume binary availability ($1$ or $0$). NALAM AI treats rural healthcare as a **decision under uncertainty**:
 - **Probabilistic Beliefs:** Continuous belief state $P(\text{available}) \in [0.0, 1.0]$ and confidence $c \in [0.0, 1.0]$.
 - **Expected Trip Loss:**
   $$\text{Expected Loss} = \text{round\_half\_up}(\text{Failure Probability} \times \text{Travel Cost})$$
-- If the nearest PHC is 2 km away but has an 80% chance of being out of critical insulin, CareBridge directs the patient to a CHC 5 km away with 95% confirmed stock, saving the patient a wasted trip.
+- If the nearest PHC is 2 km away but has an 80% chance of being out of critical insulin, NALAM AI directs the patient to a CHC 5 km away with 95% confirmed stock, saving the patient a wasted trip.
 
 ---
 
@@ -90,7 +90,7 @@ Existing appointment apps assume binary availability ($1$ or $0$). CareBridge tr
 ---
 
 ## 8. Security & Ethical Boundaries
-- **Strictly Non-Diagnostic:** CareBridge coordinates access; it does **not** diagnose or prescribe.
+- **Strictly Non-Diagnostic:** NALAM AI coordinates access; it does **not** diagnose or prescribe.
 - **Zero-Trust Roles:** Self-registration strictly creates `PATIENT` role.
 - **No Spoofed Attendance:** Doctors can only verify their own explicitly linked user profile.
 - **PIN Lockout:** 3 incorrect attempts lock the caller out for 15 minutes.

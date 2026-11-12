@@ -1,20 +1,20 @@
-# CareBridge – AI-Powered Rural Healthcare Accessibility & Coordination Platform
+# NALAM AI – AI-Powered Rural Healthcare Accessibility & Coordination Platform
 
 > **Tagline:** *No Wasted Trips. Better Access. Continuous Care.*
 
-CareBridge is an AI-powered rural healthcare accessibility and coordination platform designed specifically for patients and frontline health workers (such as ASHA workers) in rural and underserved communities.
+NALAM AI is an AI-powered rural healthcare accessibility and coordination platform designed specifically for patients and frontline health workers (such as ASHA workers) in rural and underserved communities.
 
-Rural patients frequently travel tens of kilometres to health centres only to discover the required doctor is absent or prescribed medicines are out of stock. CareBridge addresses this challenge by evaluating facility capabilities, doctor attendance schedules, and probabilistic medicine stock availability to compute **loss-minimized recommendations** before the patient sets out.
+Rural patients frequently travel tens of kilometres to health centres only to discover the required doctor is absent or prescribed medicines are out of stock. NALAM AI addresses this challenge by evaluating facility capabilities, doctor attendance schedules, and probabilistic medicine stock availability to compute **loss-minimized recommendations** before the patient sets out.
 
 ---
 
 ## Architecture Overview
 
-CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, modularised into four core integrated pillars:
+NALAM AI is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, modularised into four core integrated pillars:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                             CareBridge Platform                             │
+│                             NALAM AI Platform                             │
 ├──────────────────────┬──────────────────────┬───────────────────────────────┤
 │ Core Healthcare &    │ Facilities & Stock   │ Patient & Village Management  │
 │ Recommendation       │ Intelligence         │                               │
@@ -56,7 +56,7 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 - **Slot Release on Cancellation:** Cancelling an appointment frees the slot for other patients.
 
 ### 5. Voice Access & Button Phone IVR
-- **Zero Smartphone / Internet Dependency:** Ordinary keypad / feature phones access CareBridge services entirely over cellular voice networks via DTMF button tones.
+- **Zero Smartphone / Internet Dependency:** Ordinary keypad / feature phones access NALAM AI services entirely over cellular voice networks via DTMF button tones.
 - **Bilingual Interface:** Spoken audio prompts in Tamil (`ta`) and English (`en`).
 - **Real-Time Telecom Integration:** Native carrier webhooks (`POST /api/ivr/webhooks/incoming`, `/continue`, `/status`) generating standard TwiML XML (`<Gather>`, `<Say language="ta-IN">`, `<Dial>`, `<Hangup>`).
 - **Cryptographic Signature Verification:** Strict HMAC-SHA1 validation (`X-Twilio-Signature`) securing inbound webhooks against spoofing.
@@ -80,7 +80,7 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 
 ## Disclosures & Safety Notices
 
-1. **Medical Safety & Clinical Judgment:** CareBridge supports healthcare accessibility, coordination, and loss-minimized facility routing. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage advice, or automated medication substitution. All clinical decisions remain solely with qualified healthcare professionals.
+1. **Medical Safety & Clinical Judgment:** NALAM AI supports healthcare accessibility, coordination, and loss-minimized facility routing. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage advice, or automated medication substitution. All clinical decisions remain solely with qualified healthcare professionals.
 2. **Straight-Line Distance:** Distance calculations use approximate straight-line geographical distance (Haversine formula), not actual road network travel distance or real-world transit topography.
 3. **Simulated Geography & Data:** Demo facilities, stock probabilities, and attendance schedules operate in evaluation/demonstration mode for hackathon validation with synthetic disclosures (`is_synthetic: true`).
 4. **Telecom Regulatory Compliance:** Live phone calling requires a provisioned Indian virtual number (+91) with TRAI / DoT enterprise KYC verification. In non-production or sandbox environments, developer sandboxes and the built-in mock CLI simulator allow complete end-to-end evaluation with zero telecom fees.
@@ -162,7 +162,7 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 
 ## Running the Automated Test Suite
 
-CareBridge includes a comprehensive automated test suite covering unit, property, security, and end-to-end integration workflows.
+NALAM AI includes a comprehensive automated test suite covering unit, property, security, and end-to-end integration workflows.
 
 Run all tests:
 ```bash

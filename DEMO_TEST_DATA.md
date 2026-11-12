@@ -1,6 +1,6 @@
-# CareBridge — Demonstration & Evaluation Test Data
+# NALAM AI — Demonstration & Evaluation Test Data
 
-This document catalogues all fictional accounts, test facilities, villages, and medicine data prepared for the CareBridge hackathon demonstration.
+This document catalogues all fictional accounts, test facilities, villages, and medicine data prepared for the NALAM AI hackathon demonstration.
 
 > **Data Disclosure:** All personal names, phone numbers, facility inventories, and GPS coordinates listed below are synthetic placeholders generated exclusively for demonstration and software testing.
 

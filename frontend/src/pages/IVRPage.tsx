@@ -209,7 +209,7 @@ export const IVRPage: React.FC = () => {
         {
           id: 't-start',
           sender: 'system',
-          text: '📞 Dialing CareBridge Healthcare Helpline (1800-202-CARE)...',
+          text: '📞 Dialing NALAM AI Healthcare Helpline (1800-202-CARE)...',
           timestamp: now,
           type: 'info',
         },
@@ -263,8 +263,8 @@ export const IVRPage: React.FC = () => {
         sender: 'system',
         text:
           language === 'ta'
-            ? 'அழைப்பு முடிந்தது. CareBridge உதவி மையத்தை அழைத்ததற்கு நன்றி.'
-            : 'Call ended. Thank you for calling CareBridge Healthcare Helpline.',
+            ? 'அழைப்பு முடிந்தது. NALAM AI உதவி மையத்தை அழைத்ததற்கு நன்றி.'
+            : 'Call ended. Thank you for calling NALAM AI Healthcare Helpline.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'info',
       },
@@ -631,7 +631,7 @@ export const IVRPage: React.FC = () => {
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 hover:text-white transition px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to CareBridge</span>
+              <span>Back to NALAM AI</span>
             </Link>
             <div className="h-4 w-px bg-slate-700" />
             <div className="flex items-center gap-2">
@@ -640,7 +640,7 @@ export const IVRPage: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-base font-bold text-white leading-tight flex items-center gap-2">
-                  CareBridge Voice Helpline
+                  NALAM AI Voice Helpline
                   <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
                     Simulated IVR
                   </span>
@@ -732,7 +732,7 @@ export const IVRPage: React.FC = () => {
               <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-2 border-b border-slate-800/60 pb-1.5">
                 <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  CareBridge Net
+                  NALAM AI Net
                 </span>
                 <span className="flex items-center gap-2">
                   {callStatus === 'IN_CALL' && (
@@ -770,7 +770,7 @@ export const IVRPage: React.FC = () => {
                       Call in Progress
                     </div>
                     <div className="text-base font-bold text-white mt-0.5">
-                      {language === 'ta' ? 'CareBridge சுகாதார உதவி' : 'CareBridge Health Desk'}
+                      {language === 'ta' ? 'NALAM AI சுகாதார உதவி' : 'NALAM AI Health Desk'}
                     </div>
 
                     {/* Speech Waveform Animation */}
@@ -1139,7 +1139,7 @@ export const IVRPage: React.FC = () => {
                   </div>
                   <div className="bg-slate-900/90 border border-amber-900/60 p-2.5 rounded-xl">
                     <div className="text-amber-400 font-bold text-xs font-mono">1800-202-CARE</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">CareBridge Desk</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">NALAM AI Desk</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -1241,7 +1241,7 @@ export const IVRPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between gap-2 mb-1 text-[10px] text-slate-400 font-mono">
                       <span className="font-semibold text-slate-300">
-                        {item.sender === 'user' ? '📱 Caller Keypad' : '🔊 CareBridge Voice'}
+                        {item.sender === 'user' ? '📱 Caller Keypad' : '🔊 NALAM AI Voice'}
                       </span>
                       <span>{item.timestamp}</span>
                     </div>

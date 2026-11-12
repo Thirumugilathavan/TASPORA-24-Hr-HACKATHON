@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=f"{settings.PROJECT_NAME} API",
     description=(
-        "CareBridge – AI-Powered Rural Healthcare Accessibility and Coordination Platform.\n\n"
+        "NALAM AI – AI-Powered Rural Healthcare Accessibility and Coordination Platform.\n\n"
         "**Notice:** Operating in simulated evaluation mode. All facility, doctor, inventory, "
         "and logistics records are synthetic simulations for hackathon demonstration."
     ),

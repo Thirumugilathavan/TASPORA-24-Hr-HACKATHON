@@ -1,4 +1,4 @@
-"""Comprehensive Test Suite for CareBridge AI Agent, Tool Calling, RAG, and Multimodal Voice.
+"""Comprehensive Test Suite for NALAM AI Agent, Tool Calling, RAG, and Multimodal Voice.
 
 Verifies:
 1. "Find a PHC near Tiruchengode" returns real facilities with distances and doctor shifts (NEVER merely an announcement).
@@ -93,7 +93,7 @@ async def test_medicine_stock_probabilistic_lookup(client: AsyncClient, seed_dat
 async def test_rag_query_expected_loss_formula(client: AsyncClient):
     """Verifies asking about recommendation algorithm returns formula via RAG."""
     payload = {
-        "message": "How does CareBridge calculate its healthcare recommendations and expected loss?",
+        "message": "How does NALAM AI calculate its healthcare recommendations and expected loss?",
         "language": "en",
     }
     response = await client.post("/api/ai/chat", json=payload)

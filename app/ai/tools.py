@@ -1,6 +1,6 @@
-"""CareBridge AI Tool Registry and Backend Execution Handlers.
+"""NALAM AI AI Tool Registry and Backend Execution Handlers.
 
-Provides typed, verified tool functions executing real CareBridge business logic:
+Provides typed, verified tool functions executing real NALAM AI business logic:
 - Facility search & geographic proximity ranking
 - Doctor schedule & verified attendance lookups
 - Probabilistic medicine inventory queries
@@ -423,7 +423,7 @@ async def get_recommendations_tool(
 
 
 def query_rag_knowledge_tool(query: str, top_k: int = 3) -> Dict[str, Any]:
-    """Retrieves authoritative CareBridge documentation chunks using BM25 semantic scoring."""
+    """Retrieves authoritative NALAM AI documentation chunks using BM25 semantic scoring."""
     results = rag_engine.retrieve(query, top_k=top_k)
     return {
         "query": query,

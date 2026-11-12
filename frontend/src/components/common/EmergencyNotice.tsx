@@ -12,7 +12,7 @@ export const EmergencyNotice: React.FC<{ className?: string }> = ({ className })
         <AlertCircle className="h-4 w-4 text-healthcare-700 flex-shrink-0 mt-0.5" />
         <p className="leading-relaxed">
           <strong className="text-slate-900">{t('medicalSafetyNotice', 'Medical Safety Notice:')} </strong>
-          {t('medicalSafetyDesc', 'CareBridge assists in facility discovery, verified stock check, and appointment booking. It is not a diagnostic engine and does not provide clinical diagnosis, prescription, or dosage advice.')}
+          {t('medicalSafetyDesc', 'NALAM AI assists in facility discovery, verified stock check, and appointment booking. It is not a diagnostic engine and does not provide clinical diagnosis, prescription, or dosage advice.')}
         </p>
       </div>
       <div className="flex items-center gap-1.5 font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200/80 flex-shrink-0">

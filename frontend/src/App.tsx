@@ -22,7 +22,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <LoadingState message="Initializing CareBridge platform..." />
+        <LoadingState message="Initializing NALAM AI platform..." />
       </div>
     );
   }

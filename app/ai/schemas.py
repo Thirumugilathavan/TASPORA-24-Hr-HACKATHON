@@ -1,4 +1,4 @@
-"""Schemas for CareBridge AI Agent, Tools, RAG, and Multimodal Voice Access."""
+"""Schemas for NALAM AI AI Agent, Tools, RAG, and Multimodal Voice Access."""
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -56,7 +56,7 @@ class AIChatResponse(BaseModel):
     rag_sources: List[Dict[str, Any]] = Field(default_factory=list)
     action_taken: Optional[str] = None
     disclaimer: str = (
-        "CareBridge provides accessibility and coordination information only. "
+        "NALAM AI provides accessibility and coordination information only. "
         "It does not provide clinical diagnosis, prescriptions, or dosage advice. "
         "For medical emergencies, call 108 immediately."
     )

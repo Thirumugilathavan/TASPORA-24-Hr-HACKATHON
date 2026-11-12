@@ -1,6 +1,6 @@
-# CareBridge Voice Access (IVR) — Architecture
+# NALAM AI Voice Access (IVR) — Architecture
 
-**Module Name:** CareBridge Voice Access  
+**Module Name:** NALAM AI Voice Access  
 **Feature:** Button Phone / Feature Phone Healthcare Access  
 **Tagline:** Healthcare access without a smartphone or internet.
 
@@ -8,10 +8,10 @@
 
 ## 1. Executive Summary
 
-In rural India, millions of citizens either do not own smartphones, lack reliable high-speed cellular internet, or face digital literacy barriers. **CareBridge Voice Access** provides an Interactive Voice Response (IVR) telephone interface allowing any villager using an ordinary button phone (feature phone) to:
+In rural India, millions of citizens either do not own smartphones, lack reliable high-speed cellular internet, or face digital literacy barriers. **NALAM AI Voice Access** provides an Interactive Voice Response (IVR) telephone interface allowing any villager using an ordinary button phone (feature phone) to:
 - Discover nearby primary and community healthcare facilities with line-of-sight distance estimates.
 - Check doctor attendance for the day (strictly distinguishing verified presence from planned schedules).
-- Query medicine stock availability powered by CareBridge's probabilistic belief engine.
+- Query medicine stock availability powered by NALAM AI's probabilistic belief engine.
 - Create healthcare requests and receive intelligent facility recommendations.
 - Book and cancel healthcare appointments without double-booking conflicts.
 - Immediately access emergency 108 ambulance guidance without authentication barriers.
@@ -29,7 +29,7 @@ flowchart TD
         Telco["Telephony Provider<br/>(Twilio / Exotel / Mock)"]
     end
 
-    subgraph CareBridgeBackend [CareBridge Backend Foundation]
+    subgraph CareBridgeBackend [NALAM AI Backend Foundation]
         Webhook["/api/ivr/webhook<br/>(X-API-Key Protected)"]
         Adapter["Telephony Provider Adapter<br/>(Mock / Twilio TwiML)"]
         Orchestrator["IVR Orchestrator Engine<br/>(app.services.ivr_service)"]
@@ -174,7 +174,7 @@ stateDiagram-v2
 
 ## 5. Medical Safety & Ethical Constraints
 
-CareBridge Voice Access adheres strictly to clinical safety and data integrity boundaries:
+NALAM AI Voice Access adheres strictly to clinical safety and data integrity boundaries:
 1. **Zero Diagnostic Claims**: The IVR system strictly acts as a logistics and navigation coordinator. It never attempts symptom diagnosis, triage scoring, medication substitution, or dosage prescription.
 2. **Immediate Emergency Access**: Option 7 (Emergency 108 Guidance) is available immediately from the main menu without requiring authentication, personal identification, or complex menu traversals.
 3. **Strict Doctor Attendance Semantics**: The system explicitly announces doctor attendance as planned (`EXPECTED`) vs confirmed on-site (`PRESENT`). It never claims a scheduled doctor is verified present unless verified in the database.

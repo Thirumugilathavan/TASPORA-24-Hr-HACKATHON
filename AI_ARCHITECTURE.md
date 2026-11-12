@@ -1,8 +1,8 @@
-# CareBridge AI Assistant — Architecture, Tool Calling, RAG & Voice Integration
+# NALAM AI AI Assistant — Architecture, Tool Calling, RAG & Voice Integration
 
-**Project:** CareBridge – AI-Powered Rural Healthcare Accessibility and Coordination Platform  
+**Project:** NALAM AI – AI-Powered Rural Healthcare Accessibility and Coordination Platform  
 **Tagline:** *No Wasted Trips. Better Access. Continuous Care.*  
-**Module:** CareBridge AI Healthcare Assistant (`app/ai`)
+**Module:** NALAM AI AI Healthcare Assistant (`app/ai`)
 
 ---
 
@@ -10,7 +10,7 @@
 
 In rural healthcare accessibility across India, patient journeys are fraught with uncertainty: clinics may lack doctors on duty, pharmacies may be out of essential medicines, and patients often spend hours on buses only to arrive at locked doors or unstocked dispensaries.
 
-The **CareBridge AI Assistant** is designed to address this reality. Its defining architectural principle is:
+The **NALAM AI AI Assistant** is designed to address this reality. Its defining architectural principle is:
 
 $$\mathbf{UNDERSTAND} \longrightarrow \mathbf{EXECUTE} \longrightarrow \mathbf{RETRIEVE} \longrightarrow \mathbf{VERIFY} \longrightarrow \mathbf{EXPLAIN} \longrightarrow \mathbf{DISPLAY}$$
 
@@ -74,7 +74,7 @@ Accompanying each facility is an interactive UI card with live booking triggers 
                                                      |
                                                      v
                                   +------------------------------------+
-                                  |       CareBridge Agent Loop        |
+                                  |       NALAM AI Agent Loop        |
                                   |      (Intent & Language Triage)    |
                                   +---------+----------------+---------+
                                             |                |
@@ -105,7 +105,7 @@ Accompanying each facility is an interactive UI card with live booking triggers 
 
 ### Pillar 1: Medical Scope, Safety Boundaries & System Prompting
 The agent operates under strict clinical and legal safety guardrails:
-1. **Non-Diagnostic Policy:** CareBridge is an access and logistical coordination engine. It strictly refuses to generate medical diagnoses, clinical evaluations, prescription generation, or drug dosage recommendations.
+1. **Non-Diagnostic Policy:** NALAM AI is an access and logistical coordination engine. It strictly refuses to generate medical diagnoses, clinical evaluations, prescription generation, or drug dosage recommendations.
 2. **Safe Redirection:** If a patient asks *"What dose of paracetamol should I take for fever?"*, the agent politely explains that only a licensed medical doctor can prescribe dosages, queries the database for the nearest operating PHC, and displays doctor shifts so the patient can be seen by a physician.
 3. **Emergency Triaging:** If symptoms indicate a critical emergency (severe chest pain, stroke, breathlessness, major trauma, heavy bleeding), the agent immediately halts standard Q&A and triggers the **Emergency Protocol**: displays the 108 ambulance call button and lists nearest 24/7 trauma hospitals.
 4. **Attendance Truth:** Explicitly distinguishes `PRESENT` (physically verified on site) from `EXPECTED` (rostered planned shift).
@@ -141,7 +141,7 @@ The agent executes typed Python backend handlers with direct database sessions:
 
 ## 4. Multimodal Voice Architecture (Gnani.ai Indic Voice Adapter)
 
-CareBridge is built for rural Tamil Nadu citizens who may prefer voice interactions over typing:
+NALAM AI is built for rural Tamil Nadu citizens who may prefer voice interactions over typing:
 - **Speech-to-Text (STT):** Endpoint `/api/ai/voice/transcribe` accepts Base64 audio and transcribes into Tamil (`ta-IN`) or English (`en-IN`).
 - **Text-to-Speech (TTS):** Endpoint `/api/ai/voice/synthesize` synthesizes response text into natural audio.
 - **Resilient Fallback Design:** When external `GNANI_API_KEY` credentials are not present in `.env`, the adapter operates in local evaluation mode, providing instant mock transcripts and valid PCM/WAV headers, while the frontend leverages the browser's native `SpeechRecognition` and `SpeechSynthesis` APIs for a fully functional voice experience out-of-the-box.
@@ -191,7 +191,7 @@ CareBridge is built for rural Tamil Nadu citizens who may prefer voice interacti
   ],
   "rag_sources": [],
   "action_taken": "RETRIEVE_AND_DISPLAY_FACILITIES",
-  "disclaimer": "CareBridge provides accessibility and coordination information only..."
+  "disclaimer": "NALAM AI provides accessibility and coordination information only..."
 }
 ```
 
@@ -206,7 +206,7 @@ CareBridge is built for rural Tamil Nadu citizens who may prefer voice interacti
 
 ## 6. Verification and Test Results
 
-The CareBridge AI Assistant is backed by a dedicated test suite (`tests/test_ai_agent.py`) and passes all 144 backend tests:
+The NALAM AI AI Assistant is backed by a dedicated test suite (`tests/test_ai_agent.py`) and passes all 144 backend tests:
 
 ```bash
 $ pytest tests/test_ai_agent.py -v

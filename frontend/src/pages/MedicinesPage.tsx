@@ -90,7 +90,7 @@ export const MedicinesPage: React.FC = () => {
         <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
         <div className="leading-relaxed">
           <strong>{t('bayesianStockEstimation', 'Bayesian Stock Estimation:')} </strong>
-          {t('bayesianStockDesc', 'CareBridge computes medicine availability probabilities combining physical dispensary reports, facility stock audits, and ASHA refill logs.')}{' '}
+          {t('bayesianStockDesc', 'NALAM AI computes medicine availability probabilities combining physical dispensary reports, facility stock audits, and ASHA refill logs.')}{' '}
           {t('statusTagsExplanation', 'Status tags indicate Likely (p ≥ 0.65), Uncertain (0.35 < p < 0.65), or Unlikely (p ≤ 0.35) in stock.')}
         </div>
       </div>

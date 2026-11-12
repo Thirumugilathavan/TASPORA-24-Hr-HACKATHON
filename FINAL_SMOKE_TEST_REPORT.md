@@ -1,4 +1,4 @@
-# CareBridge — Final Smoke Test Report
+# NALAM AI — Final Smoke Test Report
 
 **Execution Timestamp:** 2026-11-12T20:30:00+05:30  
 **Environment:** Windows (Local Hackathon Integration Workspace)  
@@ -30,8 +30,8 @@
 ### Test 1.1: Environment Configuration & Settings Validation
 - **Procedure:** Inspect `app/core/config.py` and test Pydantic settings loading.
 - **Command:** `.\.venv\Scripts\python.exe -c "from app.core.config import settings; print(settings.PROJECT_NAME, settings.ENVIRONMENT, settings.DATABASE_URL)"`
-- **Expected Result:** `CareBridge development sqlite+aiosqlite:///./carebridge.db` loaded without schema validation errors.
-- **Actual Result:** `CareBridge development sqlite+aiosqlite:///./carebridge.db`
+- **Expected Result:** `NALAM AI development sqlite+aiosqlite:///./carebridge.db` loaded without schema validation errors.
+- **Actual Result:** `NALAM AI development sqlite+aiosqlite:///./carebridge.db`
 - **Status:** **PASS**
 - **Evidence:** Settings initialized with default development configuration, SQLite async database engine, and CORS origins `http://localhost:3000`, `http://localhost:5173`.
 

@@ -29,7 +29,7 @@ def test_prompt_service_tamil_and_english():
 
     # Welcome
     welcome = prompts.get_welcome_prompt()
-    assert "CareBridge" in welcome
+    assert "NALAM AI" in welcome
     assert "1" in welcome
     assert "2" in welcome
 
@@ -134,7 +134,7 @@ def test_twilio_telephony_provider():
 
     resp = IVRResponse(
         call_sid="CA123456",
-        speak_text="Welcome to CareBridge",
+        speak_text="Welcome to NALAM AI",
         language="ta",
         gather_dtmf=True,
         num_digits=1,
@@ -145,4 +145,4 @@ def test_twilio_telephony_provider():
     assert "<Response>" in twiml
     assert "<Gather" in twiml
     assert "language=\"ta-IN\"" in twiml
-    assert "Welcome to CareBridge" in twiml
+    assert "Welcome to NALAM AI" in twiml

@@ -1,4 +1,4 @@
-"""CareBridge Closed-Loop AI Agent Engine.
+"""NALAM AI Closed-Loop AI Agent Engine.
 
 Core Philosophy: UNDERSTAND -> EXECUTE -> RETRIEVE -> VERIFY -> EXPLAIN -> DISPLAY.
 Strict Rule: NEVER merely announce an intention to search. Always execute backend tools
@@ -29,8 +29,8 @@ from app.ai.tools import (
 )
 
 
-class CareBridgeAgent:
-    """Intelligent CareBridge Assistant supporting real tool calling and RAG."""
+class NalamAIAgent:
+    """Intelligent NALAM AI Assistant supporting real tool calling and RAG."""
 
     def __init__(self):
         self.system_prompt = CAREBRIDGE_SYSTEM_PROMPT
@@ -185,13 +185,13 @@ class CareBridgeAgent:
 
             refusal_text = (
                 "**மருத்துவ பாதுகாப்பு வழிகாட்டுதல்:**\n"
-                "கேர்பிரிட்ஜ் (CareBridge) ஒரு மருத்துவ நோயறிதல் அல்லது மருந்து பரிந்துரை தளம் அல்ல. "
+                "NALAM AI ஒரு மருத்துவ நோயறிதல் அல்லது மருந்து பரிந்துரை தளம் அல்ல. "
                 "மருந்துகளின் அளவு மற்றும் சிகிச்சையை பதிவுபெற்ற அரசு மருத்துவர் மட்டுமே தீர்மானிக்க முடியும்.\n\n"
                 f"உங்கள் உடல்நிலையை பரிசோதிக்க, **{loc}** பகுதியில் உள்ள அரசு ஆரம்ப சுகாதார நிலையத்திற்கு செல்லுமாறு பரிந்துரைக்கிறோம். "
                 "அங்கு மருத்துவர் பணியில் உள்ளார்."
                 if lang == "ta"
                 else "**Clinical Safety Disclaimer:**\n"
-                "CareBridge strictly does not provide medical diagnoses, prescriptions, or drug dosage recommendations. "
+                "NALAM AI strictly does not provide medical diagnoses, prescriptions, or drug dosage recommendations. "
                 "Only a licensed physician can determine the correct medicine dosage for your condition.\n\n"
                 f"Please consult a doctor at your nearest Primary Health Centre in **{loc}**. "
                 "See available facilities and doctor schedules below:"
@@ -264,7 +264,7 @@ class CareBridgeAgent:
                         f"  - Shift Hours: {d.get('shift_hours', 'N/A')}\n"
                     )
 
-            lines.append("\n*CareBridge distinguishes physically verified check-ins (PRESENT) from planned shifts (EXPECTED) to eliminate wasted trips.*")
+            lines.append("\n*NALAM AI distinguishes physically verified check-ins (PRESENT) from planned shifts (EXPECTED) to eliminate wasted trips.*")
 
             return AIChatResponse(
                 conversation_id=conv_id,
@@ -359,9 +359,9 @@ class CareBridgeAgent:
 
             lines = []
             if lang == "ta":
-                lines.append(f"**{loc} பகுதிக்கான கேர்பிரிட்ஜ் குறைந்த இழப்பு பரிந்துரைகள்:**\n")
+                lines.append(f"**{loc} பகுதிக்கான NALAM AI குறைந்த இழப்பு பரிந்துரைகள்:**\n")
             else:
-                lines.append(f"**CareBridge Loss-Minimizing Recommendations for {loc} (Request: {req_type}):**\n")
+                lines.append(f"**NALAM AI Loss-Minimizing Recommendations for {loc} (Request: {req_type}):**\n")
 
             for idx, r in enumerate(rec_data.get("recommendations", []), 1):
                 cards.append(AIChatCard(
@@ -408,7 +408,7 @@ class CareBridgeAgent:
         # 6. PROJECT RAG / ARCHITECTURE / ALGORITHM INTENT
         # -------------------------------------------------------------
         rag_keywords = [
-            "how does carebridge", "algorithm", "stock algorithm", "expected loss formula",
+            "how does nalam ai", "how does nalam", "how does carebridge", "expected loss", "algorithm", "stock algorithm", "expected loss formula",
             "loss formula", "loss calculation", "ivr pin", "lockout", "architecture",
             "pin lockout", "source weights", "half-life", "decay", "பரிந்துரை சூத்திரம்",
         ]
@@ -434,8 +434,8 @@ class CareBridgeAgent:
             # Provide authoritative synthesized explanation
             if "loss" in lowered or "recommend" in lowered or "calculate" in lowered:
                 explanation = (
-                    "### CareBridge Healthcare Recommendation & Expected Trip Loss Algorithm\n\n"
-                    "Unlike traditional healthcare locators that sort solely by raw distance, **CareBridge routes patients by minimizing the risk of a wasted journey**.\n\n"
+                    "### NALAM AI Healthcare Recommendation & Expected Trip Loss Algorithm\n\n"
+                    "Unlike traditional healthcare locators that sort solely by raw distance, **NALAM AI routes patients by minimizing the risk of a wasted journey**.\n\n"
                     "#### The Mathematical Loss Formula:\n"
                     "$$\\text{Expected Loss} = \\text{RoundHalfUp}(\\text{Failure Probability} \\times \\text{Travel Cost})$$\n\n"
                     "Where:\n"
@@ -445,13 +445,13 @@ class CareBridgeAgent:
                     "   - For **Medicine Refills**: $P_{\\text{fail}} = 1.0 - P_{\\text{available}}$. If Metformin stock is `UNLIKELY` ($P=0.20$), visit failure is $80\\%$.\n\n"
                     "**Why this matters in rural healthcare:**\n"
                     "A clinic 2 km away with no doctor or empty medicine shelf yields a **wasted trip**. "
-                    "CareBridge often recommends a Community Health Centre 5 km away because verified doctor presence and stocked pharmacy guarantee continuous care!\n\n"
+                    "NALAM AI often recommends a Community Health Centre 5 km away because verified doctor presence and stocked pharmacy guarantee continuous care!\n\n"
                     "*Source Citation: `STOCK_ALGORITHM.md` & `README.md`*"
                 )
             elif "pin" in lowered or "ivr" in lowered or "lockout" in lowered:
                 explanation = (
-                    "### CareBridge IVR Voice Access & Security Policy\n\n"
-                    "CareBridge provides button-phone voice access via standard keypad telephony (DTMF) in Tamil (`1`) and English (`2`).\n\n"
+                    "### NALAM AI IVR Voice Access & Security Policy\n\n"
+                    "NALAM AI provides button-phone voice access via standard keypad telephony (DTMF) in Tamil (`1`) and English (`2`).\n\n"
                     "#### PIN Authentication & Brute-Force Lockout Policy:\n"
                     "- Callers authenticate with their registered Phone Number and 4-digit PIN (default demo PIN: last 4 digits of phone).\n"
                     "- **Maximum Attempts:** `3` consecutive failed PIN attempts.\n"
@@ -460,9 +460,9 @@ class CareBridgeAgent:
                     "*Source Citation: `IVR_CALL_FLOWS.md`, `IVR_ARCHITECTURE.md`, and `FINAL_SECURITY_AUDIT.md`*"
                 )
             else:
-                top_content = rag_sources[0]["content"] if rag_sources else "CareBridge Architecture Documentation"
+                top_content = rag_sources[0]["content"] if rag_sources else "NALAM AI Architecture Documentation"
                 explanation = (
-                    f"### CareBridge Technical Documentation Excerpt\n\n"
+                    f"### NALAM AI Technical Documentation Excerpt\n\n"
                     f"{top_content}\n\n"
                     f"*Sources: {', '.join(s['document'] for s in rag_sources)}*"
                 )
@@ -569,4 +569,4 @@ class CareBridgeAgent:
 
 
 # Global agent instance
-carebridge_agent = CareBridgeAgent()
+carebridge_agent = NalamAIAgent()

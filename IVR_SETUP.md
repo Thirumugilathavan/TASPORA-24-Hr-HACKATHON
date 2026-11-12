@@ -1,6 +1,6 @@
-# CareBridge Voice Access (IVR) — Setup & Developer Guide
+# NALAM AI Voice Access (IVR) — Setup & Developer Guide
 
-This guide explains how to configure, run, and test the CareBridge Voice Access (IVR) module both locally (using the mock provider and interactive CLI simulator) and in production with real telephony carriers (Twilio Programmable Voice or Exotel).
+This guide explains how to configure, run, and test the NALAM AI Voice Access (IVR) module both locally (using the mock provider and interactive CLI simulator) and in production with real telephony carriers (Twilio Programmable Voice or Exotel).
 
 ---
 
@@ -57,7 +57,7 @@ TELEPHONY_MAX_CALL_DURATION=600            # Safe call limit in seconds (10 minu
 4. *Regulatory Note:* Indian Department of Telecommunications (DoT) and TRAI regulations require submitting business registration documents and address verification (KYC) for active Indian virtual numbers.
 5. In development or hackathon evaluation, you may alternatively use a US/UK virtual number for inbound voice testing while awaiting regulatory clearance.
 
-### Step 2: Expose CareBridge Backend via Public HTTPS
+### Step 2: Expose NALAM AI Backend via Public HTTPS
 Twilio requires a public HTTPS webhook endpoint. For local development or evaluation:
 ```bash
 # Using ngrok
@@ -84,7 +84,7 @@ Note the assigned HTTPS URL, e.g.:
 
 ## 4. Making Your First Real Telephone Call
 
-1. **Start the CareBridge Backend:**
+1. **Start the NALAM AI Backend:**
    ```powershell
    Set-Location C:\Users\prabu\.gemini\antigravity\scratch\TASPORA-24-Hr-HACKATHON
    python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
@@ -97,7 +97,7 @@ Note the assigned HTTPS URL, e.g.:
    From an ordinary mobile phone, landline, or feature phone, dial your Twilio telephone number.
 
 4. **Experience the Live IVR:**
-   - **Welcome:** Hear the bilingual greeting: *"CareBridge-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."*
+   - **Welcome:** Hear the bilingual greeting: *"NALAM AI-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."*
    - **Language:** Press `1` for Tamil or `2` for English.
    - **Main Menu:** The system recites the Main Menu:
      - Press `1` to discover nearby PHCs and CHCs (straight-line distance announced).

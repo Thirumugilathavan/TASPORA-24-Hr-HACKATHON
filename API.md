@@ -1,4 +1,4 @@
-# CareBridge API contract v1
+# NALAM AI API contract v1
 
 Workflow: register -> request -> check availability -> recommend -> book -> fulfil.
 Adding a field is safe. Renaming or removing one needs everyone's agreement.
@@ -133,4 +133,4 @@ Items are sorted in ascending order of `expected_loss` to direct rural patients 
 ---
 
 ## 6. Medical Safety
-No diagnosis and no dose advice in any response, voice prompt, or recommendation. CareBridge is a healthcare accessibility and logistics coordination platform, not a diagnostic engine. Emergency guidance directs immediately to 108 ambulance dispatch and nearest certified hospital.
+No diagnosis and no dose advice in any response, voice prompt, or recommendation. NALAM AI is a healthcare accessibility and logistics coordination platform, not a diagnostic engine. Emergency guidance directs immediately to 108 ambulance dispatch and nearest certified hospital.

@@ -1,8 +1,8 @@
-# CareBridge — Final Security Audit & Privacy Review
+# NALAM AI — Final Security Audit & Privacy Review
 
 **Audit Date:** 2026-11-12  
 **Assessor:** Lead Security & Integration Engineer  
-**Scope:** CareBridge FastAPI Backend, React Web Frontend, IVR Voice Access Engine, Database Schemas & Migrations.  
+**Scope:** NALAM AI FastAPI Backend, React Web Frontend, IVR Voice Access Engine, Database Schemas & Migrations.  
 **Repository:** `https://github.com/Thirumugilathavan/TASPORA-24-Hr-HACKATHON`  
 **Target Branch:** `integration/carebridge-backend`  
 
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-A comprehensive security review was conducted across the unified CareBridge platform. 
+A comprehensive security review was conducted across the unified NALAM AI platform. 
 The system enforces strict zero-trust boundaries between patient self-service and healthcare operational functions:
 - **Public Registration:** Strictly restricted to creating `PATIENT` role accounts.
 - **Patient Privacy:** Consent defaults to `false`. Clinical staff cannot access demographic data without explicit consent (`HTTP 403 CONSENT_REQUIRED`).
@@ -103,7 +103,7 @@ The system enforces strict zero-trust boundaries between patient self-service an
 - **Affected Component:** Platform Documentation, UI Labels, and Algorithm Specifications
 - **Description:** Risk of patients or evaluators mistaking routing recommendations for medical diagnosis, triage, or prescription substitution.
 - **Fix Implemented:**
-  - Explicit disclaimers added to `README.md`, `STOCK_ALGORITHM.md`, and frontend banners: CareBridge is an access and coordination platform, **NOT** an AI diagnostic or prescription tool.
+  - Explicit disclaimers added to `README.md`, `STOCK_ALGORITHM.md`, and frontend banners: NALAM AI is an access and coordination platform, **NOT** an AI diagnostic or prescription tool.
   - Stock probabilities are explicitly labeled with confidence metrics (`LIKELY`, `UNCERTAIN`, `UNLIKELY`).
   - Distance metrics explicitly state straight-line Haversine computation, not road transit time.
 - **Remaining Risk:** None. Strict non-diagnostic posture maintained.
@@ -125,4 +125,4 @@ The system enforces strict zero-trust boundaries between patient self-service an
 | ASHA Village Assignment Scoping | Pending Hierarchy Table | Approved (Demo Mode) | **Requires Village Assignment Module** |
 | Real Telecom Cellular Line | Blocked (Requires SIP) | Approved (CLI Simulator) | **Requires Twilio Paid Account** |
 
-**Recommendation:** CareBridge is **fully approved for live hackathon demonstration**. For production deployment, implement ASHA village-assignment scoping and configure a funded Twilio account.
+**Recommendation:** NALAM AI is **fully approved for live hackathon demonstration**. For production deployment, implement ASHA village-assignment scoping and configure a funded Twilio account.

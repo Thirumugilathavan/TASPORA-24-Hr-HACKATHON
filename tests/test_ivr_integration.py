@@ -26,7 +26,7 @@ async def test_ivr_start_and_menu_navigation(client: AsyncClient, seed_data: Dic
     assert start_res.status_code == 201
     call_data = start_res.json()
     call_sid = call_data["call_sid"]
-    assert "CareBridge" in call_data["speak_text"]
+    assert "NALAM AI" in call_data["speak_text"]
     assert call_data["current_menu"] == "LANGUAGE_SELECT"
 
     # 2. Select English (press 2)
@@ -177,7 +177,7 @@ async def test_ivr_twilio_twiml_webhook(client: AsyncClient, monkeypatch):
     assert "<Response>" in xml_content
     assert "<Gather" in xml_content
     assert "<Say" in xml_content
-    assert "CareBridge" in xml_content
+    assert "NALAM AI" in xml_content
 
     # Keypress callback event from Twilio (Gather result)
     twilio_input = await client.post(

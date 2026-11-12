@@ -1,4 +1,4 @@
-# CareBridge Voice Access (IVR) — Detailed Call Flows
+# NALAM AI Voice Access (IVR) — Detailed Call Flows
 
 This document details the complete step-by-step caller interaction flows, DTMF keypad mappings, and bilingual audio transcripts in **Tamil (`ta`)** and **English (`en`)**.
 
@@ -50,7 +50,7 @@ The following keys behave consistently across all menus:
 
 | Key | Event | Tamil Prompt | English Prompt |
 |---|---|---|---|
-| Inbound | Welcome | "CareBridge-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2." | "Welcome to CareBridge. For Tamil, press 1. For English, press 2." |
+| Inbound | Welcome | "NALAM AI-க்கு நல்வரவு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2." | "Welcome to NALAM AI. For Tamil, press 1. For English, press 2." |
 | `1` | Select Tamil | Language set to `ta` $\to$ Proceed to Main Menu | - |
 | `2` | Select English | - | Language set to `en` $\to$ Proceed to Main Menu |
 
@@ -217,5 +217,5 @@ The following keys behave consistently across all menus:
   - Normalizes numbers into strict 10-digit Indian mobile formats.
   - Uses Twilio REST API `POST /2010-04-01/Accounts/{AccountSid}/Calls.json` with fallback simulation mode when carrier accounts are unprovisioned.
 - **Greeting Audio:**
-  - *Tamil:* *"வணக்கம்! இது CareBridge சுகாதார மையத்திலிருந்து வரும் அழைப்பு. உங்கள் சுகாதார உதவி கோரிக்கை தொடர்பாக அழைக்கின்றோம். தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."*
-  - *English:* *"Hello! This is CareBridge rural healthcare service following up on your healthcare request. For Tamil, press 1. For English, press 2."*
+  - *Tamil:* *"வணக்கம்! இது NALAM AI சுகாதார மையத்திலிருந்து வரும் அழைப்பு. உங்கள் சுகாதார உதவி கோரிக்கை தொடர்பாக அழைக்கின்றோம். தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."*
+  - *English:* *"Hello! This is NALAM AI rural healthcare service following up on your healthcare request. For Tamil, press 1. For English, press 2."*

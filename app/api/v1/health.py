@@ -24,7 +24,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "database": db_status,
         "simulated_mode": settings.IS_SIMULATED,
         "disclosure": (
-            "CareBridge is operating in simulated evaluation mode. "
+            "NALAM AI is operating in simulated evaluation mode. "
             "No live connection exists to real hospital systems, pharmacy inventories, "
             "or emergency services. All data is synthetic."
         ),

@@ -32,7 +32,7 @@ async def test_ivr_e2e_full_tamil_journey(client: AsyncClient, seed_data: Dict[s
     )
     assert start_res.status_code == 201
     call_sid = start_res.json()["call_sid"]
-    assert "CareBridge" in start_res.json()["speak_text"]
+    assert "NALAM AI" in start_res.json()["speak_text"]
 
     # Step 2: Select Tamil (press 1)
     lang_res = await client.post(

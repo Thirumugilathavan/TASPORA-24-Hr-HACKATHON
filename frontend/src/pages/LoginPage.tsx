@@ -29,7 +29,7 @@ export const LoginPage: React.FC = () => {
       setLoading(true);
       setError(null);
       await login(phone.trim(), password);
-      notify(t('welcomeNotify', 'Welcome back to CareBridge!'), 'success');
+      notify(t('welcomeNotify', 'Welcome back to NALAM AI!'), 'success');
       navigate('/');
     } catch (err: any) {
       setError(err.message || t('errorTitle', 'Login failed. Please check your credentials.'));
@@ -58,7 +58,7 @@ export const LoginPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'CareBridge')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'NALAM AI')}</h1>
           <p className="text-sm text-slate-600 mt-1">{t('taglineSub', 'Rural Healthcare Accessibility & Coordination Platform')}</p>
         </div>
 

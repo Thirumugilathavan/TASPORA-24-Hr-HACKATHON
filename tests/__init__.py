@@ -1,1 +1,1 @@
-"""CareBridge Test Suite."""
+"""NALAM AI Test Suite."""

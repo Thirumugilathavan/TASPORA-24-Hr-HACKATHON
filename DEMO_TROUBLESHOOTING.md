@@ -1,4 +1,4 @@
-# CareBridge — Demonstration Troubleshooting & Recovery Guide
+# NALAM AI — Demonstration Troubleshooting & Recovery Guide
 
 This guide provides rapid diagnostic steps and recovery procedures for common issues that may arise during live hackathon demonstrations or evaluator setup.
 
@@ -26,7 +26,7 @@ This guide provides rapid diagnostic steps and recovery procedures for common is
 
 ## 2. Frontend Connectivity / CORS Errors
 
-### Symptom: `ApiConnectionError: Unable to connect to CareBridge API at http://localhost:8000`
+### Symptom: `ApiConnectionError: Unable to connect to NALAM AI API at http://localhost:8000`
 - **Cause 1:** Backend Uvicorn server is not running.
   - *Fix:* Verify Terminal 1 shows `Uvicorn running on http://0.0.0.0:8000`. Test `http://localhost:8000/api/health` in browser.
 - **Cause 2:** Browser blocked cross-origin request.
