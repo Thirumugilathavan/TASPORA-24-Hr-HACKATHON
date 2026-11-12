@@ -1,0 +1,82 @@
+[
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "Rampur",
+    "district": "Sitapur",
+    "latitude": 27.5684,
+    "longitude": 80.6791,
+    "is_synthetic": true
+  },
+  {
+    "id": "7ca65e12-4211-4899-b1ba-1d892e54fca1",
+    "name": "Bilaspur",
+    "district": "Sitapur",
+    "latitude": 27.6120,
+    "longitude": 80.7042,
+    "is_synthetic": true
+  },
+  {
+    "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+    "name": "Maholi",
+    "district": "Sitapur",
+    "latitude": 27.6653,
+    "longitude": 80.4721,
+    "is_synthetic": true
+  },
+  {
+    "id": "b2c3d4e5-f6a7-4b6c-9d0e-1f2a3b4c5d6e",
+    "name": "Biswan",
+    "district": "Sitapur",
+    "latitude": 27.4947,
+    "longitude": 81.0028,
+    "is_synthetic": true
+  },
+  {
+    "id": "c3d4e5f6-a7b8-4c7d-0e1f-2a3b4c5d6e7f",
+    "name": "Sidhauli",
+    "district": "Sitapur",
+    "latitude": 27.2882,
+    "longitude": 80.8286,
+    "is_synthetic": true
+  },
+  {
+    "id": "d4e5f6a7-b8c9-4d8e-1f2a-3b4c5d6e7f8a",
+    "name": "Laharpur",
+    "district": "Sitapur",
+    "latitude": 27.7167,
+    "longitude": 80.9000,
+    "is_synthetic": true
+  },
+  {
+    "id": "e5f6a7b8-c9d0-4e9f-2a3b-4c5d6e7f8a9b",
+    "name": "Mitauli",
+    "district": "Lakhimpur Kheri",
+    "latitude": 27.7833,
+    "longitude": 80.4833,
+    "is_synthetic": true
+  },
+  {
+    "id": "f6a7b8c9-d0e1-4f0a-3b4c-5d6e7f8a9b0c",
+    "name": "Gola Gokaran Nath",
+    "district": "Lakhimpur Kheri",
+    "latitude": 28.0833,
+    "longitude": 80.4667,
+    "is_synthetic": true
+  },
+  {
+    "id": "07b8c9d0-e1f2-4a1b-4c5d-6e7f8a9b0c1d",
+    "name": "Mohammadi",
+    "district": "Lakhimpur Kheri",
+    "latitude": 27.9667,
+    "longitude": 80.3167,
+    "is_synthetic": true
+  },
+  {
+    "id": "18c9d0e1-f2a3-4b2c-5d6e-7f8a9b0c1d2e",
+    "name": "Palia Kalan",
+    "district": "Lakhimpur Kheri",
+    "latitude": 28.4333,
+    "longitude": 80.5833,
+    "is_synthetic": true
+  }
+]

@@ -12,8 +12,10 @@ from app.models.base import Base
 from app.models import (  # noqa: F401
     Appointment,
     HealthcareRequest,
+    Patient,
     Recommendation,
     User,
+    Village,
 )
 
 # this is the Alembic Config object, which provides

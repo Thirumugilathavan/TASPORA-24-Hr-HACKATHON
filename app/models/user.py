@@ -1,6 +1,10 @@
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.patient import Patient
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -12,3 +16,5 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), default="PATIENT", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="user", uselist=False)
