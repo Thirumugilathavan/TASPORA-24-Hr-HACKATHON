@@ -33,12 +33,16 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 - **Ownership Scoping:** Patients can only access and manipulate their own requests, profiles, and bookings. Frontline staff (`ASHA`, `STAFF`, `DOCTOR`, `ADMIN`) have administrative and delegated privileges.
 
 ### 2. Patient & Village Module
-- **Villages Directory:** Registry with GPS coordinates (`latitude`, `longitude`), district, and state.
-- **Patient Profiles:** One-to-one demographic linkage to User and home Village.
+- **Villages Directory:** Registry with GPS coordinates (`latitude`, `longitude`), district, and state. Synthetic villages explicitly identify as demo geography (`is_synthetic: true`).
+- **Patient Profiles:** One-to-one demographic linkage to User and home Village. Strict consent defaults to `false`; clinical staff cannot access demographic profiles without explicit consent (`HTTP 403 CONSENT_REQUIRED`).
 
 ### 3. Facility, Doctor & Medicine Stock Intelligence
 - **Facility Catalogue:** Multi-criteria filtering by village, facility type (`PHC`, `CHC`, `HOSPITAL`, `PHARMACY`), and offered services.
-- **Doctor Attendance:** Transparent schedule management tracking `EXPECTED` (planned shifts) versus physically verified `PRESENT` / `ABSENT` attendance.
+- **Doctor Attendance & Ownership:** 
+  - Explicit database linkage: `Doctor.user_id` references `users.id` with a 1-to-1 unique constraint (`uq_doctors_user_id`).
+  - Attendance self-verification is strictly restricted to the doctor's own explicitly linked user account (`doc.user_id == current_user.id`).
+  - Unlinked legacy doctor profiles fail closed with `HTTP 403 FORBIDDEN` until linked by `STAFF` or `ADMIN`.
+  - Shifts distinguish planned (`EXPECTED`) from physically verified (`PRESENT` / `ABSENT`) attendance.
 - **Probabilistic Stock State:** Append-only ledger recording evidence from `STAFF` (weight 1.0) and `ASHA` (weight 0.8). **Patient feedback never modifies medicine stock probability directly.**
 - **Availability Belief States:** Calculates probability $P(\text{available})$ and confidence metric $c \in [0.0, 1.0]$, mapped to agreed contract labels (`LIKELY`, `UNCERTAIN`, `UNLIKELY`).
 
@@ -128,6 +132,12 @@ Run specific test modules:
 # End-to-End full lifecycle test
 pytest -v tests/test_e2e_integration.py
 
+# Doctor ownership and schedule verification tests
+pytest -v tests/test_doctors.py
+
+# Patient privacy and village validation tests
+pytest -v tests/test_patient_village.py
+
 # Probabilistic stock intelligence algorithm tests
 pytest -v tests/test_algorithm.py
 
@@ -148,15 +158,16 @@ pytest -v tests/test_recommendations.py
 | `POST` | `/api/auth/login` | Login and obtain JWT token | Public |
 | `GET` | `/api/villages` | List villages with GPS coordinates | Authenticated |
 | `POST` | `/api/patients` | Create patient profile | `PATIENT`, `ASHA`, `STAFF`, `ADMIN` |
-| `GET` | `/api/patients/{id}` | Retrieve patient profile | Scoped / Clinical |
+| `GET` | `/api/patients/{id}` | Retrieve patient profile | Scoped / Clinical (requires consent) |
 | `GET` | `/api/facilities` | List & filter facilities | Authenticated |
 | `POST` | `/api/facilities` | Register healthcare facility | `STAFF`, `ADMIN` |
 | `GET` | `/api/facilities/{id}` | Facility details with doctors & services | Authenticated |
 | `GET` | `/api/doctors` | List doctors by facility | Authenticated |
-| `POST` | `/api/doctors` | Register doctor | `STAFF`, `ADMIN` |
+| `POST` | `/api/doctors` | Register doctor (optional `user_id`) | `STAFF`, `ADMIN` |
+| `POST` | `/api/doctors/{id}/link-user` | Explicitly associate doctor profile to user account | `STAFF`, `ADMIN` |
 | `GET` | `/api/doctors/{id}/schedule` | Doctor schedule & attendance | Authenticated |
 | `POST` | `/api/doctors/{id}/schedule` | Set planned doctor schedule | `STAFF`, `ADMIN` |
-| `POST` | `/api/doctors/{id}/attendance` | Log verified attendance (`PRESENT`/`ABSENT`) | `STAFF`, `ADMIN` |
+| `POST` | `/api/doctors/{id}/verify-attendance` | Log verified attendance (`PRESENT`/`ABSENT`) | `STAFF`, `ADMIN`, `DOCTOR` (own profile) |
 | `GET` | `/api/medicines` | Search medicine catalogue | Authenticated |
 | `POST` | `/api/medicines` | Add medicine to catalogue | `STAFF`, `ADMIN` |
 | `POST` | `/api/stock/report` | Submit medicine stock report | Authenticated (server derives role) |

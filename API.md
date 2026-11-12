@@ -53,14 +53,19 @@ FastAPI's `/docs` page is the live source of truth. All data is simulated.
 | POST | /api/facilities | Restricted to STAFF and ADMIN |
 | GET | /api/doctors | query: facility_id |
 | GET | /api/doctors/{id}/schedule | query: date. Returns attendance_status, last_verified_at. Unscheduled dates return UNKNOWN |
-| POST | /api/doctors | Restricted to STAFF and ADMIN |
+| POST | /api/doctors | body: facility_id, name, specialization, qualification, contact_phone, user_id (optional). Restricted to STAFF and ADMIN |
+| POST | /api/doctors/{id}/link-user | body: user_id. Restricted to STAFF and ADMIN. Links doctor profile to user account. Rejects duplicates (409) and non-DOCTOR roles (400) |
 | POST | /api/doctors/{id}/schedule | Restricted to STAFF and ADMIN |
 | POST | /api/doctors/{id}/verify-attendance | query: date, attendance_status. Restricted to STAFF, ADMIN, DOCTOR |
 
-### Doctor Attendance & Geography Rules
-1. **Doctor Ownership Constraint:** A `DOCTOR` role caller may only verify attendance for their own linked doctor profile. Doctors attempting to verify another doctor's attendance receive `HTTP 403 FORBIDDEN`. `PATIENT` and `ASHA` roles cannot verify attendance.
-2. **No Phantom Attendance:** Shifts without recorded schedule return `UNKNOWN` attendance rather than inferred presence. `EXPECTED` denotes planned duty; `PRESENT` / `ABSENT` denotes verified status.
-3. **Geodesic Distance Limitations:** All calculated distances represent Haversine straight-line geodesic distance in km, serving as an idealized lower bound for actual rural transit.
+### Doctor Attendance & Security Rules
+1. **Explicit Doctor-to-User Ownership:** The `Doctor` entity includes an explicit nullable `user_id` foreign key referencing `users.id` with a 1-to-1 uniqueness constraint (`uq_doctors_user_id`).
+2. **Strict Verification Enforcement:** A `DOCTOR` role caller may only verify attendance for their own explicitly linked doctor profile (`Doctor.user_id == current_user.id`). Cross-doctor verification attempts return `HTTP 403 FORBIDDEN`. `PATIENT` and `ASHA` roles cannot verify attendance (`HTTP 403 FORBIDDEN`).
+3. **Fail-Closed Authorization (No Name/Phone Fallback):** Unlinked legacy doctor profiles (`user_id is None`) cannot self-verify attendance and return `HTTP 403 FORBIDDEN`. Heuristic fallback to name or phone matching is strictly prohibited to eliminate impersonation risks.
+4. **Administrative Association Process:** Associating a doctor profile with a user account requires an explicit administrative action by `STAFF` or `ADMIN` via `POST /api/doctors/{id}/link-user` or at doctor creation time via `POST /api/doctors`.
+5. **Database Migration & Data Preservation:** Migration `c14696c8596b` adds `user_id` as a nullable column referencing `users.id` (`ON DELETE SET NULL`), preserving all legacy doctor profiles and duty schedules intact without data loss.
+6. **No Phantom Attendance:** Shifts without recorded schedule return `UNKNOWN` attendance rather than inferred presence. `EXPECTED` denotes planned duty; `PRESENT` / `ABSENT` denotes verified status.
+7. **Geodesic Distance Limitations:** All calculated distances represent Haversine straight-line geodesic distance in km, serving as an idealized lower bound for actual rural transit.
 
 ---
 
