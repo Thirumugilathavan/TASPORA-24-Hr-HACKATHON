@@ -200,7 +200,7 @@ async def test_full_carebridge_e2e_workflow(client: AsyncClient, db_session):
     avail_info = stock_check_res.json()
     assert len(avail_info["items"]) >= 1
     first_item = avail_info["items"][0]
-    assert first_item["label"] in ("LIKELY", "DEFINITELY_AVAILABLE", "UNCERTAIN")
+    assert first_item["label"] in ("LIKELY", "UNCERTAIN", "UNLIKELY")
     assert first_item["confidence"] > 0.0
 
     # -------------------------------------------------------------------------

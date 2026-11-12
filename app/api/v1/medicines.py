@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.dependencies import require_role
 from app.models.user import User
 from app.schemas.medicine import MedicineCreate, MedicineResponse
-from app.schemas.shared import Page
+from app.schemas.shared import Page, Role
 from app.services.medicine_service import MedicineServiceHandler
 
 router = APIRouter(prefix="/medicines", tags=["Medicines"])
@@ -33,13 +33,10 @@ async def get_medicines(
 @router.post("", response_model=MedicineResponse, status_code=status.HTTP_201_CREATED)
 async def create_medicine(
     payload: MedicineCreate,
-    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
+    current_user: User = Depends(require_role([Role.STAFF.value, Role.ADMIN.value])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a medicine entry to the catalogue.
-
-    Restricted to authorized STAFF and ADMIN roles.
-    """
+    """Add a medicine entry to the catalogue (STAFF or ADMIN only)."""
     handler = MedicineServiceHandler(db)
     try:
         return await handler.create_medicine(payload)

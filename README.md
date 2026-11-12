@@ -40,7 +40,7 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 - **Facility Catalogue:** Multi-criteria filtering by village, facility type (`PHC`, `CHC`, `HOSPITAL`, `PHARMACY`), and offered services.
 - **Doctor Attendance:** Transparent schedule management tracking `EXPECTED` (planned shifts) versus physically verified `PRESENT` / `ABSENT` attendance.
 - **Probabilistic Stock State:** Append-only ledger recording evidence from `STAFF` (weight 1.0) and `ASHA` (weight 0.8). **Patient feedback never modifies medicine stock probability directly.**
-- **Availability Belief States:** Calculates probability $P(\text{available})$ and confidence metric $c \in [0.0, 1.0]$, mapped to labels (`DEFINITELY_AVAILABLE`, `LIKELY`, `UNCERTAIN`, `UNLIKELY`, `DEFINITELY_OUT`).
+- **Availability Belief States:** Calculates probability $P(\text{available})$ and confidence metric $c \in [0.0, 1.0]$, mapped to agreed contract labels (`LIKELY`, `UNCERTAIN`, `UNLIKELY`).
 
 ### 4. Recommendation Engine & Appointment Scheduling
 - **Expected Trip Loss Formula:**

@@ -2,6 +2,8 @@ from datetime import date
 import uuid
 import pytest
 from httpx import AsyncClient
+from app.core.security import create_access_token
+from app.models.user import User
 
 from app.core.security import create_access_token
 from app.models.user import User
@@ -204,3 +206,125 @@ async def test_doctor_cannot_verify_another_doctor_attendance(client: AsyncClien
     )
     assert res_own.status_code == 200
     assert res_own.json()["attendance_status"] == "PRESENT"
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_authorization(client: AsyncClient, seed_data: dict):
+    """Anonymous and PATIENT callers cannot create doctors (401/403); STAFF and ADMIN can (201)."""
+    fac = seed_data["facilities"][0]
+    payload = {
+        "facility_id": str(fac.id),
+        "name": "Dr. Sunita Rao",
+        "specialization": "Pediatrics",
+        "qualification": "MBBS, DCH",
+    }
+
+    # Anonymous -> 401
+    anon_res = await client.post("/api/doctors", json=payload)
+    assert anon_res.status_code == 401
+
+    # PATIENT -> 403
+    pat_res = await client.post("/api/doctors", json=payload, headers=seed_data["headers"]["patient"])
+    assert pat_res.status_code == 403
+
+    # STAFF -> 201
+    staff_res = await client.post("/api/doctors", json=payload, headers=seed_data["headers"]["staff"])
+    assert staff_res.status_code == 201
+
+    # ADMIN -> 201
+    payload["name"] = "Dr. Admin Appointed"
+    admin_res = await client.post("/api/doctors", json=payload, headers=seed_data["headers"]["admin"])
+    assert admin_res.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_schedule_authorization(client: AsyncClient, seed_data: dict):
+    """Anonymous and PATIENT callers cannot schedule shifts (401/403); STAFF and ADMIN can (201)."""
+    doc = seed_data["doctors"][0]
+    fac = seed_data["facilities"][0]
+    payload = {
+        "doctor_id": str(doc.id),
+        "facility_id": str(fac.id),
+        "schedule_date": "2026-11-20",
+        "start_time": "09:00:00",
+        "end_time": "13:00:00",
+        "attendance_status": "EXPECTED",
+    }
+
+    # Anonymous -> 401
+    anon_res = await client.post(f"/api/doctors/{doc.id}/schedule", json=payload)
+    assert anon_res.status_code == 401
+
+    # PATIENT -> 403
+    pat_res = await client.post(f"/api/doctors/{doc.id}/schedule", json=payload, headers=seed_data["headers"]["patient"])
+    assert pat_res.status_code == 403
+
+    # STAFF -> 201
+    staff_res = await client.post(f"/api/doctors/{doc.id}/schedule", json=payload, headers=seed_data["headers"]["staff"])
+    assert staff_res.status_code == 201
+
+    # ADMIN -> 201
+    payload["schedule_date"] = "2026-11-21"
+    admin_res = await client.post(f"/api/doctors/{doc.id}/schedule", json=payload, headers=seed_data["headers"]["admin"])
+    assert admin_res.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_verify_attendance_role_restrictions(client: AsyncClient, seed_data: dict, db_session):
+    """PATIENT and ASHA cannot verify attendance (403); STAFF, ADMIN and DOCTOR can (200)."""
+    doc = seed_data["doctors"][0]
+    today = date.today().isoformat()
+
+    # Anonymous -> 401
+    anon_res = await client.post(f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=PRESENT")
+    assert anon_res.status_code == 401
+
+    # PATIENT -> 403
+    pat_res = await client.post(
+        f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=seed_data["headers"]["patient"],
+    )
+    assert pat_res.status_code == 403
+
+    # ASHA -> 403
+    asha_res = await client.post(
+        f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=seed_data["headers"]["asha"],
+    )
+    assert asha_res.status_code == 403
+
+    # STAFF -> 200
+    staff_res = await client.post(
+        f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=seed_data["headers"]["staff"],
+    )
+    assert staff_res.status_code == 200
+
+    # ADMIN -> 200
+    admin_res = await client.post(
+        f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=ABSENT",
+        headers=seed_data["headers"]["admin"],
+    )
+    assert admin_res.status_code == 200
+    assert admin_res.json()["attendance_status"] == "ABSENT"
+
+    # DOCTOR (linked doctor profile) -> 200
+    doc_user = User(
+        id=uuid.uuid4(),
+        name="Dr. Anita Sharma",
+        phone="9876543220",
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(doc_user)
+    await db_session.commit()
+    doc_token = create_access_token({"sub": str(doc_user.id), "role": "DOCTOR"})
+    doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+    doc_res = await client.post(
+        f"/api/doctors/{doc.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=doc_headers,
+    )
+    assert doc_res.status_code == 200
+    assert doc_res.json()["attendance_status"] == "PRESENT"
