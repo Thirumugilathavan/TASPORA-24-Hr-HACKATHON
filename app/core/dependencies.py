@@ -79,3 +79,24 @@ def require_role(allowed_roles: List[str]) -> Callable:
         return current_user
 
     return role_checker
+
+
+async def check_patient_ownership(
+    db: AsyncSession,
+    current_user: User,
+    patient_id: UUID,
+) -> bool:
+    """Verify whether patient_id belongs to current_user (either as User.id or Patient profile id)."""
+    if current_user.role != "PATIENT":
+        return True
+    if patient_id == current_user.id:
+        return True
+
+    from app.models.patient import Patient
+
+    stmt = select(Patient).where(
+        Patient.id == patient_id,
+        Patient.user_id == current_user.id,
+    )
+    res = await db.execute(stmt)
+    return res.scalar_one_or_none() is not None

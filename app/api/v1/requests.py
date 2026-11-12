@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import check_patient_ownership, get_current_user
 from app.models.request import HealthcareRequest
 from app.models.user import User
 from app.schemas.shared import RequestIn, RequestOut, Role
@@ -30,7 +30,7 @@ async def create_request(
     - PATIENT users can only initiate requests for their own account.
     - ASHA, DOCTOR, STAFF, and ADMIN users may initiate requests on behalf of any patient.
     """
-    if current_user.role == Role.PATIENT.value and payload.patient_id != current_user.id:
+    if not await check_patient_ownership(db, current_user, payload.patient_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -93,7 +93,7 @@ async def get_request(
             },
         )
 
-    if current_user.role == Role.PATIENT.value and req.patient_id != current_user.id:
+    if not await check_patient_ownership(db, current_user, req.patient_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

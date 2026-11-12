@@ -50,19 +50,27 @@ def upgrade() -> None:
     op.create_index(op.f('ix_medicines_generic_name'), 'medicines', ['generic_name'], unique=False)
     op.create_index(op.f('ix_medicines_id'), 'medicines', ['id'], unique=False)
     op.create_index(op.f('ix_medicines_name'), 'medicines', ['name'], unique=False)
-    op.create_table('villages',
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('district', sa.String(length=100), nullable=True),
-    sa.Column('state', sa.String(length=100), nullable=True),
-    sa.Column('latitude', sa.Float(), nullable=False),
-    sa.Column('longitude', sa.Float(), nullable=False),
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_villages_id'), 'villages', ['id'], unique=False)
-    op.create_index(op.f('ix_villages_name'), 'villages', ['name'], unique=False)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+    if 'villages' not in tables:
+        op.create_table('villages',
+        sa.Column('name', sa.String(length=255), nullable=False),
+        sa.Column('district', sa.String(length=100), nullable=True),
+        sa.Column('state', sa.String(length=100), nullable=True),
+        sa.Column('latitude', sa.Float(), nullable=False),
+        sa.Column('longitude', sa.Float(), nullable=False),
+        sa.Column('id', sa.Uuid(), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index(op.f('ix_villages_id'), 'villages', ['id'], unique=False)
+        op.create_index(op.f('ix_villages_name'), 'villages', ['name'], unique=False)
+    else:
+        cols = [c['name'] for c in inspector.get_columns('villages')]
+        if 'state' not in cols:
+            op.add_column('villages', sa.Column('state', sa.String(length=100), nullable=True))
     op.create_table('doctors',
     sa.Column('facility_id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -184,9 +192,17 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_doctors_id'), table_name='doctors')
     op.drop_index(op.f('ix_doctors_facility_id'), table_name='doctors')
     op.drop_table('doctors')
-    op.drop_index(op.f('ix_villages_name'), table_name='villages')
-    op.drop_index(op.f('ix_villages_id'), table_name='villages')
-    op.drop_table('villages')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+    if 'villages' in tables:
+        cols = [c['name'] for c in inspector.get_columns('villages')]
+        if 'is_synthetic' in cols and 'state' in cols:
+            op.drop_column('villages', 'state')
+        elif 'is_synthetic' not in cols:
+            op.drop_index(op.f('ix_villages_name'), table_name='villages')
+            op.drop_index(op.f('ix_villages_id'), table_name='villages')
+            op.drop_table('villages')
     op.drop_index(op.f('ix_medicines_name'), table_name='medicines')
     op.drop_index(op.f('ix_medicines_id'), table_name='medicines')
     op.drop_index(op.f('ix_medicines_generic_name'), table_name='medicines')

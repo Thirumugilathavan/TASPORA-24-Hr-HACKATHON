@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import check_patient_ownership, get_current_user
 from app.models.appointment import Appointment
 from app.models.request import HealthcareRequest
 from app.models.user import User
@@ -34,7 +34,7 @@ async def create_appointment(
     Returns HTTP 409 CONFLICT if the requested slot is already taken.
     """
     # 1. Authorization check
-    if current_user.role == Role.PATIENT.value and payload.patient_id != current_user.id:
+    if not await check_patient_ownership(db, current_user, payload.patient_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -154,7 +154,7 @@ async def get_appointment(
             },
         )
 
-    if current_user.role == Role.PATIENT.value and appt.patient_id != current_user.id:
+    if not await check_patient_ownership(db, current_user, appt.patient_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -195,7 +195,7 @@ async def cancel_appointment(
             },
         )
 
-    if current_user.role == Role.PATIENT.value and appt.patient_id != current_user.id:
+    if not await check_patient_ownership(db, current_user, appt.patient_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

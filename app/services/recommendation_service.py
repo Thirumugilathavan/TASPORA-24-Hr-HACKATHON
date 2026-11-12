@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 from app.core.math_utils import round_expected_loss
@@ -10,6 +10,7 @@ from app.schemas.shared import (
     RecommendationItem,
     RequestType,
 )
+from app.services.distance_service import haversine_km
 from app.services.stubs import (
     distance_km,
     get_availability,
@@ -110,7 +111,9 @@ def evaluate_facility_suitability(
 
 def generate_recommendations(
     request: HealthcareRequest,
-    village_id: Optional[UUID] = None
+    village_id: Optional[UUID] = None,
+    candidate_facilities: Optional[List[Dict[str, Any]]] = None,
+    village_coords: Optional[Tuple[float, float]] = None,
 ) -> List[RecommendationItem]:
     """Generate loss-minimized healthcare facility recommendations.
 
@@ -123,10 +126,13 @@ def generate_recommendations(
     target_village_id = village_id or uuid4()
     today = date.today()
 
-    # Retrieve candidate facilities via shared contract (with fallback adapter)
-    candidates = list_candidate_facilities(target_village_id, service)
-    if not candidates:
-        candidates = DEFAULT_CANDIDATE_FACILITIES
+    # Retrieve candidate facilities via argument, shared contract, or default fallback
+    if candidate_facilities:
+        candidates = candidate_facilities
+    else:
+        candidates = list_candidate_facilities(target_village_id, service)
+        if not candidates:
+            candidates = DEFAULT_CANDIDATE_FACILITIES
 
     evaluated_items: List[RecommendationItem] = []
 
@@ -137,8 +143,14 @@ def generate_recommendations(
         # 1. Facility Service Suitability
         suitability = evaluate_facility_suitability(fac, service, request.request_type)
 
-        # 2. Doctor Availability via shared contract
-        doc_status = get_doctor_status(fac_id, today)
+        # 2. Doctor Availability via live data or shared contract
+        if "doctor_status" in fac and fac["doctor_status"] is not None:
+            doc_status = fac["doctor_status"]
+            if not isinstance(doc_status, AttendanceStatus):
+                doc_status = AttendanceStatus(doc_status)
+        else:
+            doc_status = get_doctor_status(fac_id, today)
+
         # Doctor failure probability
         if doc_status == AttendanceStatus.PRESENT:
             p_doc_fail = 0.05
@@ -150,12 +162,25 @@ def generate_recommendations(
         else:  # ABSENT
             p_doc_fail = 0.95
 
-        # 3. Medicine Availability via shared contract
+        # 3. Medicine Availability via live data or shared contract
         med_confidence = 0.80
         p_stock_fail = 0.20
         stock_label = AvailabilityLabel.UNCERTAIN
 
-        if request.medicine_id is not None or request.request_type == RequestType.REFILL:
+        if "medicine_belief" in fac and fac["medicine_belief"] is not None:
+            stock_res = fac["medicine_belief"]
+            p_avail = float(stock_res.get("p", 0.5))
+            conf = float(stock_res.get("conf", 0.5))
+            stock_label = stock_res.get("label", AvailabilityLabel.UNCERTAIN)
+            if not isinstance(stock_label, AvailabilityLabel):
+                stock_label = AvailabilityLabel(stock_label)
+            med_confidence = conf
+
+            if p_avail > 0.0:
+                p_stock_fail = max(0.0, 1.0 - (p_avail * conf))
+            else:
+                p_stock_fail = 1.0
+        elif request.medicine_id is not None or request.request_type == RequestType.REFILL:
             med_id = request.medicine_id or uuid4()
             stock_res = get_availability(fac_id, med_id)
             p_avail = float(stock_res.get("p", 0.5))
@@ -169,7 +194,11 @@ def generate_recommendations(
                 p_stock_fail = 1.0
 
         # 4. Straight-line Distance (Approximate Haversine km)
-        dist = distance_km(target_village_id, fac_id)
+        if village_coords and "latitude" in fac and "longitude" in fac:
+            dist = round(haversine_km(village_coords[0], village_coords[1], fac["latitude"], fac["longitude"]))
+        else:
+            dist = distance_km(target_village_id, fac_id)
+
         if dist <= 0:
             # Deterministic synthetic distance for demo facilities if stub returns 0
             fac_hash = abs(hash(str(fac_id))) % 25
