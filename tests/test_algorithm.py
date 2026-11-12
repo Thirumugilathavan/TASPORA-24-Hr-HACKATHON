@@ -233,3 +233,91 @@ async def test_stale_evidence_handling(db_session: AsyncSession, seed_data: dict
     assert label == AvailabilityLabel.UNCERTAIN
     assert count == 1
     assert last_rep is not None
+
+
+@pytest.mark.asyncio
+async def test_repeated_reports_dampened_and_capped(db_session: AsyncSession, seed_data: dict):
+    """Verify repeated reports from a single reporter suffer diminishing returns and do not inflate confidence."""
+    fac = seed_data["facilities"][0]
+    med = seed_data["medicines"][0]
+    service = AvailabilityService(db_session)
+    staff_user = seed_data["users"]["staff"]
+
+    # 1 report
+    r1 = StockReport(
+        facility_id=fac.id,
+        medicine_id=med.id,
+        reporter_id=staff_user.id,
+        source_type=SourceType.STAFF.value,
+        availability_status=AvailabilityStatus.IN_STOCK.value,
+    )
+    db_session.add(r1)
+    await db_session.commit()
+    _, conf_1, _, _, _ = await service.calculate_belief(fac.id, med.id)
+
+    # Add 10 more reports from the same staff user
+    for _ in range(10):
+        db_session.add(StockReport(
+            facility_id=fac.id,
+            medicine_id=med.id,
+            reporter_id=staff_user.id,
+            source_type=SourceType.STAFF.value,
+            availability_status=AvailabilityStatus.IN_STOCK.value,
+        ))
+    await db_session.commit()
+    _, conf_11, _, count_11, _ = await service.calculate_belief(fac.id, med.id)
+
+    assert count_11 == 11
+    # Confidence must NOT reach near 1.0; capped at single-reporter maximum (~0.70)
+    assert conf_11 < 0.75
+    assert conf_11 >= conf_1
+
+
+@pytest.mark.asyncio
+async def test_independent_reporters_yield_higher_confidence_than_single(
+    db_session: AsyncSession, seed_data: dict
+):
+    """Verify independent observers provide stronger evidentiary corroboration than a single repetitive reporter."""
+    import uuid
+    from app.models.user import User
+    fac = seed_data["facilities"][0]
+    med = seed_data["medicines"][0]
+    service = AvailabilityService(db_session)
+
+    # Facility with 10 reports from 1 reporter
+    staff_1 = seed_data["users"]["staff"]
+    for _ in range(10):
+        db_session.add(StockReport(
+            facility_id=fac.id,
+            medicine_id=med.id,
+            reporter_id=staff_1.id,
+            source_type=SourceType.STAFF.value,
+            availability_status=AvailabilityStatus.IN_STOCK.value,
+        ))
+    await db_session.commit()
+    _, conf_single, _, _, _ = await service.calculate_belief(fac.id, med.id)
+
+    # Second facility with 3 reports from 3 distinct staff members
+    fac_2 = seed_data["facilities"][1]
+    for i in range(3):
+        distinct_staff = User(
+            name=f"Staff Member {i+1}",
+            phone=f"981112223{i}",
+            password_hash="fake",
+            role="STAFF",
+        )
+        db_session.add(distinct_staff)
+        await db_session.flush()
+
+        db_session.add(StockReport(
+            facility_id=fac_2.id,
+            medicine_id=med.id,
+            reporter_id=distinct_staff.id,
+            source_type=SourceType.STAFF.value,
+            availability_status=AvailabilityStatus.IN_STOCK.value,
+        ))
+    await db_session.commit()
+    _, conf_multi, _, _, _ = await service.calculate_belief(fac_2.id, med.id)
+
+    # 3 distinct independent staff members yield higher confidence than 1 person repeating 10 times
+    assert conf_multi > conf_single

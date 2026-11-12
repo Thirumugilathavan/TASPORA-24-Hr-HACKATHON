@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.dependencies import require_role
+from app.models.user import User
 from app.schemas.facility import (
     FacilityCreate,
     FacilityDetailResponse,
@@ -55,8 +57,24 @@ async def get_facility(
 @router.post("", response_model=FacilityResponse, status_code=status.HTTP_201_CREATED)
 async def create_facility(
     payload: FacilityCreate,
+    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new healthcare facility."""
+    """Register a new healthcare facility.
+
+    Restricted to authorized STAFF and ADMIN roles.
+    """
     handler = FacilityServiceHandler(db)
-    return await handler.create_facility(payload)
+    try:
+        return await handler.create_facility(payload)
+    except ValueError as e:
+        error_msg = str(e)
+        if "does not exist" in error_msg or "not found" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": error_msg}},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "BAD_REQUEST", "message": error_msg}},
+        )

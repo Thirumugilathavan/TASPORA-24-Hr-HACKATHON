@@ -123,6 +123,18 @@ class DoctorServiceHandler:
 
     async def create_schedule(self, data: DoctorScheduleCreate) -> DoctorSchedule:
         """Register a planned doctor schedule."""
+        d_stmt = select(Doctor).where(Doctor.id == data.doctor_id)
+        d_res = await self.db.execute(d_stmt)
+        doctor = d_res.scalar_one_or_none()
+        if not doctor:
+            raise ValueError(f"Doctor with id {data.doctor_id} does not exist")
+
+        f_stmt = select(Facility).where(Facility.id == data.facility_id)
+        f_res = await self.db.execute(f_stmt)
+        facility = f_res.scalar_one_or_none()
+        if not facility:
+            raise ValueError(f"Facility with id {data.facility_id} does not exist")
+
         sched = DoctorSchedule(
             doctor_id=data.doctor_id,
             facility_id=data.facility_id,

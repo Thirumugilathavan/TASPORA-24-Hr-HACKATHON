@@ -48,9 +48,21 @@ class MedicineServiceHandler:
         return res.scalar_one_or_none()
 
     async def create_medicine(self, data: MedicineCreate) -> Medicine:
+        clean_name = data.name.strip()
+        # Check for existing duplicate to handle safely
+        dup_stmt = select(Medicine).where(
+            func.lower(Medicine.name) == clean_name.lower(),
+            Medicine.strength == data.strength,
+            Medicine.dosage_form == data.dosage_form,
+        )
+        dup_res = await self.db.execute(dup_stmt)
+        existing = dup_res.scalar_one_or_none()
+        if existing:
+            return existing
+
         med = Medicine(
-            name=data.name,
-            generic_name=data.generic_name,
+            name=clean_name,
+            generic_name=data.generic_name.strip() if data.generic_name else None,
             strength=data.strength,
             dosage_form=data.dosage_form,
         )

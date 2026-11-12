@@ -1,7 +1,15 @@
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class FacilityType(str, Enum):
+    PHC = "PHC"
+    CHC = "CHC"
+    HOSPITAL = "HOSPITAL"
+    PHARMACY = "PHARMACY"
 
 
 class FacilityServiceResponse(BaseModel):
@@ -24,17 +32,42 @@ class DoctorSummary(BaseModel):
 
 
 class FacilityBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=255)
     facility_type: str
-    address: str
+    address: str = Field(..., min_length=1, max_length=500)
     village_id: UUID
-    latitude: float
-    longitude: float
+    latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in range [-90.0, 90.0]")
+    longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in range [-180.0, 180.0]")
     contact_details: Optional[Dict[str, Any]] = None
+
+    @field_validator("facility_type")
+    @classmethod
+    def validate_facility_type(cls, v: str) -> str:
+        v_upper = v.strip().upper()
+        allowed = {t.value for t in FacilityType}
+        if v_upper not in allowed:
+            raise ValueError(f"Invalid facility_type '{v}'. Allowed types: {sorted(allowed)}")
+        return v_upper
+
+    @field_validator("name", "address")
+    @classmethod
+    def strip_and_validate_non_empty(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Field cannot be empty or whitespace only")
+        return s
 
 
 class FacilityCreate(FacilityBase):
     services: Optional[List[str]] = []
+
+    @field_validator("services")
+    @classmethod
+    def validate_services(cls, v: Optional[List[str]]) -> List[str]:
+        if not v:
+            return []
+        cleaned = [s.strip() for s in v if s and s.strip()]
+        return cleaned
 
 
 class FacilityResponse(FacilityBase):

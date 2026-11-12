@@ -12,7 +12,13 @@ from app.schemas.shared import AvailabilityLabel, AvailabilityStatus, SourceType
 
 @dataclass
 class StockAlgorithmConfig:
-    """Configurable parameters for the Stock Intelligence belief state algorithm."""
+    """Configurable parameters for the Stock Intelligence belief state algorithm.
+
+    HEURISTIC NOTICE:
+    These parameters represent heuristic engineering assumptions designed for rural
+    healthcare triage and risk mitigation. They are NOT clinically or statistically
+    calibrated on empirical epidemiological data.
+    """
     weight_staff: float = 1.0
     weight_asha: float = 0.8
     # Rule 2: Patient feedback must never directly modify medicine stock probability
@@ -30,6 +36,12 @@ class StockAlgorithmConfig:
 
     volume_k: float = 0.8
     min_confidence_definitive: float = 0.20
+
+    # Hardening against repeated reports / spam:
+    # Cap cumulative evidentiary weight per single reporter
+    max_weight_per_reporter: float = 1.5
+    # Diminishing returns factor for successive reports from the same reporter
+    reporter_repetition_decay: float = 0.5
 
 
 DEFAULT_ALGO_CONFIG = StockAlgorithmConfig()
@@ -111,6 +123,10 @@ class AvailabilityService:
         total_unknown_weight = 0.0
         scores: List[Tuple[float, float]] = []
 
+        # Track per-(reporter, status) contributions to prevent repeated reports from inflating confidence
+        reporter_status_weight_accum: dict = {}
+        reporter_status_counts: dict = {}
+
         max_age_hours = self.config.max_evidence_age_days * 24.0
         half_life_hours = self.config.half_life_hours
 
@@ -125,17 +141,39 @@ class AvailabilityService:
 
             decay = math.pow(2.0, -age_hours / half_life_hours)
             src_weight = self.get_source_weight(rep.source_type)
-            effective_weight = src_weight * decay
+
+            # Rule 2: Patient reports carry exactly 0.0 weight
+            if src_weight <= 0.0:
+                continue
+
+            # Repeated report dampening per (reporter, status):
+            # First report of a status from a reporter carries full weight.
+            # Successive identical status reports from the same reporter have exponential diminishing returns.
+            # In addition, total weight for any (reporter, status) is capped to prevent artificial confidence inflation.
+            rep_status_key = (rep.reporter_id, rep.availability_status)
+            status_count = reporter_status_counts.get(rep_status_key, 0)
+            repetition_multiplier = math.pow(self.config.reporter_repetition_decay, status_count)
+            reporter_status_counts[rep_status_key] = status_count + 1
+
+            raw_effective_weight = src_weight * decay * repetition_multiplier
+
+            current_accum = reporter_status_weight_accum.get(rep_status_key, 0.0)
+            max_allowed = self.config.max_weight_per_reporter * src_weight
+            allowed_additional = max(0.0, max_allowed - current_accum)
+            effective_weight = min(raw_effective_weight, allowed_additional)
+            reporter_status_weight_accum[rep_status_key] = current_accum + effective_weight
+
+            if effective_weight <= 0.0:
+                continue
 
             score = self.get_status_score(rep.availability_status)
             if score is None:
                 # UNKNOWN report: adds to uncertainty without modifying stock probability
                 total_unknown_weight += effective_weight
             else:
-                if effective_weight > 0.0:
-                    weighted_sum += effective_weight * score
-                    total_avail_weight += effective_weight
-                    scores.append((score, effective_weight))
+                weighted_sum += effective_weight * score
+                total_avail_weight += effective_weight
+                scores.append((score, effective_weight))
 
         p_prior = self.config.prior_probability
         w_prior = self.config.prior_weight

@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.doctor import Doctor
 from app.models.facility import Facility, FacilityService
+from app.models.village import Village
 from app.schemas.facility import (
     DoctorSummary,
     FacilityCreate,
@@ -107,6 +108,12 @@ class FacilityServiceHandler:
 
     async def create_facility(self, data: FacilityCreate) -> Facility:
         """Create new facility with initial service records."""
+        # Validate that village exists
+        v_stmt = select(Village).where(Village.id == data.village_id)
+        v_res = await self.db.execute(v_stmt)
+        if not v_res.scalar_one_or_none():
+            raise ValueError(f"Village with id {data.village_id} does not exist")
+
         facility = Facility(
             name=data.name,
             facility_type=data.facility_type,

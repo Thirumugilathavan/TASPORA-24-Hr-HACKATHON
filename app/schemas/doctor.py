@@ -1,16 +1,24 @@
 from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.schemas.shared import AttendanceStatus
 
 
 class DoctorBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=255)
     facility_id: UUID
-    specialization: str
-    qualification: Optional[str] = None
-    contact_phone: Optional[str] = None
+    specialization: str = Field(..., min_length=1, max_length=150)
+    qualification: Optional[str] = Field(None, max_length=150)
+    contact_phone: Optional[str] = Field(None, max_length=50)
+
+    @field_validator("name", "specialization")
+    @classmethod
+    def strip_and_validate(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Field cannot be empty or whitespace only")
+        return s
 
 
 class DoctorCreate(DoctorBase):
@@ -31,6 +39,15 @@ class DoctorScheduleBase(BaseModel):
     end_time: Optional[str] = None
     attendance_status: AttendanceStatus = AttendanceStatus.EXPECTED
     notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_time_range(self):
+        if self.start_time and self.end_time:
+            st = self.start_time.strip()
+            et = self.end_time.strip()
+            if st >= et:
+                raise ValueError(f"Schedule start_time '{st}' must be strictly before end_time '{et}'")
+        return self
 
 
 class DoctorScheduleCreate(DoctorScheduleBase):

@@ -91,7 +91,8 @@ async def test_get_facility_not_found(client: AsyncClient, seed_data: dict):
 
 @pytest.mark.asyncio
 async def test_create_facility(client: AsyncClient, seed_data: dict):
-    """Verify facility creation."""
+    """Verify facility creation by authorized staff."""
+    staff_headers = seed_data["headers"]["staff"]
     payload = {
         "name": "Sub-Centre Anandpur",
         "facility_type": "PHC",
@@ -102,8 +103,74 @@ async def test_create_facility(client: AsyncClient, seed_data: dict):
         "contact_details": {"phone": "9998887776"},
         "services": ["First Aid", "Blood Pressure Check"],
     }
-    response = await client.post("/api/facilities", json=payload)
+    response = await client.post("/api/facilities", json=payload, headers=staff_headers)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Sub-Centre Anandpur"
     assert "id" in data
+
+
+@pytest.mark.asyncio
+async def test_create_facility_patient_forbidden(client: AsyncClient, seed_data: dict):
+    """Verify patients cannot create facilities (HTTP 403 Forbidden)."""
+    patient_headers = seed_data["headers"]["patient"]
+    payload = {
+        "name": "Unauthorized Clinic",
+        "facility_type": "PHC",
+        "address": "Some Street",
+        "village_id": str(seed_data["villages"][0].id),
+        "latitude": 12.9900,
+        "longitude": 77.6100,
+    }
+    response = await client.post("/api/facilities", json=payload, headers=patient_headers)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_facility_validation_invalid_coordinates(client: AsyncClient, seed_data: dict):
+    """Verify invalid coordinates (>90 lat) fail with 422."""
+    staff_headers = seed_data["headers"]["staff"]
+    payload = {
+        "name": "Invalid Coords PHC",
+        "facility_type": "PHC",
+        "address": "Some Street",
+        "village_id": str(seed_data["villages"][0].id),
+        "latitude": 95.0,  # Invalid latitude
+        "longitude": 77.6100,
+    }
+    response = await client.post("/api/facilities", json=payload, headers=staff_headers)
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_facility_validation_invalid_type(client: AsyncClient, seed_data: dict):
+    """Verify invalid facility type fails with 422."""
+    staff_headers = seed_data["headers"]["staff"]
+    payload = {
+        "name": "Invalid Type Facility",
+        "facility_type": "SUPERMARKET",  # Invalid type
+        "address": "Some Street",
+        "village_id": str(seed_data["villages"][0].id),
+        "latitude": 12.9900,
+        "longitude": 77.6100,
+    }
+    response = await client.post("/api/facilities", json=payload, headers=staff_headers)
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_facility_nonexistent_village_returns_404(client: AsyncClient, seed_data: dict):
+    """Verify 404 when referencing a non-existent village."""
+    staff_headers = seed_data["headers"]["staff"]
+    payload = {
+        "name": "Missing Village PHC",
+        "facility_type": "PHC",
+        "address": "Some Street",
+        "village_id": str(uuid.uuid4()),
+        "latitude": 12.9900,
+        "longitude": 77.6100,
+    }
+    response = await client.post("/api/facilities", json=payload, headers=staff_headers)
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"

@@ -101,3 +101,63 @@ async def test_verify_attendance_updates_status(client: AsyncClient, seed_data: 
     check_data = check_resp.json()
     assert check_data["attendance_status"] == "PRESENT"
     assert check_data["last_verified_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_verify_attendance_patient_forbidden(client: AsyncClient, seed_data: dict):
+    """Verify patients cannot verify doctor attendance (HTTP 403 Forbidden)."""
+    doc_1 = seed_data["doctors"][0]
+    today = date.today().isoformat()
+    patient_headers = seed_data["headers"]["patient"]
+
+    response = await client.post(
+        f"/api/doctors/{doc_1.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=patient_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_patient_forbidden(client: AsyncClient, seed_data: dict):
+    """Verify patients cannot register doctors (HTTP 403 Forbidden)."""
+    patient_headers = seed_data["headers"]["patient"]
+    fac_1 = seed_data["facilities"][0]
+    payload = {
+        "facility_id": str(fac_1.id),
+        "name": "Dr. Unauthorized",
+        "specialization": "Cardiology",
+    }
+    response = await client.post("/api/doctors", json=payload, headers=patient_headers)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_missing_facility_returns_404(client: AsyncClient, seed_data: dict):
+    """Verify 404 when registering doctor to non-existent facility."""
+    staff_headers = seed_data["headers"]["staff"]
+    payload = {
+        "facility_id": str(uuid.uuid4()),
+        "name": "Dr. Missing Fac",
+        "specialization": "General",
+    }
+    response = await client.post("/api/doctors", json=payload, headers=staff_headers)
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_schedule_invalid_time_range(client: AsyncClient, seed_data: dict):
+    """Verify schedule creation with invalid time range (start >= end) fails with 422."""
+    staff_headers = seed_data["headers"]["staff"]
+    doc_1 = seed_data["doctors"][0]
+    payload = {
+        "doctor_id": str(doc_1.id),
+        "facility_id": str(doc_1.facility_id),
+        "schedule_date": "2026-11-20",
+        "start_time": "14:00:00",
+        "end_time": "10:00:00",  # Invalid: start_time >= end_time
+    }
+    response = await client.post(f"/api/doctors/{doc_1.id}/schedule", json=payload, headers=staff_headers)
+    assert response.status_code == 422

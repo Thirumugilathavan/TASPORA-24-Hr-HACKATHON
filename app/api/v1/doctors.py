@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.schemas.doctor import (
     DoctorCreate,
@@ -58,16 +58,26 @@ async def get_doctor_schedule(
 @router.post("", response_model=DoctorResponse, status_code=status.HTTP_201_CREATED)
 async def create_doctor(
     payload: DoctorCreate,
+    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new doctor."""
+    """Register a new doctor.
+
+    Restricted to authorized STAFF and ADMIN roles.
+    """
     handler = DoctorServiceHandler(db)
     try:
         return await handler.create_doctor(payload)
     except ValueError as e:
+        error_msg = str(e)
+        if "does not exist" in error_msg or "not found" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": error_msg}},
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": {"code": "BAD_REQUEST", "message": str(e)}},
+            detail={"error": {"code": "BAD_REQUEST", "message": error_msg}},
         )
 
 
@@ -75,12 +85,28 @@ async def create_doctor(
 async def create_doctor_schedule(
     id: UUID,
     payload: DoctorScheduleCreate,
+    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a planned doctor shift schedule (defaults to EXPECTED attendance)."""
+    """Add a planned doctor shift schedule (defaults to EXPECTED attendance).
+
+    Restricted to authorized STAFF and ADMIN roles.
+    """
     handler = DoctorServiceHandler(db)
     payload.doctor_id = id
-    return await handler.create_schedule(payload)
+    try:
+        return await handler.create_schedule(payload)
+    except ValueError as e:
+        error_msg = str(e)
+        if "does not exist" in error_msg or "not found" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": error_msg}},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "BAD_REQUEST", "message": error_msg}},
+        )
 
 
 @router.post("/{id}/verify-attendance", response_model=DoctorScheduleResponse)
@@ -88,10 +114,13 @@ async def verify_doctor_attendance(
     id: UUID,
     date: date = Query(..., description="Date to verify attendance for (YYYY-MM-DD)"),
     attendance_status: AttendanceStatus = Query(..., description="PRESENT or ABSENT"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["STAFF", "ADMIN", "DOCTOR"])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Record verified attendance (PRESENT / ABSENT) for a doctor."""
+    """Record verified attendance (PRESENT / ABSENT) for a doctor.
+
+    Restricted to authorized STAFF, ADMIN, and DOCTOR roles.
+    """
     handler = DoctorServiceHandler(db)
     try:
         return await handler.verify_attendance(

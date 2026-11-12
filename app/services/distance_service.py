@@ -6,6 +6,14 @@ from app.models.facility import Facility
 from app.models.village import Village
 
 
+def validate_coordinates(lat: float, lon: float, label: str = "Coordinate") -> None:
+    """Validate latitude and longitude ranges."""
+    if not (-90.0 <= float(lat) <= 90.0):
+        raise ValueError(f"{label} latitude {lat} is out of valid bounds [-90.0, 90.0]")
+    if not (-180.0 <= float(lon) <= 180.0):
+        raise ValueError(f"{label} longitude {lon} is out of valid bounds [-180.0, 180.0]")
+
+
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate the great-circle distance between two points using the Haversine formula.
 
@@ -14,6 +22,9 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     distance. In rural terrains, travel distance and time may be significantly higher due to
     terrain, unpaved roads, and geographical detours.
     """
+    validate_coordinates(lat1, lon1, "Point 1")
+    validate_coordinates(lat2, lon2, "Point 2")
+
     r = 6371.0  # Earth radius in kilometers
 
     phi1 = math.radians(lat1)
@@ -48,6 +59,9 @@ class DistanceService:
         village = v_res.scalar_one_or_none()
         if not village:
             raise ValueError(f"Village with id {village_id} not found")
+
+        validate_coordinates(village.latitude, village.longitude, f"Village ({village.id})")
+        validate_coordinates(facility.latitude, facility.longitude, f"Facility ({facility.id})")
 
         dist = haversine_km(village.latitude, village.longitude, facility.latitude, facility.longitude)
         return round(dist)

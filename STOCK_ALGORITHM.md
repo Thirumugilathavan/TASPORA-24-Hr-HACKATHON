@@ -23,6 +23,8 @@ The algorithm strictly enforces the following core rules:
 6. **No Phantom Inventory**: The platform never infers or claims exact physical unit quantities (e.g., "12 blisters") from a probability.
 7. **Explicit Staleness Flagging**: When evidence is stale or absent, confidence drops to $0.0$, reverting the probability to the neutral prior ($0.5$) with label `UNCERTAIN`.
 8. **Principled Conflict Resolution**: When reports conflict (e.g., one recent staff member reports `IN_STOCK` while another reports `OUT`), both reports are incorporated into a variance-weighted calculation; confidence is penalized rather than discarding any report.
+9. **Anti-Inflation Dampening of Repeated Reports**: Repeated reports from the same individual reporter within the observation window suffer exponential diminishing returns ($0.5^k$ for the $k$-th report) and an absolute cumulative weight cap ($1.5 \times W_{\text{source}}$). This guarantees that a single individual cannot artificially inflate system confidence without corroboration from independent observers.
+10. **Heuristic Engineering Baseline**: All weights, half-lives, variance penalties, and confidence thresholds are explicit heuristic engineering models designed for rural healthcare risk mitigation. They are not claimed to be clinically or statistically calibrated against large-scale epidemiological datasets.
 
 ---
 
@@ -136,3 +138,5 @@ All parameters are encapsulated in `facility_stock.config.StockAlgorithmConfig`:
 | `threshold_likely` | `0.65` | `STOCK_THRESHOLD_LIKELY` | Minimum $p$ for `LIKELY` label |
 | `threshold_unlikely` | `0.35` | `STOCK_THRESHOLD_UNLIKELY` | Maximum $p$ for `UNLIKELY` label |
 | `min_confidence_definitive` | `0.20` | - | Minimum confidence required for definitive label |
+| `max_weight_per_reporter` | `1.5` | - | Maximum cumulative evidentiary weight contributed by a single reporter |
+| `reporter_repetition_decay` | `0.5` | - | Multiplier applied to successive reports from the same reporter |

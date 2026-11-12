@@ -1,8 +1,10 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.dependencies import require_role
+from app.models.user import User
 from app.schemas.medicine import MedicineCreate, MedicineResponse
 from app.schemas.shared import Page
 from app.services.medicine_service import MedicineServiceHandler
@@ -31,8 +33,18 @@ async def get_medicines(
 @router.post("", response_model=MedicineResponse, status_code=status.HTTP_201_CREATED)
 async def create_medicine(
     payload: MedicineCreate,
+    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a medicine entry to the catalogue."""
+    """Add a medicine entry to the catalogue.
+
+    Restricted to authorized STAFF and ADMIN roles.
+    """
     handler = MedicineServiceHandler(db)
-    return await handler.create_medicine(payload)
+    try:
+        return await handler.create_medicine(payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "BAD_REQUEST", "message": str(e)}},
+        )

@@ -34,3 +34,26 @@ async def test_distance_missing_village_or_facility(db_session: AsyncSession, se
 
     with pytest.raises(ValueError, match="not found"):
         await service.calculate_distance(v1.id, uuid.uuid4())
+
+
+def test_haversine_invalid_coordinates_raise_value_error():
+    """Verify invalid coordinates (>90 lat or >180 lon) raise ValueError."""
+    with pytest.raises(ValueError, match="out of valid bounds"):
+        haversine_km(95.0, 77.0, 12.0, 77.0)
+
+    with pytest.raises(ValueError, match="out of valid bounds"):
+        haversine_km(-95.0, 77.0, 12.0, 77.0)
+
+    with pytest.raises(ValueError, match="out of valid bounds"):
+        haversine_km(12.0, 185.0, 12.0, 77.0)
+
+    with pytest.raises(ValueError, match="out of valid bounds"):
+        haversine_km(12.0, 77.0, 12.0, -185.0)
+
+
+def test_haversine_straight_line_disclaimer_documented():
+    """Verify haversine_km docstring explicitly contains straight-line notice."""
+    doc = haversine_km.__doc__
+    assert doc is not None
+    assert "straight-line" in doc.lower()
+    assert "road" in doc.lower()
