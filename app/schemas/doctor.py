@@ -22,15 +22,20 @@ class DoctorBase(BaseModel):
 
 
 class DoctorCreate(DoctorBase):
-    pass
+    user_id: Optional[UUID] = None
 
 
 class DoctorResponse(DoctorBase):
     id: UUID
+    user_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DoctorLinkUserRequest(BaseModel):
+    user_id: UUID
 
 
 class DoctorScheduleBase(BaseModel):

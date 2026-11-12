@@ -11,6 +11,7 @@ from app.models.doctor import Doctor
 from app.models.user import User
 from app.schemas.doctor import (
     DoctorCreate,
+    DoctorLinkUserRequest,
     DoctorResponse,
     DoctorScheduleCreate,
     DoctorScheduleDetailResponse,
@@ -66,6 +67,7 @@ async def create_doctor(
     """Register a new doctor.
 
     Restricted to authorized STAFF and ADMIN roles.
+    Optionally links to a User account if user_id is provided.
     """
     handler = DoctorServiceHandler(db)
     try:
@@ -76,6 +78,45 @@ async def create_doctor(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error": {"code": "NOT_FOUND", "message": error_msg}},
+            )
+        if "already linked" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": {"code": "CONFLICT", "message": error_msg}},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "BAD_REQUEST", "message": error_msg}},
+        )
+
+
+@router.post("/{id}/link-user", response_model=DoctorResponse)
+async def link_doctor_user(
+    id: UUID,
+    payload: DoctorLinkUserRequest,
+    current_user: User = Depends(require_role(["STAFF", "ADMIN"])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Establish explicit association between a Doctor profile and a User account.
+
+    Restricted to authorized STAFF and ADMIN roles.
+    Requires the target user to exist and possess the DOCTOR role.
+    Rejects duplicate associations.
+    """
+    handler = DoctorServiceHandler(db)
+    try:
+        return await handler.link_user(doctor_id=id, user_id=payload.user_id)
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg or "does not exist" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": error_msg}},
+            )
+        if "already linked" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": {"code": "CONFLICT", "message": error_msg}},
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -122,25 +163,38 @@ async def verify_doctor_attendance(
     """Record verified attendance (PRESENT / ABSENT) for a doctor.
 
     Restricted to authorized STAFF, ADMIN, and DOCTOR roles.
-    DOCTOR role callers may only verify attendance for their own linked doctor profile.
+    DOCTOR role callers may only verify attendance for their own explicitly linked doctor profile (Doctor.user_id == current_user.id).
+    Unlinked doctor profiles cannot self-verify (fail-closed).
+    Name and phone matching are strictly disallowed.
     """
-    if current_user.role == "DOCTOR":
-        d_stmt = select(Doctor).where(Doctor.id == id)
-        doc = (await db.execute(d_stmt)).scalar_one_or_none()
-        if not doc:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"error": {"code": "NOT_FOUND", "message": f"Doctor {id} not found"}},
-            )
-        is_own = (
-            doc.id == current_user.id
-            or (doc.contact_phone and current_user.phone and doc.contact_phone == current_user.phone)
-            or (doc.name and current_user.name and doc.name.strip().lower() == current_user.name.strip().lower())
+    d_stmt = select(Doctor).where(Doctor.id == id)
+    doc = (await db.execute(d_stmt)).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "NOT_FOUND", "message": f"Doctor {id} not found"}},
         )
-        if not is_own:
+
+    if current_user.role == "DOCTOR":
+        if doc.user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"error": {"code": "FORBIDDEN", "message": "Doctors can only verify attendance for their own doctor profile."}},
+                detail={
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "Doctors can only verify attendance for their own linked doctor profile. Unlinked doctor profiles require administrative association.",
+                    }
+                },
+            )
+        if doc.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "Doctors can only verify attendance for their own linked doctor profile.",
+                    }
+                },
             )
 
     handler = DoctorServiceHandler(db)

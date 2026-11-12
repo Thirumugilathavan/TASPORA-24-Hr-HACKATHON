@@ -25,6 +25,7 @@ from app.schemas.doctor import (
     DoctorBase,
     DoctorCreate,
     DoctorResponse,
+    DoctorLinkUserRequest,
     DoctorScheduleBase,
     DoctorScheduleCreate,
     DoctorScheduleResponse,

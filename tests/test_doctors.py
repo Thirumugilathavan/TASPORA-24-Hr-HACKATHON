@@ -171,10 +171,10 @@ async def test_create_doctor_schedule_invalid_time_range(client: AsyncClient, se
 @pytest.mark.asyncio
 async def test_doctor_cannot_verify_another_doctor_attendance(client: AsyncClient, db_session, seed_data: dict):
     """SECURITY TEST: A DOCTOR role caller cannot verify attendance for another doctor."""
-    doc_1 = seed_data["doctors"][0]  # Dr. Anita Sharma, phone 9876543220
-    doc_2 = seed_data["doctors"][1]  # Dr. Rajesh Kumar, phone 9876543221
+    doc_1 = seed_data["doctors"][0]  # Dr. Anita Sharma
+    doc_2 = seed_data["doctors"][1]  # Dr. Rajesh Kumar
 
-    # Create user for Doctor 1
+    # Create user for Doctor 1 and explicitly link to doc_1
     doc_user_1 = User(
         name="Dr. Anita Sharma",
         phone="9876543220",
@@ -183,6 +183,10 @@ async def test_doctor_cannot_verify_another_doctor_attendance(client: AsyncClien
         is_active=True,
     )
     db_session.add(doc_user_1)
+    await db_session.flush()
+
+    # Explicitly link doc_1 to doc_user_1
+    doc_1.user_id = doc_user_1.id
     await db_session.commit()
 
     token_doc_1 = create_access_token({"sub": str(doc_user_1.id), "role": "DOCTOR"})
@@ -204,3 +208,186 @@ async def test_doctor_cannot_verify_another_doctor_attendance(client: AsyncClien
     )
     assert res_own.status_code == 200
     assert res_own.json()["attendance_status"] == "PRESENT"
+
+
+@pytest.mark.asyncio
+async def test_unlinked_doctor_cannot_self_verify(client: AsyncClient, db_session, seed_data: dict):
+    """SECURITY TEST: An unlinked legacy doctor profile cannot self-verify (fail-closed).
+
+    Even if the User account has matching name and phone, without explicit user_id linkage,
+    the attendance verification is rejected with HTTP 403 FORBIDDEN.
+    """
+    doc_1 = seed_data["doctors"][0]
+    assert doc_1.user_id is None  # Legacy unlinked profile
+
+    # Create doctor user with identical name and phone
+    matching_user = User(
+        name=doc_1.name,
+        phone=doc_1.contact_phone,
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(matching_user)
+    await db_session.commit()
+
+    token = create_access_token({"sub": str(matching_user.id), "role": "DOCTOR"})
+    headers = {"Authorization": f"Bearer {token}"}
+    today = date.today().isoformat()
+
+    # Should FAIL CLOSED with 403 because user_id is not explicitly linked
+    res = await client.post(
+        f"/api/doctors/{doc_1.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=headers,
+    )
+    assert res.status_code == 403
+    assert res.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_staff_links_doctor_to_user_and_then_doctor_verifies(client: AsyncClient, db_session, seed_data: dict):
+    """SECURITY TEST: Trusted STAFF process explicitly links doctor to user, enabling self-verification."""
+    doc_2 = seed_data["doctors"][1]
+    staff_headers = seed_data["headers"]["staff"]
+
+    # Create doctor user
+    doc_user_2 = User(
+        name="Dr. Rajesh Kumar",
+        phone="9876543299",
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(doc_user_2)
+    await db_session.commit()
+
+    # STAFF links doctor profile to user account
+    link_res = await client.post(
+        f"/api/doctors/{doc_2.id}/link-user",
+        json={"user_id": str(doc_user_2.id)},
+        headers=staff_headers,
+    )
+    assert link_res.status_code == 200
+    assert link_res.json()["user_id"] == str(doc_user_2.id)
+
+    # Doctor 2 can now verify attendance
+    token_doc_2 = create_access_token({"sub": str(doc_user_2.id), "role": "DOCTOR"})
+    headers_doc_2 = {"Authorization": f"Bearer {token_doc_2}"}
+    today = date.today().isoformat()
+
+    verify_res = await client.post(
+        f"/api/doctors/{doc_2.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=headers_doc_2,
+    )
+    assert verify_res.status_code == 200
+    assert verify_res.json()["attendance_status"] == "PRESENT"
+
+
+@pytest.mark.asyncio
+async def test_link_doctor_duplicate_user_rejected(client: AsyncClient, db_session, seed_data: dict):
+    """SECURITY TEST: Duplicate doctor-user associations are rejected (409 Conflict)."""
+    doc_1 = seed_data["doctors"][0]
+    doc_2 = seed_data["doctors"][1]
+    staff_headers = seed_data["headers"]["staff"]
+
+    doc_user = User(
+        name="Dr. Unique",
+        phone="9876543298",
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(doc_user)
+    await db_session.commit()
+
+    # Link to doc_1 -> Success
+    res1 = await client.post(
+        f"/api/doctors/{doc_1.id}/link-user",
+        json={"user_id": str(doc_user.id)},
+        headers=staff_headers,
+    )
+    assert res1.status_code == 200
+
+    # Attempt to link same user to doc_2 -> 409 Conflict
+    res2 = await client.post(
+        f"/api/doctors/{doc_2.id}/link-user",
+        json={"user_id": str(doc_user.id)},
+        headers=staff_headers,
+    )
+    assert res2.status_code == 409
+    assert res2.json()["error"]["code"] == "CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_link_doctor_non_doctor_role_rejected(client: AsyncClient, seed_data: dict):
+    """SECURITY TEST: Linking a user who is not a DOCTOR (e.g. PATIENT) is rejected (400 Bad Request)."""
+    doc_1 = seed_data["doctors"][0]
+    staff_headers = seed_data["headers"]["staff"]
+    patient_user = seed_data["users"]["patient"]
+
+    res = await client.post(
+        f"/api/doctors/{doc_1.id}/link-user",
+        json={"user_id": str(patient_user.id)},
+        headers=staff_headers,
+    )
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "BAD_REQUEST"
+
+
+@pytest.mark.asyncio
+async def test_patient_cannot_link_doctor_user(client: AsyncClient, seed_data: dict):
+    """SECURITY TEST: PATIENT role cannot invoke administrative link-user endpoint (403 Forbidden)."""
+    doc_1 = seed_data["doctors"][0]
+    patient_headers = seed_data["headers"]["patient"]
+
+    res = await client.post(
+        f"/api/doctors/{doc_1.id}/link-user",
+        json={"user_id": str(uuid.uuid4())},
+        headers=patient_headers,
+    )
+    assert res.status_code == 403
+    assert res.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_verify_attendance_nonexistent_doctor_returns_404(client: AsyncClient, seed_data: dict):
+    """SECURITY TEST: Attendance verification for non-existent doctor ID safely returns 404."""
+    staff_headers = seed_data["headers"]["staff"]
+    random_id = uuid.uuid4()
+    today = date.today().isoformat()
+
+    res = await client.post(
+        f"/api/doctors/{random_id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=staff_headers,
+    )
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_create_doctor_with_explicit_user_id(client: AsyncClient, db_session, seed_data: dict):
+    """Verify creating a doctor with explicit user_id succeeds and establishes link."""
+    staff_headers = seed_data["headers"]["staff"]
+    fac_1 = seed_data["facilities"][0]
+
+    doc_user = User(
+        name="Dr. Direct Link",
+        phone="9876543297",
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(doc_user)
+    await db_session.commit()
+
+    payload = {
+        "facility_id": str(fac_1.id),
+        "name": "Dr. Direct Link",
+        "specialization": "Orthopedics",
+        "user_id": str(doc_user.id),
+    }
+    res = await client.post("/api/doctors", json=payload, headers=staff_headers)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["user_id"] == str(doc_user.id)
+    assert data["name"] == "Dr. Direct Link"

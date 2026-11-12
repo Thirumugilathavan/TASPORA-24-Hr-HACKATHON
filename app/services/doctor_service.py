@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.doctor import Doctor, DoctorSchedule
 from app.models.facility import Facility
+from app.models.user import User
 from app.schemas.doctor import (
     DoctorCreate,
     DoctorScheduleCreate,
@@ -109,14 +110,63 @@ class DoctorServiceHandler:
         if not facility:
             raise ValueError(f"Facility with id {data.facility_id} does not exist")
 
+        if data.user_id:
+            u_stmt = select(User).where(User.id == data.user_id)
+            u_res = await self.db.execute(u_stmt)
+            user = u_res.scalar_one_or_none()
+            if not user:
+                raise ValueError(f"User with id {data.user_id} does not exist")
+            if user.role != "DOCTOR":
+                raise ValueError(
+                    f"User with id {data.user_id} has role '{user.role}', but only users with role 'DOCTOR' can be linked to a doctor profile"
+                )
+            dup_stmt = select(Doctor).where(Doctor.user_id == data.user_id)
+            dup = (await self.db.execute(dup_stmt)).scalar_one_or_none()
+            if dup:
+                raise ValueError(f"User with id {data.user_id} is already linked to doctor profile {dup.id}")
+
         doctor = Doctor(
             facility_id=data.facility_id,
+            user_id=data.user_id,
             name=data.name,
             specialization=data.specialization,
             qualification=data.qualification,
             contact_phone=data.contact_phone,
         )
         self.db.add(doctor)
+        await self.db.commit()
+        await self.db.refresh(doctor)
+        return doctor
+
+    async def link_user(self, doctor_id: UUID, user_id: UUID) -> Doctor:
+        """Establish explicit association between an existing doctor profile and a user account.
+
+        Restricted to authorized administrative workflows.
+        Enforces 1-to-1 doctor-to-user uniqueness and validates user DOCTOR role.
+        """
+        d_stmt = select(Doctor).where(Doctor.id == doctor_id)
+        d_res = await self.db.execute(d_stmt)
+        doctor = d_res.scalar_one_or_none()
+        if not doctor:
+            raise ValueError(f"Doctor with id {doctor_id} does not exist")
+
+        u_stmt = select(User).where(User.id == user_id)
+        u_res = await self.db.execute(u_stmt)
+        user = u_res.scalar_one_or_none()
+        if not user:
+            raise ValueError(f"User with id {user_id} does not exist")
+
+        if user.role != "DOCTOR":
+            raise ValueError(
+                f"User with id {user_id} has role '{user.role}', but only users with role 'DOCTOR' can be linked to a doctor profile"
+            )
+
+        dup_stmt = select(Doctor).where(Doctor.user_id == user_id, Doctor.id != doctor_id)
+        dup = (await self.db.execute(dup_stmt)).scalar_one_or_none()
+        if dup:
+            raise ValueError(f"User with id {user_id} is already linked to doctor profile {dup.id}")
+
+        doctor.user_id = user_id
         await self.db.commit()
         await self.db.refresh(doctor)
         return doctor
