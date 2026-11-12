@@ -83,12 +83,40 @@ class CareBridgeAgent:
         )
 
     def detect_language(self, text: str, user_preference: Optional[str] = "auto") -> str:
-        """Detects whether user is speaking Tamil or English."""
+        """Detects whether user is speaking Tamil or English.
+        
+        Priority rules:
+        1. Explicit user preference ('ta' or 'en') takes precedence.
+        2. Detection of Tamil Unicode characters (U+0B80 to U+0BFF).
+           If Tamil characters are present, evaluates dominant script.
+        3. Fallback to English ('en') if purely Latin characters with no Tamil cues.
+        """
         if user_preference in ["ta", "en"]:
             return user_preference
-        # Check for Tamil Unicode range (U+0B80 to U+0BFF)
-        if re.search(r"[\u0B80-\u0BFF]", text):
+
+        # Count Tamil Unicode characters (U+0B80 to U+0BFF)
+        tamil_chars = len(re.findall(r"[\u0B80-\u0BFF]", text))
+        
+        # Count Latin alphabetic characters
+        latin_chars = len(re.findall(r"[a-zA-Z]", text))
+
+        if tamil_chars > 0:
+            # If there is meaningful Tamil script (> 15% of all letters or >= 2 Tamil words), classify as Tamil
+            total_letters = tamil_chars + latin_chars
+            if (tamil_chars / max(total_letters, 1)) >= 0.15:
+                return "ta"
+
+        # Check for common spoken Tamil words in Tanglish
+        tanglish_patterns = [
+            r"\bவணக்கம்\b", r"\bபண்ண\b", r"\bபண்ணனும்\b", r"\bஇருக்கு\b",
+            r"\bவேணும்\b", r"\bஎங்கே\b", r"\bமருந்து\b", r"\bடாக்டர்\b",
+            r"\bpannanum\b", r"\bvenum\b", r"\birukku\b", r"\bengu\b",
+            r"\benakku\b", r"\bmarunthu\b", r"\bmaruthuvar\b", r"\bvanakkam\b"
+        ]
+        lowered = text.lower()
+        if any(re.search(p, lowered) for p in tanglish_patterns):
             return "ta"
+
         return "en"
 
     def extract_location(self, text: str, fallback_location: Optional[str] = None) -> Optional[str]:

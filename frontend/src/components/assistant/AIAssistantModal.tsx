@@ -3,10 +3,7 @@ import {
   Bot,
   Send,
   Mic,
-  MicOff,
   Volume2,
-  VolumeX,
-  Play,
   Pause,
   Square,
   RotateCcw,
@@ -21,11 +18,8 @@ import {
   Calendar,
   PhoneCall,
   Loader2,
-  Trash2,
-  Languages,
   CheckCircle2,
   Radio,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { aiService, AIChatCard, AIChatResponse } from '../../services/aiService';
@@ -65,7 +59,7 @@ interface AIAssistantModalProps {
 }
 
 export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose }) => {
-  const { language: appLang } = useTranslation();
+  const { language: appLang, setLanguage: setAppLanguage, t } = useTranslation();
   const { user, patient } = useAuth();
   const navigate = useNavigate();
 
@@ -94,10 +88,16 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const recordingTimerRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Sync default language with app context
+  // Sync assistant local state when application language context changes
   useEffect(() => {
     setSelectedLanguage(appLang === 'ta' ? 'ta' : 'en');
   }, [appLang]);
+
+  // Handle bidirectional language switching: updates modal state and global context immediately
+  const handleLanguageChange = (lang: 'ta' | 'en') => {
+    setSelectedLanguage(lang);
+    setAppLanguage(lang);
+  };
 
   // Check Gnani Voice Engine Status on mount
   useEffect(() => {
@@ -206,7 +206,11 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         setIsAudioPlaying(false);
         setActiveAudioMessageId(null);
         setVoiceState('idle');
-        setVoiceError('Audio playback failed in browser.');
+        setVoiceError(
+          selectedLanguage === 'ta'
+            ? 'ஒலி பின்னணி இயக்கத்தில் பிழை ஏற்பட்டது.'
+            : 'Audio playback failed in browser.'
+        );
       };
 
       audio.play().catch((err) => {
@@ -215,8 +219,12 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         setActiveAudioMessageId(null);
         setVoiceState('idle');
       });
-    } catch (e: any) {
-      setVoiceError('Failed to initialize audio player.');
+    } catch {
+      setVoiceError(
+        selectedLanguage === 'ta'
+          ? 'ஒலி இயக்கியைத் தொடங்க முடியவில்லை.'
+          : 'Failed to initialize audio player.'
+      );
       setVoiceState('idle');
     }
   };
@@ -241,7 +249,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     // Otherwise synthesize on demand via Gnani TTS
     try {
       setVoiceState('generating_audio');
-      // Mark synthesizing in message
       setMessages((prev) =>
         prev.map((m) => (m.id === msg.id ? { ...m, synthesizingAudio: true } : m))
       );
@@ -253,7 +260,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       );
 
       if (synthRes.audio_base64) {
-        // Cache synthesized audio on message
         setMessages((prev) =>
           prev.map((m) =>
             m.id === msg.id
@@ -270,11 +276,19 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         playBase64Audio(msg.id, synthRes.audio_base64);
       } else {
         setVoiceState('idle');
-        setVoiceError('Unable to synthesize audio response.');
+        setVoiceError(
+          selectedLanguage === 'ta'
+            ? 'குரல் பதிலை உருவாக்க முடியவில்லை.'
+            : 'Unable to synthesize audio response.'
+        );
       }
     } catch (err: any) {
       setVoiceState('idle');
-      setVoiceError('Speech synthesis failed: ' + (err.message || 'Network error'));
+      setVoiceError(
+        selectedLanguage === 'ta'
+          ? `குரல் உருவாக்கம் தோல்வியுற்றது: ${err.message || 'பிணையப் பிழை'}`
+          : `Speech synthesis failed: ${err.message || 'Network error'}`
+      );
     } finally {
       setMessages((prev) =>
         prev.map((m) => (m.id === msg.id ? { ...m, synthesizingAudio: false } : m))
@@ -302,12 +316,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       setVoiceState('recording');
       setRecordingSeconds(0);
 
-      // Start recording duration timer
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => {
           if (prev >= 25) {
-            // Auto stop after 25s
             stopRecordingAndTranscribe();
             return prev;
           }
@@ -317,7 +329,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     } catch (err: any) {
       setVoiceState('error');
       setVoiceError(
-        err.message || 'Microphone access denied. Please grant permission in browser settings.'
+        err.message ||
+          (selectedLanguage === 'ta'
+            ? 'மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது. உலாவி அமைப்புகளில் அனுமதி வழங்கவும்.'
+            : 'Microphone access denied. Please grant permission in browser settings.')
       );
     }
   };
@@ -338,7 +353,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     try {
       const { base64 } = await audioRecorderRef.current.stop();
 
-      // Call backend Gnani Prisma STT
       const result = await aiService.transcribeVoice(
         base64,
         selectedLanguage,
@@ -357,7 +371,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         return;
       }
 
-      // Display transcript in chat input field so user can edit before send
       setInput(transcript);
       setVoiceState('transcript_ready');
 
@@ -368,7 +381,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       setVoiceError(
         selectedLanguage === 'ta'
           ? 'குரல் அறிதல் சேவை இணைக்க முடியவில்லை. உரை வடிவில் தட்டச்சு செய்யவும்.'
-          : 'Gnani STT speech recognition service failed: ' + (err.message || 'Offline mode')
+          : `Gnani STT speech recognition service failed: ${err.message || 'Offline mode'}`
       );
     }
   };
@@ -416,7 +429,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         village_id: patient?.village_id,
         location_context: 'Tiruchengode',
         user_role: user?.role || 'PATIENT',
-        include_audio: isVoiceTurn, // Synthesize audio automatically on voice turns
+        include_audio: isVoiceTurn,
         voice_name: selectedVoice,
       });
 
@@ -439,7 +452,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
       setMessages((prev) => [...prev, botMessage]);
 
-      // If voice turn returned synthesized audio, play response immediately
       if (isVoiceTurn && response.audio_base64) {
         playBase64Audio(botMessageId, response.audio_base64);
       } else {
@@ -505,7 +517,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-bold text-sm sm:text-base tracking-wide">
-                  {selectedLanguage === 'ta' ? 'கேர்பிரிட்ஜ் AI குரல் உதவியாளர்' : 'CareBridge AI Voice Assistant'}
+                  {t('aiTitle')}
                 </h2>
                 <span
                   className={`px-2 py-0.5 text-[10px] font-bold rounded-full flex items-center gap-1 ${
@@ -524,35 +536,37 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                 </span>
               </div>
               <p className="text-xs text-teal-100/80">
-                {selectedLanguage === 'ta'
-                  ? 'வீண் பயணங்களைத் தவிர்ப்போம் • நேரடித் தகவல் மற்றும் குரல் வழி'
-                  : 'No Wasted Trips • Multilingual Speech & Closed-Loop Tools'}
+                {t('aiSubtitle')}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             {/* Language Selector */}
-            <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/15">
+            <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/15" role="group" aria-label="Language selection">
               <button
                 type="button"
-                onClick={() => setSelectedLanguage('ta')}
+                onClick={() => handleLanguageChange('ta')}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                   selectedLanguage === 'ta'
                     ? 'bg-teal-600 text-white shadow-xs'
                     : 'text-teal-200 hover:text-white'
                 }`}
+                aria-pressed={selectedLanguage === 'ta'}
+                aria-label="தமிழ் மொழிக்கு மாற்றுக"
               >
                 தமிழ்
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedLanguage('en')}
+                onClick={() => handleLanguageChange('en')}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                   selectedLanguage === 'en'
                     ? 'bg-teal-600 text-white shadow-xs'
                     : 'text-teal-200 hover:text-white'
                 }`}
+                aria-pressed={selectedLanguage === 'en'}
+                aria-label="Switch to English"
               >
                 English
               </button>
@@ -561,8 +575,9 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
             {/* New Conversation Button */}
             <button
               onClick={handleNewConversation}
-              className="p-1.5 text-teal-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-              title={selectedLanguage === 'ta' ? 'புதிய உரையாடல்' : 'New Conversation'}
+              className="p-1.5 text-teal-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              title={t('aiNewConversation')}
+              aria-label={t('aiNewConversation')}
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -570,8 +585,9 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 text-teal-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-              aria-label="Close Assistant"
+              className="p-1.5 text-teal-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label={t('aiCloseAssistant')}
+              title={t('aiCloseAssistant')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -582,14 +598,14 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         <div className="bg-slate-50 border-b border-slate-200/80 px-4 py-2 overflow-x-auto no-scrollbar flex items-center gap-2 shrink-0">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 shrink-0">
             <Sparkles className="w-3 h-3 text-amber-500" />
-            {selectedLanguage === 'ta' ? 'வினாக்கள்:' : 'Suggestions:'}
+            {t('aiSuggestions')}
           </span>
           {quickPrompts.map((p, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => handleSend(selectedLanguage === 'ta' ? p.ta : p.en)}
-              className="px-3 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-full hover:border-teal-500 hover:text-teal-700 hover:bg-teal-50/50 transition-all shadow-2xs whitespace-nowrap flex items-center gap-1.5 shrink-0"
+              className="px-3 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-full hover:border-teal-500 hover:text-teal-700 hover:bg-teal-50/50 transition-all shadow-2xs whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               {p.icon}
               {selectedLanguage === 'ta' ? p.ta : p.en}
@@ -618,10 +634,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                       <>
                         {msg.isVoiceInput && (
                           <span className="flex items-center gap-1 px-1.5 py-0.2 bg-teal-800 rounded text-teal-200 font-medium">
-                            <Mic className="w-2.5 h-2.5" /> Spoken
+                            <Mic className="w-2.5 h-2.5" /> {t('aiSpeaker_spoken')}
                           </span>
                         )}
-                        You
+                        {t('aiSpeaker_you')}
                       </>
                     ) : (
                       <>
@@ -638,7 +654,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                 {/* Message Body */}
                 <div className="whitespace-pre-line leading-relaxed font-normal">{msg.text}</div>
 
-                {/* Structured Cards (Facilities, Doctors, Stock, Recommendations, Emergency) */}
+                {/* Structured Cards */}
                 {msg.cards && msg.cards.length > 0 && (
                   <div className="mt-3.5 space-y-2.5 pt-2 border-t border-slate-100">
                     {msg.cards.map((card, cIdx) => (
@@ -705,7 +721,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                             )}
                             {card.details.expected_loss !== undefined && (
                               <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/60 px-2 py-1 rounded">
-                                📉 {selectedLanguage === 'ta' ? 'வீண் பயண இழப்பு குறியீடு' : 'Expected Trip Loss'}:{' '}
+                                📉 {t('aiExpectedLoss')}:{' '}
                                 <span className="underline">{card.details.expected_loss} units</span> (Risk:{' '}
                                 {card.details.failure_risk_pct}%)
                               </div>
@@ -769,22 +785,22 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                             ? 'bg-teal-600 text-white'
                             : 'bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-700'
                         }`}
-                        title="Listen to response"
+                        aria-label={t('aiListen')}
                       >
                         {msg.synthesizingAudio ? (
                           <>
                             <Loader2 className="w-3 h-3 animate-spin text-teal-600" />
-                            <span>{selectedLanguage === 'ta' ? 'குரல் உருவாக்குகிறது...' : 'Synthesizing...'}</span>
+                            <span>{t('aiSynthesizing')}</span>
                           </>
                         ) : activeAudioMessageId === msg.id && isAudioPlaying ? (
                           <>
                             <Pause className="w-3 h-3" />
-                            <span>{selectedLanguage === 'ta' ? 'நிறுத்து' : 'Pause'}</span>
+                            <span>{t('aiPause')}</span>
                           </>
                         ) : (
                           <>
                             <Volume2 className="w-3 h-3 text-teal-600" />
-                            <span>{selectedLanguage === 'ta' ? 'கேளுங்கள்' : 'Listen'}</span>
+                            <span>{t('aiListen')}</span>
                           </>
                         )}
                       </button>
@@ -795,6 +811,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                           onClick={stopCurrentAudio}
                           className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
                           title="Stop"
+                          aria-label="Stop audio"
                         >
                           <Square className="w-3 h-3" />
                         </button>
@@ -824,11 +841,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
           {loading && (
             <div className="flex items-center gap-2.5 text-slate-500 text-xs p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs max-w-md">
               <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
-              <span>
-                {selectedLanguage === 'ta'
-                  ? 'கேர்பிரிட்ஜ் தரவுத்தளத்தில் மருத்துவமனை மற்றும் மருத்துவர் வருகையை சரிபார்க்கிறது...'
-                  : 'Executing database tools, verifying doctor attendance & inventory...'}
-              </span>
+              <span>{t('aiLoading')}</span>
             </div>
           )}
 
@@ -864,44 +877,42 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               {voiceState === 'requesting_permission' && (
                 <span className="text-xs text-teal-200 flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Requesting microphone access...
+                  {t('aiSpeech_requesting')}
                 </span>
               )}
 
               {voiceState === 'processing_speech' && (
                 <span className="text-xs text-teal-200 flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  {selectedLanguage === 'ta'
-                    ? 'Gnani Prisma STT மூலம் குரலை உரையாக மாற்றுகிறது...'
-                    : 'Transcribing speech via Gnani.ai Prisma STT...'}
+                  {t('aiSpeech_processing')}
                 </span>
               )}
 
               {voiceState === 'transcript_ready' && (
                 <span className="text-xs text-emerald-300 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Speech recognized! You can review or edit text below.
+                  {t('aiSpeech_ready')}
                 </span>
               )}
 
               {voiceState === 'generating_audio' && (
                 <span className="text-xs text-teal-200 flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Synthesizing spoken response via Gnani Timbre TTS...
+                  {t('aiSpeech_generating')}
                 </span>
               )}
 
               {voiceState === 'playing_response' && (
                 <span className="text-xs text-emerald-300 flex items-center gap-2">
                   <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
-                  Speaking response...
+                  {t('aiSpeech_playing')}
                 </span>
               )}
 
               {voiceState === 'error' && (
                 <span className="text-xs text-red-300 flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  {voiceError || 'Voice operation failed'}
+                  {voiceError || t('aiSpeech_errorFallback')}
                 </span>
               )}
             </div>
@@ -914,15 +925,16 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                 >
                   <Square className="w-3 h-3 fill-current" />
-                  Done Speaking
+                  {t('aiSpeech_doneButton')}
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={handleCancelVoice}
-                className="p-1 text-slate-400 hover:text-white rounded"
+                className="p-1 text-slate-400 hover:text-white rounded cursor-pointer"
                 title="Dismiss"
+                aria-label="Dismiss"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -951,10 +963,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               }`}
               title={
                 voiceState === 'recording'
-                  ? 'Tap to Stop Recording'
-                  : selectedLanguage === 'ta'
-                  ? 'பேசி கேட்கவும் (Gnani.ai குரல் மைக்ரோஃபோன்)'
-                  : 'Tap to speak (Gnani.ai Indic Voice)'
+                  ? t('aiSpeech_micStop')
+                  : t('aiSpeech_micTitle')
+              }
+              aria-label={
+                voiceState === 'recording'
+                  ? t('aiSpeech_micStop')
+                  : t('aiSpeech_micTitle')
               }
             >
               {voiceState === 'recording' ? (
@@ -969,11 +984,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                selectedLanguage === 'ta'
-                  ? 'தட்டச்சு செய்யவும் அல்லது மைக்கை அழுத்தி பேசவும்: "திருச்செங்கோடு அருகே உள்ள PHC எங்கே?"...'
-                  : 'Type or speak: "Find a PHC near Tiruchengode", "Paracetamol stock"...'
-              }
+              placeholder={t('aiInputPlaceholder')}
+              aria-label={t('aiInputPlaceholder')}
               className="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all placeholder:text-slate-400"
             />
 
@@ -982,7 +994,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               type="submit"
               disabled={!input.trim() || loading}
               className="p-3 bg-teal-700 text-white rounded-xl hover:bg-teal-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md cursor-pointer"
-              title="Send message"
+              title={t('aiSendButton')}
+              aria-label={t('aiSendButton')}
             >
               <Send className="w-4 h-4" />
             </button>
@@ -990,9 +1003,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
           {/* Legal / Clinical Disclaimer */}
           <div className="mt-2 text-[10px] text-slate-400 text-center leading-tight">
-            {selectedLanguage === 'ta'
-              ? 'கேர்பிரிட்ஜ் வழிகாட்டுதல் தகவல் மட்டுமே. இது மருத்துவ நோயறிதல் அல்லது மருந்துச் சீட்டுகளை வழங்காது. அவசர நிலைக்கு 108 அழைக்கவும்.'
-              : 'CareBridge provides logistical coordination only. Does not provide clinical diagnosis or prescriptions. For medical emergencies, call 108 immediately.'}
+            {t('aiDisclaimer')}
           </div>
         </div>
       </div>
