@@ -209,10 +209,14 @@ class FacilityServiceHandler:
 
         if facility_type and facility_type.upper() != "ALL":
             ft = facility_type.upper()
-            if ft == "HOSPITAL":
+            if ft in ("HOSPITAL", "THO", "DHO"):
                 stmt = stmt.where(func.upper(Facility.facility_type).in_(["HOSPITAL", "THO", "DHO"]))
-            elif ft in ("SUB_CENTRE", "SUB-CENTRE"):
-                stmt = stmt.where(func.upper(Facility.facility_type).in_(["SCE", "SUB_CENTRE"]))
+            elif ft in ("SCE", "SUB_CENTRE", "SUB-CENTRE", "SUB_CENTER", "SUB-CENTER"):
+                stmt = stmt.where(func.upper(Facility.facility_type).in_(["SCE", "SUB_CENTRE", "SUB_CENTER"]))
+            elif ft == "PHC":
+                stmt = stmt.where(func.upper(Facility.facility_type) == "PHC")
+            elif ft == "CHC":
+                stmt = stmt.where(func.upper(Facility.facility_type) == "CHC")
             else:
                 stmt = stmt.where(func.upper(Facility.facility_type) == ft)
 
@@ -272,11 +276,16 @@ class FacilityServiceHandler:
             **resolved_meta,
         }
 
+        has_more = (skip + len(items)) < total_matching
+
         return NearbyFacilityList(
             items=items,
             total=total_matching,
             resolved_location=resolved_location_info,
             radius_km=radius_km,
+            skip=skip,
+            limit=limit,
+            has_more=has_more,
         )
 
     async def create_facility(self, data: FacilityCreate) -> Facility:

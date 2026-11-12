@@ -100,6 +100,9 @@ class NearbyFacilityList(BaseModel):
     total: int
     resolved_location: Dict[str, Any]
     radius_km: float
+    skip: int = 0
+    limit: int = 20
+    has_more: bool = False
 
 
 class FacilityDetailResponse(FacilityBase):

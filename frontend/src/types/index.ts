@@ -86,6 +86,9 @@ export interface Facility {
 export interface NearbyFacilityListResponse {
   items: Facility[];
   total: number;
+  skip?: number;
+  limit?: number;
+  has_more?: boolean;
   resolved_location: {
     latitude: number;
     longitude: number;

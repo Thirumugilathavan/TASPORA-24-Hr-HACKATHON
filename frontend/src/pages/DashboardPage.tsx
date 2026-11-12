@@ -59,13 +59,19 @@ export const DashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [facData, reqData, apptData] = await Promise.all([
-        facilityService.getFacilities(),
-        requestService.getRequests(),
-        appointmentService.getAppointments(),
+      const [nearbyRes, reqData, apptData] = await Promise.all([
+        facilityService.getNearbyFacilities({
+          latitude: currentPatient?.village?.latitude,
+          longitude: currentPatient?.village?.longitude,
+          village_id: currentPatient?.village?.id,
+          radius_km: 15,
+          limit: 10,
+        }).catch(() => ({ items: [], total: 0 })),
+        requestService.getRequests().catch(() => []),
+        appointmentService.getAppointments().catch(() => []),
       ]);
 
-      setFacilities(facData);
+      setFacilities(nearbyRes.items || []);
       setRequests(reqData);
       setAppointments(apptData);
     } catch (err: any) {
@@ -145,7 +151,7 @@ export const DashboardPage: React.FC = () => {
         <StatCard
           title="Nearby Facilities"
           value={facilities.length}
-          subtitle="PHCs, CHCs, & Pharmacies"
+          subtitle={currentPatient?.village?.name ? `Near ${currentPatient.village.name}` : 'Ranked by distance'}
           icon={<Building2 className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
