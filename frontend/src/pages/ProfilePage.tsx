@@ -131,8 +131,8 @@ export const ProfilePage: React.FC = () => {
             <ShieldCheck className="w-5 h-5 text-emerald-500 mt-0.5" />
             <div>
               <p className="text-xs text-slate-500 font-medium">Data Sharing Consent</p>
-              <p className="text-emerald-700 font-medium mt-0.5">
-                {currentPatient?.consent_given !== false ? 'Granted (Clinical Coordination)' : 'Revoked'}
+              <p className={currentPatient?.consent_given ? 'text-emerald-700 font-medium mt-0.5' : 'text-slate-500 font-medium mt-0.5'}>
+                {currentPatient?.consent_given ? 'Granted (Clinical Coordination)' : 'Not Granted'}
               </p>
             </div>
           </div>

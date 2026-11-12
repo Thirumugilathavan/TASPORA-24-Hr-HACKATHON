@@ -16,6 +16,7 @@ import {
 import { authService } from '../services/authService';
 import { Village } from '../types';
 import { LANGUAGES } from '../lib/constants';
+import { config } from '../lib/config';
 import { MOCK_VILLAGES } from '../mocks/data';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -38,7 +39,7 @@ export const RegisterPage: React.FC = () => {
   const [dob, setDob] = useState('1990-01-01');
   const [language, setLanguage] = useState('ta');
   const [emergencyPhone, setEmergencyPhone] = useState('');
-  const [consentGiven, setConsentGiven] = useState(true);
+  const [consentGiven, setConsentGiven] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,19 +52,26 @@ export const RegisterPage: React.FC = () => {
   const loadVillages = async () => {
     try {
       setLoadingVillages(true);
+      setError(null);
       const data = await authService.getVillages();
       if (data && data.length > 0) {
         setVillages(data);
         setVillageId(data[0].id);
-      } else {
+      } else if (config.isMockMode) {
         setVillages(MOCK_VILLAGES);
         setVillageId(MOCK_VILLAGES[0].id);
+      } else {
+        setError('No registered villages found on server. Please verify database seeding.');
       }
     } catch (err: any) {
-      console.warn('Failed to load villages from backend API, falling back to default villages:', err);
-      setVillages(MOCK_VILLAGES);
-      if (MOCK_VILLAGES.length > 0) {
-        setVillageId(MOCK_VILLAGES[0].id);
+      if (config.isMockMode) {
+        console.warn('Backend /api/villages unavailable in mock mode, using mock directory:', err);
+        setVillages(MOCK_VILLAGES);
+        if (MOCK_VILLAGES.length > 0) {
+          setVillageId(MOCK_VILLAGES[0].id);
+        }
+      } else {
+        setError(err.message || 'Unable to connect to village directory. Verify backend server is running.');
       }
     } finally {
       setLoadingVillages(false);

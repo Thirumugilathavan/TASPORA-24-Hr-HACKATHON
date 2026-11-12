@@ -88,8 +88,8 @@ export const MedicinesPage: React.FC = () => {
         <div className="leading-relaxed">
           <strong>Bayesian Stock Estimation:</strong> CareBridge computes medicine availability probabilities
           combining physical dispensary reports, facility stock audits, and ASHA refill logs.
-          Status tags indicate <strong>Likely (&gt;75%)</strong>, <strong>Uncertain (40-75%)</strong>, or{' '}
-          <strong>Unlikely (&lt;40%)</strong> in stock.
+          Status tags indicate <strong>Likely (p &ge; 0.65)</strong>, <strong>Uncertain (0.35 &lt; p &lt; 0.65)</strong>, or{' '}
+          <strong>Unlikely (p &le; 0.35)</strong> in stock.
         </div>
       </div>
 

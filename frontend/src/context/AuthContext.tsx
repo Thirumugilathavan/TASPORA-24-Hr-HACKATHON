@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dob: string,
     lang: string,
     emergencyPhone?: string,
-    consentGiven: boolean = true
+    consentGiven: boolean = false
   ) => {
     setIsLoading(true);
     try {
@@ -149,32 +149,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('carebridge_user', JSON.stringify(newUser));
 
       // 3. Establish canonical Patient profile linked to village
-      try {
-        const createdPatient = await patientService.createPatient({
-          village_id: villageId,
-          date_of_birth: dob,
-          preferred_language: lang,
-          consent_given: consentGiven,
-          emergency_contact_phone: emergencyPhone,
-        });
-        setPatient(createdPatient);
-        localStorage.setItem('carebridge_patient', JSON.stringify(createdPatient));
-      } catch (patientErr) {
-        console.warn('Patient profile creation error, using fallback state:', patientErr);
-        const fallbackPatient: Patient = {
-          id: `pat-${Date.now()}`,
-          user_id: newUser.id,
-          name: newUser.name,
-          phone: newUser.phone,
-          village_id: villageId,
-          date_of_birth: dob,
-          preferred_language: lang,
-          consent_given: consentGiven,
-          emergency_contact_phone: emergencyPhone,
-        };
-        setPatient(fallbackPatient);
-        localStorage.setItem('carebridge_patient', JSON.stringify(fallbackPatient));
-      }
+      const createdPatient = await patientService.createPatient({
+        village_id: villageId,
+        date_of_birth: dob,
+        preferred_language: lang,
+        consent_given: consentGiven === true,
+        emergency_contact_phone: emergencyPhone,
+      });
+      setPatient(createdPatient);
+      localStorage.setItem('carebridge_patient', JSON.stringify(createdPatient));
     } finally {
       setIsLoading(false);
     }

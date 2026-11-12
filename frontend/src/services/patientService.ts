@@ -11,14 +11,9 @@ export const patientService = {
       return MOCK_VILLAGES;
     }
 
-    try {
-      const res = await apiRequest<PageResponse<Village> | Village[]>('/api/villages');
-      if (Array.isArray(res)) return res;
-      return res.items || [];
-    } catch (err) {
-      console.warn('Backend /api/villages unavailable, falling back to cached villages:', err);
-      return MOCK_VILLAGES;
-    }
+    const res = await apiRequest<PageResponse<Village> | Village[]>('/api/villages');
+    if (Array.isArray(res)) return res;
+    return res.items || [];
   },
 
   async getPatient(idOrUserId: string): Promise<Patient> {

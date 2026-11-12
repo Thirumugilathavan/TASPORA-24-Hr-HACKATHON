@@ -34,7 +34,7 @@ This frontend application is built with **React 18**, **Vite**, **TypeScript**, 
   - Facility modal showing doctor roster, attendance status, operating hours, and direct booking trigger.
 - **Medicine Stock & Bayesian Availability (`/medicines`)**:
   - Search essential drug formulary and filter by category (Antibiotics, Analgesics, Chronic Care, Maternal).
-  - Probabilistic Bayesian stock badges: **Likely (>75%)**, **Uncertain (40-75%)**, or **Unlikely (<40%)**.
+  - Probabilistic Bayesian stock badges: **Likely ($p \ge 0.65$)**, **Uncertain ($0.35 < p < 0.65$)**, or **Unlikely ($p \le 0.35$)**.
   - One-click "Request Refill" modal prefilled with selected medicine.
 - **Care Requests & AI Optimization (`/requests`)**:
   - Submit consultation, refill, checkup, or diagnostic requests with urgency levels (`NORMAL`, `PRIORITY`, `URGENT`).
