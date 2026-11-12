@@ -105,3 +105,12 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 if settings.API_V1_PREFIX != "/api/v1":
     app.include_router(api_router, prefix="/api/v1")
+
+
+@app.get("/api", tags=["Health"])
+async def api_root():
+    from app.api.v1.health import health_check
+    from app.core.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        return await health_check(db=db)
+

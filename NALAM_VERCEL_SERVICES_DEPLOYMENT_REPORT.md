@@ -109,10 +109,10 @@ cd frontend; npm run build
 
 ### 4.2 Backend Test Suite
 ```powershell
-.venv\Scripts\pytest.exe tests/test_health.py tests/test_gnani_voice.py tests/test_ai_agent.py tests/test_facilities_nearby.py tests/test_villages_search.py tests/test_ivr_live_telephony.py -q
+.venv\Scripts\pytest.exe tests/test_health.py tests/test_gnani_voice.py tests/test_ai_agent.py tests/test_facilities_nearby.py tests/test_villages_search.py tests/test_ivr_live_telephony.py -v
 ```
-- **Tests Executed:** 40 tests across Health, Gnani Voice, AI Agent, Nearby Facilities, Nationwide Location Search, and Telephony.
-- **Pass Rate:** **40 / 40 passed (100%)** in 25.03s.
+- **Tests Executed:** 41 tests across Health, Base API Root, Gnani Voice, AI Agent, Nearby Facilities, Nationwide Location Search, and Telephony.
+- **Pass Rate:** **41 / 41 passed (100%)** in 22.88s.
 - **Status:** **SUCCESS**
 
 ### 4.3 Git & Remote Push Verification

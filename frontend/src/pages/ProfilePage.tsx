@@ -43,7 +43,7 @@ export const ProfilePage: React.FC = () => {
     notify(
       nextState
         ? 'Switched to Mock Data Mode.'
-        : 'Switched to Live Backend API Mode (Connecting to http://localhost:8000).',
+        : `Switched to Live Backend API Mode (${config.apiBaseUrl || 'same-origin /api'}).`,
       'info'
     );
   };
