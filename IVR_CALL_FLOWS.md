@@ -109,7 +109,7 @@ The following keys behave consistently across all menus:
 
 - **Access:** Required prior to entering protected personal health data flows.
 - **Rate Limiting:** 3 attempts maximum. On the 3rd consecutive failed attempt, the account is locked for 15 minutes and the call is terminated.
-- **PIN Rule:** Last 4 digits of caller's registered phone number (or custom 4-digit PIN).
+- **PIN Rule:** Securely provisioned 4-digit PIN verified via bcrypt password hashes. (Demonstration mode conditionally allows last 4 digits of phone number for simulated testing; prohibited in production).
 
 #### Prompts:
 - **Initial Challenge (Tamil):**  

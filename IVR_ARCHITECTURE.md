@@ -83,7 +83,7 @@ flowchart TD
 ### 3.2. Caller Identification & Security Service (`app/services/ivr_auth_service.py`)
 - **Phone Normalization**: Normalizes incoming Indian telephone numbers (stripping `+91`, leading `0`, punctuation) to uniform 10-digit format (`9876543201`).
 - **Caller Lookup**: Queries `User` and `Patient` records by phone.
-- **PIN Verification**: Authenticates callers using their 4-digit PIN (defaulting to the last 4 digits of their phone number for rural accessibility).
+- **PIN Verification**: Authenticates callers using their securely provisioned 4-digit PIN verified against stored bcrypt password hashes. For local development and automated simulation only, phone-derived PIN (last 4 digits) is conditionally supported when `IVR_ALLOW_DEMO_PHONE_PIN=True` and `ENVIRONMENT!=production`, but is strictly blocked in production.
 - **Brute-Force Lockout**: Enforces a strict maximum of 3 failed PIN attempts. Upon the 3rd consecutive failure, the caller is locked out for 15 minutes (`IVR_AUTH_LOCKOUT_MINUTES`) and the active call is terminated.
 - **Constant-Time Comparison**: Protects system credentials and API keys via `secrets.compare_digest`.
 

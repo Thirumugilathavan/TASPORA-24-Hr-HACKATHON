@@ -17,6 +17,7 @@ Add the following environment variables to your `.env` file or cloud configurati
 | `IVR_AUTH_LOCKOUT_MINUTES` | `15` | Lockout duration following 3 consecutive failed PIN attempts. |
 | `IVR_DEFAULT_LANGUAGE` | `ta` | Default spoken language fallback (`ta` for Tamil, `en` for English). |
 | `IVR_EMERGENCY_NUMBER` | `108` | National emergency ambulance telephone number announced in prompts. |
+| `IVR_ALLOW_DEMO_PHONE_PIN` | `true` | Allows predictable phone-derived PIN (last 4 digits) for simulated development/testing only; strictly disabled in production. |
 
 ---
 

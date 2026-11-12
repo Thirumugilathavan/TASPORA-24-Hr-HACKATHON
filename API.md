@@ -125,7 +125,7 @@ Items are sorted in ascending order of `expected_loss` to direct rural patients 
 
 ### IVR System & Security Rules
 1. **DTMF Keypad Only:** The IVR is strictly button-phone driven (no smartphone apps, internet, or mandatory speech recognition required).
-2. **Authentication & Rate Limiting:** All endpoints require `X-API-Key`. Personal health actions (Request creation, Appointment booking, Status/Cancellation) require entering a 4-digit PIN (default: last 4 digits of registered phone number). Maximum 3 attempts before a 15-minute brute-force lockout is enforced and the call is terminated.
+2. **Authentication & Rate Limiting:** All endpoints require `X-API-Key`. Personal health actions (Request creation, Appointment booking, Status/Cancellation) require entering a securely provisioned 4-digit PIN stored as a bcrypt hash. In development/demonstration environments only (`IVR_ALLOW_DEMO_PHONE_PIN=True` and `ENVIRONMENT!=production`), the last 4 digits of the phone number can be used for ease of manual testing; in production, phone-derived PINs are strictly disallowed. Maximum 3 attempts before a 15-minute brute-force lockout is enforced and the call is terminated.
 3. **Public Unauthenticated Menus:** Facility discovery, doctor attendance check, medicine stock check, and 108 emergency guidance are publicly accessible without authentication.
 4. **Immediate Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch guidance and nearest emergency hospital announcement without authentication barriers.
 5. **Universal Key Standards:** Key `9` hangs up gracefully, `0` / `*` returns to Main Menu, `8` repeats audio prompt, `#` confirms multi-digit input.

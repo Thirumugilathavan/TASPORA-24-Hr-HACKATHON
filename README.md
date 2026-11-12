@@ -55,6 +55,14 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
   - Walk-in slot: `(facility_id, appointment_date, appointment_time)` where `doctor_id IS NULL AND status != 'CANCELLED'`.
 - **Slot Release on Cancellation:** Cancelling an appointment frees the slot for other patients.
 
+### 5. Voice Access & Button Phone IVR
+- **Zero Smartphone / Internet Dependency:** Ordinary keypad / feature phones access CareBridge services entirely over cellular voice networks via DTMF button tones.
+- **Bilingual Interface:** Spoken audio prompts in Tamil (`ta`) and English (`en`).
+- **Public & Protected Workflows:** Public directory of nearby facilities, verified doctor schedules, and medicine availability. Protected actions (healthcare request creation, appointment booking, status checks/cancellations) require 4-digit PIN verification.
+- **Security & Lockout:** 3 failed PIN attempts trigger a 15-minute brute-force lockout. Dedicated `X-API-Key` protects carrier webhooks. Predictable phone-derived PINs are strictly demo-only and disabled in production.
+- **Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch advice and emergency hospital routing without authentication barriers.
+- **Provider Agnostic:** Pluggable adapter architecture supporting Mock (JSON / CLI simulator) and Twilio (TwiML XML).
+
 ---
 
 ## Disclosures & Safety Notices
@@ -146,6 +154,9 @@ pytest -v tests/test_appointments.py
 
 # Recommendation engine loss-minimization tests
 pytest -v tests/test_recommendations.py
+
+# Voice Access / IVR test suite (Unit, Security, Integration, E2E)
+pytest -v tests/test_ivr_unit.py tests/test_ivr_security.py tests/test_ivr_integration.py tests/test_ivr_e2e.py
 ```
 
 ---
@@ -179,4 +190,11 @@ pytest -v tests/test_recommendations.py
 | `POST` | `/api/appointments` | Book appointment with conflict protection | Scoped / Clinical |
 | `GET` | `/api/appointments/{id}` | Get appointment details | Scoped / Clinical |
 | `PATCH` | `/api/appointments/{id}/cancel` | Cancel appointment and release slot | Scoped / Clinical |
+| `POST` | `/api/ivr/webhook` | Carrier webhook (Twilio TwiML / Mock JSON) | `X-API-Key` |
+| `POST` | `/api/ivr/call/start` | Initiate IVR voice access call session | `X-API-Key` |
+| `POST` | `/api/ivr/call/input` | Process button-phone DTMF keypad input | `X-API-Key` |
+| `GET` | `/api/ivr/session/{id}` | Retrieve live session diagnostic state | `X-API-Key` |
+| `POST` | `/api/ivr/call/hangup` | Gracefully end an active voice call | `X-API-Key` |
+| `POST` | `/api/ivr/lookup` | Spoken medicine availability summary | `X-API-Key` |
+| `POST` | `/api/ivr/feedback` | Record caller stock feedback | `X-API-Key` |
 | `GET` | `/api/health` | Service health status | Public |
