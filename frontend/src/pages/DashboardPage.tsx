@@ -22,6 +22,7 @@ import { BookAppointmentModal } from '../components/appointments/BookAppointment
 import { CreateRequestModal } from '../components/requests/CreateRequestModal';
 import { RequestCard } from '../components/requests/RequestCard';
 import { FacilityDetailModal } from '../components/facilities/FacilityDetailModal';
+import { NearbyFacilitiesSection } from '../components/facilities/NearbyFacilitiesSection';
 import { Facility, HealthcareRequest, Appointment } from '../types';
 import { facilityService } from '../services/facilityService';
 import { requestService } from '../services/requestService';
@@ -171,6 +172,12 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Healthcare Facilities Near You (Distance-Ranked NIC Facilities) */}
+          <NearbyFacilitiesSection
+            onSelectFacility={(fac) => setSelectedFacility(fac)}
+            initialRadius={10}
+          />
+
           {/* Upcoming Appointments */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -260,43 +267,35 @@ export const DashboardPage: React.FC = () => {
 
         {/* Right Column (1 col) */}
         <div className="space-y-6">
-          {/* Nearest Facilities Quick List */}
+          {/* No Wasted Trips Travel Advisory */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold text-slate-900">Nearest Health Centers</h2>
-              <button
-                onClick={() => navigate('/facilities')}
-                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-              >
-                All
-              </button>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+                <HeartPulse className="w-4 h-4 text-emerald-600" />
+              </span>
+              <h2 className="text-sm font-bold text-slate-900">No Wasted Trips Policy</h2>
             </div>
-
-            <div className="space-y-3">
-              {facilities.slice(0, 3).map((fac) => (
-                <div
-                  key={fac.id}
-                  onClick={() => setSelectedFacility(fac)}
-                  className="p-3 rounded-lg border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 cursor-pointer transition-all"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium text-sm text-slate-800">{fac.name}</h4>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {fac.facility_type} • {fac.distance_km ? `${fac.distance_km} km away` : fac.district}
-                      </p>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                      Open
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-                    <span>{fac.doctors?.length || 0} Doctors on Duty</span>
-                    <span className="text-emerald-600 hover:underline">View details →</span>
-                  </div>
-                </div>
-              ))}
+            <p className="text-xs text-slate-600 leading-relaxed">
+              CareBridge ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.
+            </p>
+            <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5 text-slate-600">
+              <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                <span className="text-emerald-600">✓</span> 147k+ Government Health Centers
+              </p>
+              <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                <span className="text-emerald-600">✓</span> Real Census coordinate resolution
+              </p>
+              <p className="text-[11px] text-slate-500 pt-1">
+                Before travelling for urgent medication or specialist care, create a request or confirm attendance.
+              </p>
             </div>
+            <button
+              onClick={() => navigate('/facilities')}
+              className="mt-3.5 w-full py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              Browse All Facilities Directory
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Quick Helpline Box */}

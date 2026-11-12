@@ -65,6 +65,32 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[User]:
+    """Dependency that returns the authenticated User if a valid Bearer token is provided, or None."""
+    if not credentials or not credentials.credentials:
+        return None
+
+    payload = decode_access_token(credentials.credentials)
+    if not payload:
+        return None
+
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        return None
+
+    try:
+        user_uuid = UUID(user_id_str)
+    except ValueError:
+        return None
+
+    stmt = select(User).where(User.id == user_uuid, User.is_active == True)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 def require_role(allowed_roles: List[str]) -> Callable:
     """Dependency factory restricting route access to specified roles."""
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:

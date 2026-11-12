@@ -1,6 +1,6 @@
 export type Role = 'PATIENT' | 'ASHA' | 'DOCTOR' | 'STAFF' | 'ADMIN';
 
-export type FacilityType = 'PHC' | 'CHC' | 'HOSPITAL' | 'PHARMACY';
+export type FacilityType = 'PHC' | 'CHC' | 'HOSPITAL' | 'PHARMACY' | 'SCE' | 'THO' | 'DHO' | 'SUB_CENTRE' | string;
 
 export type AvailabilityStatus = 'IN_STOCK' | 'LOW' | 'OUT' | 'UNKNOWN';
 
@@ -61,14 +61,44 @@ export interface Facility {
   name: string;
   facility_type: FacilityType;
   district: string;
+  state?: string;
+  subdistrict?: string;
   village_id?: string;
   village_name?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   distance_km?: number;
-  services: string[];
+  ownership?: string;
+  source?: string;
+  source_id?: string;
+  unverified_availability?: boolean;
+  directions_url?: string;
+  services?: string[];
   doctors?: Doctor[];
   contact_number?: string;
+  contact_details?: Record<string, any>;
   operating_hours?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface NearbyFacilityListResponse {
+  items: Facility[];
+  total: number;
+  resolved_location: {
+    latitude: number;
+    longitude: number;
+    source: string;
+    label?: string;
+    name?: string;
+    district?: string;
+    state?: string;
+    subdistrict?: string;
+    village_id?: string;
+    patient_id?: string;
+  };
+  radius_km: number;
 }
 
 export interface Medicine {
