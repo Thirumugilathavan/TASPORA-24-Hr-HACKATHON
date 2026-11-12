@@ -55,13 +55,24 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
   - Walk-in slot: `(facility_id, appointment_date, appointment_time)` where `doctor_id IS NULL AND status != 'CANCELLED'`.
 - **Slot Release on Cancellation:** Cancelling an appointment frees the slot for other patients.
 
+### 5. Voice Access & Button Phone IVR
+- **Zero Smartphone / Internet Dependency:** Ordinary keypad / feature phones access CareBridge services entirely over cellular voice networks via DTMF button tones.
+- **Bilingual Interface:** Spoken audio prompts in Tamil (`ta`) and English (`en`).
+- **Public & Protected Workflows:** Public directory of nearby facilities, verified doctor schedules, and medicine availability. Protected actions (healthcare request creation, appointment booking, status checks/cancellations) require 4-digit PIN verification.
+- **Security & Lockout:** 3 failed PIN attempts trigger a 15-minute brute-force lockout. Dedicated `X-API-Key` protects carrier webhooks. Predictable phone-derived PINs are strictly demo-only and disabled in production.
+- **Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch advice and emergency hospital routing without authentication barriers.
+- **Provider Agnostic:** Pluggable adapter architecture supporting Mock (JSON / CLI simulator) and Twilio (TwiML XML).
+
 ---
 
 ## Disclosures & Safety Notices
 
-1. **Straight-Line Distance:** Distance calculations use approximate straight-line geographical distance (Haversine formula), not road network travel distance or real-world transit time.
-2. **Simulated Data:** Facility availability, stock probabilities, and attendance schedules operate in evaluation/demonstration mode for hackathon validation.
-3. **Clinical Judgment Disclaimer:** CareBridge assists with administrative routing and access coordination. It does not replace clinical triage or emergency care.
+1. **Medical Safety & Clinical Judgment:** CareBridge supports healthcare accessibility, coordination, and loss-minimized facility routing. It does **NOT** provide AI diagnosis, prescription generation, medicine dosage advice, or automated medication substitution. All clinical decisions remain solely with qualified healthcare professionals.
+2. **Straight-Line Distance:** Distance calculations use approximate straight-line geographical distance (Haversine formula), not actual road network travel distance or real-world transit topography.
+3. **Simulated Geography & Data:** Demo facilities, stock probabilities, and attendance schedules operate in evaluation/demonstration mode for hackathon validation with synthetic disclosures (`is_synthetic: true`).
+4. **Known Technical Limitations:**
+   - **ASHA Village Scoping:** ASHA workers currently have cross-village access pending administrative organizational hierarchy mapping.
+   - **Twilio Webhook Security:** External carrier deployment requires an API gateway passing `X-API-Key` or reverse-proxy signature verification before live telecom carrier routing.
 
 ---
 
@@ -116,6 +127,24 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
    - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
    - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
+8. **Frontend Web Setup (React + TypeScript + Vite):**
+   ```bash
+   cd frontend
+   npm install
+   # Development server (http://localhost:5173):
+   npm run dev
+   # Production build & TypeScript check:
+   npm run build
+   ```
+
+9. **Voice Access / IVR Telephone Simulator:**
+   ```bash
+   # Interactive button-phone DTMF keypad simulator (Tamil default):
+   python -m app.tools.ivr_simulator
+   # In English:
+   python -m app.tools.ivr_simulator --lang en
+   ```
+
 ---
 
 ## Running the Automated Test Suite
@@ -146,6 +175,9 @@ pytest -v tests/test_appointments.py
 
 # Recommendation engine loss-minimization tests
 pytest -v tests/test_recommendations.py
+
+# Voice Access / IVR test suite (Unit, Security, Integration, E2E)
+pytest -v tests/test_ivr_unit.py tests/test_ivr_security.py tests/test_ivr_integration.py tests/test_ivr_e2e.py
 ```
 
 ---
@@ -179,4 +211,11 @@ pytest -v tests/test_recommendations.py
 | `POST` | `/api/appointments` | Book appointment with conflict protection | Scoped / Clinical |
 | `GET` | `/api/appointments/{id}` | Get appointment details | Scoped / Clinical |
 | `PATCH` | `/api/appointments/{id}/cancel` | Cancel appointment and release slot | Scoped / Clinical |
+| `POST` | `/api/ivr/webhook` | Carrier webhook (Twilio TwiML / Mock JSON) | `X-API-Key` |
+| `POST` | `/api/ivr/call/start` | Initiate IVR voice access call session | `X-API-Key` |
+| `POST` | `/api/ivr/call/input` | Process button-phone DTMF keypad input | `X-API-Key` |
+| `GET` | `/api/ivr/session/{id}` | Retrieve live session diagnostic state | `X-API-Key` |
+| `POST` | `/api/ivr/call/hangup` | Gracefully end an active voice call | `X-API-Key` |
+| `POST` | `/api/ivr/lookup` | Spoken medicine availability summary | `X-API-Key` |
+| `POST` | `/api/ivr/feedback` | Record caller stock feedback | `X-API-Key` |
 | `GET` | `/api/health` | Service health status | Public |

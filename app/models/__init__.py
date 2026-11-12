@@ -9,6 +9,7 @@ from app.models.facility import Facility, FacilityService
 from app.models.doctor import Doctor, DoctorSchedule
 from app.models.medicine import Medicine
 from app.models.stock import StockReport, FacilityMedicineBelief
+from app.models.ivr import IVRSession, IVRInteraction, IVRAuthAttempt
 
 __all__ = [
     "Base",
@@ -27,4 +28,7 @@ __all__ = [
     "Medicine",
     "StockReport",
     "FacilityMedicineBelief",
+    "IVRSession",
+    "IVRInteraction",
+    "IVRAuthAttempt",
 ]
