@@ -47,6 +47,23 @@ class Settings(BaseSettings):
     IVR_EMERGENCY_NUMBER: str = "108"
     IVR_ALLOW_DEMO_PHONE_PIN: bool = True
     TWILIO_AUTH_TOKEN: Optional[str] = None
+    IVR_ENABLE_OUTBOUND_CALLBACKS: bool = False
+    IVR_ENABLE_CALL_TRANSFER: bool = False
+    IVR_TRANSFER_PHONE_NUMBER: str = ""
+    IVR_ENABLE_CALL_RECORDING: bool = False
+
+    # Telecom / Telephony Provider Integration Settings
+    TELEPHONY_PROVIDER: str = "mock"
+    TELEPHONY_ENABLED: bool = False
+    TELEPHONY_ACCOUNT_SID: str = ""
+    TELEPHONY_AUTH_TOKEN: str = ""
+    TELEPHONY_API_KEY: str = ""
+    TELEPHONY_API_SECRET: str = ""
+    TELEPHONY_PHONE_NUMBER: str = ""
+    TELEPHONY_WEBHOOK_BASE_URL: str = ""
+    TELEPHONY_WEBHOOK_SECRET: str = ""
+    TELEPHONY_CALL_TIMEOUT: int = 30
+    TELEPHONY_MAX_CALL_DURATION: int = 600
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

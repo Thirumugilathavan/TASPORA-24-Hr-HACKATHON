@@ -75,12 +75,26 @@ flowchart TD
 ## 3. Component Responsibilities
 
 ### 3.1. Telephony Provider Adapter (`app/integrations/telephony/`)
-- **`TelephonyProvider` (Base Interface)**: Defines abstract contracts `parse_webhook` and `format_response`.
-- **`TwilioTelephonyProvider`**: Parses Twilio application/x-www-form-urlencoded webhooks (`CallSid`, `From`, `Digits`, `CallStatus`) and formats responses as standard TwiML XML (`<Response><Gather><Say>...</Say></Gather></Response>`).
-- **`MockTelephonyProvider`**: Parses and renders standard JSON payloads for automated CI/CD unit and integration testing, as well as the interactive CLI simulator.
-- **`get_telephony_provider`**: Factory dynamically selecting provider based on `settings.IVR_PROVIDER`.
+- **`TelephonyProvider` (Base Interface)**: Defines abstract contracts:
+  - `validate_inbound_webhook`: Verifies cryptographic carrier signatures (`X-Twilio-Signature` HMAC-SHA1).
+  - `parse_webhook`: Normalizes carrier payloads into unified `TelephonyCallEvent`.
+  - `format_response` / `generate_voice_response`: Converts `IVRResponse` into carrier format (TwiML XML for Twilio, JSON for mock).
+  - `initiate_outbound_call`: Dispatches outbound calls via provider REST APIs (e.g. Twilio Calls API).
+  - `transfer_call`: Generates carrier transfer instructions (TwiML `<Dial>`).
+  - `terminate_call`: Instructs carrier to safely disconnect.
+  - `get_call_status`: Queries live carrier call lifecycle status.
+- **`TwilioTelephonyProvider`**: Parses Twilio application/x-www-form-urlencoded webhooks (`CallSid`, `From`, `Digits`, `CallStatus`), enforces HMAC-SHA1 signature verification, and generates standard TwiML XML (`<Response><Gather><Say language="ta-IN">...</Say></Gather><Dial>...</Dial><Hangup/></Response>`).
+- **`MockTelephonyProvider`**: Parses and renders structured JSON payloads for headless testing, CI/CD automated validation, and the interactive terminal simulator.
+- **`get_telephony_provider`**: Factory dynamically selecting active provider based on `TELEPHONY_PROVIDER` or `IVR_PROVIDER`.
 
-### 3.2. Caller Identification & Security Service (`app/services/ivr_auth_service.py`)
+### 3.2. Public Carrier Webhook Endpoints (`app/api/v1/ivr.py`)
+- **`POST /api/ivr/webhooks/incoming`**: Carrier entrypoint for inbound calls. Validates `X-Twilio-Signature`, creates `IVRSession`, and returns initial welcome and language selection TwiML.
+- **`POST /api/ivr/webhooks/continue`**: Carrier DTMF gather callback. Validates signature, routes keypress through IVR state machine, and returns next menu TwiML.
+- **`POST /api/ivr/webhooks/status`**: Carrier call status lifecycle webhook tracking `ringing`, `in-progress`, `completed`, `busy`, `no-answer`, and `failed` events to mark sessions `COMPLETED` upon disconnect.
+- **`POST /api/ivr/callbacks/initiate`**: Authenticated API endpoint to dispatch automated outbound telephone calls for ASHA follow-ups or appointment reminders, strictly enforcing Indian calling hours (08:00 to 20:00 IST).
+- **`POST /api/ivr/webhook`**: Unified legacy entrypoint maintained for full backwards compatibility with existing clients.
+
+### 3.3. Caller Identification & Security Service (`app/services/ivr_auth_service.py`)
 - **Phone Normalization**: Normalizes incoming Indian telephone numbers (stripping `+91`, leading `0`, punctuation) to uniform 10-digit format (`9876543201`).
 - **Caller Lookup**: Queries `User` and `Patient` records by phone.
 - **PIN Verification**: Authenticates callers using their securely provisioned 4-digit PIN verified against stored bcrypt password hashes. For local development and automated simulation only, phone-derived PIN (last 4 digits) is conditionally supported when `IVR_ALLOW_DEMO_PHONE_PIN=True` and `ENVIRONMENT!=production`, but is strictly blocked in production.

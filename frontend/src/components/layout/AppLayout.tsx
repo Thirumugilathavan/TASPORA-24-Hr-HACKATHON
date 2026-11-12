@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { Bot } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { DemoBanner } from '../common/DemoBanner';
 import { EmergencyNotice } from '../common/EmergencyNotice';
 import { ToastContainer } from '../common/Toast';
+import { AIAssistantModal } from '../assistant/AIAssistantModal';
 import { useTranslation } from '../../context/LanguageContext';
 
 export const AppLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const { language, t } = useTranslation();
   const location = useLocation();
-  const { t } = useTranslation();
 
   // Map route to human-readable page titles and breadcrumbs
   const getPageMeta = () => {
@@ -63,6 +66,28 @@ export const AppLayout: React.FC = () => {
           </footer>
         </div>
       </div>
+
+      {/* Floating AI Assistant Action Button */}
+      <button
+        type="button"
+        onClick={() => setIsAIAssistantOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-teal-700 via-teal-800 to-navy-900 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all border border-teal-500/30 group cursor-pointer"
+        aria-label="Open CareBridge AI Assistant"
+      >
+        <div className="w-6 h-6 rounded-full bg-teal-500/20 flex items-center justify-center border border-teal-400/30">
+          <Bot className="w-4 h-4 text-teal-200 group-hover:rotate-12 transition-transform" />
+        </div>
+        <span className="font-semibold text-xs tracking-wide">
+          {language === 'ta' ? 'AI உதவியாளர்' : 'CareBridge AI'}
+        </span>
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      </button>
+
+      {/* AI Assistant Modal */}
+      <AIAssistantModal
+        isOpen={isAIAssistantOpen}
+        onClose={() => setIsAIAssistantOpen(false)}
+      />
 
       {/* Global Toast Feedback */}
       <ToastContainer />

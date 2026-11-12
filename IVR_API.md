@@ -32,6 +32,10 @@ Standard CareBridge error envelope is returned on failure:
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `POST` | `/api/ivr/webhooks/incoming` | Carrier Inbound Call Webhook (Twilio TwiML / `X-Twilio-Signature` verified) |
+| `POST` | `/api/ivr/webhooks/continue` | Carrier DTMF Gather Callback (Twilio TwiML / `X-Twilio-Signature` verified) |
+| `POST` | `/api/ivr/webhooks/status` | Carrier Call Status Callback (`completed`, `failed`, `busy`, `no-answer`) |
+| `POST` | `/api/ivr/callbacks/initiate` | Outbound Call / ASHA Follow-up Dispatch (`X-API-Key` protected) |
 | `POST` | `/api/ivr/webhook` | Unified carrier webhook (Twilio TwiML / Mock JSON) |
 | `POST` | `/api/ivr/call/start` | Programmatically initiate an IVR session (Simulator / Outbound) |
 | `POST` | `/api/ivr/call/input` | Submit DTMF button keypresses to active session |
@@ -42,7 +46,51 @@ Standard CareBridge error envelope is returned on failure:
 
 ---
 
-## 1. Carrier Telephony Webhook
+## 1. Carrier Telephony Webhooks (Live Calling)
+
+### `POST /api/ivr/webhooks/incoming`
+Carrier entrypoint when an inbound call reaches the CareBridge virtual telephone number.
+- **Authentication:** Verified via `X-Twilio-Signature` header (HMAC-SHA1). Returns `403 Forbidden` if signature is invalid.
+- **Format:** `application/x-www-form-urlencoded` from carrier.
+- **Output:** TwiML XML with `<Gather>` listening for language selection (Tamil: 1, English: 2) pointing to `/api/ivr/webhooks/continue`.
+
+### `POST /api/ivr/webhooks/continue`
+Carrier gather callback receiving caller DTMF digits.
+- **Authentication:** Verified via `X-Twilio-Signature`.
+- **Output:** Next menu TwiML XML, Call Transfer `<Dial>`, or `<Hangup/>`.
+
+### `POST /api/ivr/webhooks/status`
+Carrier lifecycle status updates.
+- **Authentication:** Verified via `X-Twilio-Signature`.
+- **Payload:** `CallSid`, `CallStatus`, `CallDuration`. Updates session state in database to `COMPLETED` or `FAILED`.
+
+### `POST /api/ivr/callbacks/initiate`
+Dispatches an outbound call or patient-requested ASHA callback.
+- **Authentication:** `X-API-Key`.
+- **Calling Hours Rule:** Strictly allowed between 08:00 and 20:00 Indian Standard Time (IST).
+- **Request Body:**
+```json
+{
+  "to_phone": "9876543203",
+  "patient_id": "00000000-0000-0000-0000-000000000001",
+  "purpose": "ASHA_CALLBACK"
+}
+```
+- **Response (`201 Created`):**
+```json
+{
+  "call_sid": "CA1234567890abcdef",
+  "to_phone": "9876543203",
+  "from_phone": "+919876500000",
+  "status": "queued",
+  "provider": "twilio",
+  "created_at": "2026-11-12T22:30:00Z"
+}
+```
+
+---
+
+## 2. Legacy Unified Webhook & Simulator APIs
 
 ### `POST /api/ivr/webhook`
 Consumes carrier events (Call start, DTMF gather callbacks, Hangup). Accepts both `application/x-www-form-urlencoded` (Twilio standard) and `application/json` (Mock provider).

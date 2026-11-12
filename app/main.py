@@ -16,6 +16,12 @@ async def lifespan(app: FastAPI):
     # Ensure database tables exist (development/evaluation convenience)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    try:
+        if settings.ENVIRONMENT.lower() != "production":
+            from app.tools.seed_demo_data import seed_all_demo_data
+            await seed_all_demo_data()
+    except Exception:
+        pass
     yield
     # Clean shutdown
     await engine.dispose()

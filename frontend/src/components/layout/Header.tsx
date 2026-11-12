@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, Bell, Globe, LogOut, ChevronDown, UserCircle2 } from 'lucide-react';
+import { Menu, Bell, Globe, LogOut, ChevronDown, UserCircle2, Bot } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { LANGUAGES } from '../../lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
 import { LanguageCode } from '../../lib/i18n';
+import { AIAssistantModal } from '../assistant/AIAssistantModal';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
   const { language, setLanguage, t } = useTranslation();
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
   const navigate = useNavigate();
 
   const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[1]; // Default Tamil
@@ -45,6 +47,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* CareBridge AI Assistant Launcher */}
+        <button
+          type="button"
+          onClick={() => setIsAIOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-teal-600 via-teal-700 to-navy-800 hover:from-teal-700 hover:to-navy-900 rounded-lg shadow-2xs hover:shadow-xs transition-all border border-teal-500/30"
+          title="CareBridge AI Healthcare Assistant"
+        >
+          <Bot className="h-4 w-4 text-teal-200" />
+          <span className="hidden sm:inline">{language === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+
         {/* Language selector UI */}
         <div className="relative">
           <button
@@ -149,6 +163,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
           )}
         </div>
       </div>
+
+      {/* Interactive AI Assistant Modal */}
+      <AIAssistantModal isOpen={isAIOpen} onClose={() => setIsAIOpen(false)} />
     </header>
   );
 };
