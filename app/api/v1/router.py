@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.api.v1.appointments import router as appointments_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.doctors import router as doctors_router
-from app.api.v1.facilities import router as facilities_router
+from app.api.v1.facilities import router as facilities_router, healthcare_router
 from app.api.v1.health import router as health_router
 from app.api.v1.medicines import router as medicines_router
 from app.api.v1.patients import router as patients_router
@@ -25,6 +25,7 @@ api_router.include_router(patients_router)
 
 # Member 2: Facility, Doctor, Medicine, and Stock Routers
 api_router.include_router(facilities_router)
+api_router.include_router(healthcare_router)
 api_router.include_router(doctors_router)
 api_router.include_router(medicines_router)
 api_router.include_router(stock_router)

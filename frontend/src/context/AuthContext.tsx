@@ -149,26 +149,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('carebridge_user', JSON.stringify(newUser));
 
       // 3. Establish canonical Patient profile linked to village
-      const createdPatient = await patientService.createPatient({
+      await patientService.createPatient({
         village_id: villageId,
         date_of_birth: dob,
         preferred_language: lang,
         consent_given: consentGiven === true,
         emergency_contact_phone: emergencyPhone,
       });
-      setPatient(createdPatient);
-      localStorage.setItem('carebridge_patient', JSON.stringify(createdPatient));
+
+      // 4. Retrieve complete patient record with resolved village & coordinates
+      try {
+        const fullPatient = await patientService.getPatient(newUser.id);
+        if (fullPatient) {
+          setPatient(fullPatient);
+          localStorage.setItem('carebridge_patient', JSON.stringify(fullPatient));
+        }
+      } catch (err) {
+        console.warn('Could not immediately fetch full patient profile:', err);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loginDemoUser = () => {
-    setUser(MOCK_USER);
-    setPatient(MOCK_PATIENT);
-    localStorage.setItem('carebridge_user', JSON.stringify(MOCK_USER));
-    localStorage.setItem('carebridge_patient', JSON.stringify(MOCK_PATIENT));
-    localStorage.setItem('carebridge_token', 'demo-patient-token-session');
+  const loginDemoUser = async () => {
+    setIsLoading(true);
+    try {
+      await login('9876543210', 'DemoPass123!');
+    } catch (e) {
+      console.warn('Backend login for demo user failed, using local profile:', e);
+      setUser(MOCK_USER);
+      setPatient(MOCK_PATIENT);
+      localStorage.setItem('carebridge_user', JSON.stringify(MOCK_USER));
+      localStorage.setItem('carebridge_patient', JSON.stringify(MOCK_PATIENT));
+      localStorage.setItem('carebridge_token', 'demo-patient-token-session');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {

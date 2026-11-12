@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   HeartHandshake,
@@ -6,22 +6,18 @@ import {
   Phone,
   Lock,
   Calendar,
-  MapPin,
   Languages,
-  CheckCircle,
   Eye,
   EyeOff,
   AlertCircle,
 } from 'lucide-react';
-import { authService } from '../services/authService';
 import { Village } from '../types';
 import { LANGUAGES } from '../lib/constants';
-import { config } from '../lib/config';
-import { MOCK_VILLAGES } from '../mocks/data';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotification } from '../context/NotificationContext';
 import { EmergencyNotice } from '../components/common/EmergencyNotice';
+import { LocationSearchInput } from '../components/common/LocationSearchInput';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,13 +25,11 @@ export const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
   const { notify } = useNotification();
 
-  const [villages, setVillages] = useState<Village[]>([]);
-  const [loadingVillages, setLoadingVillages] = useState(false);
-
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [villageId, setVillageId] = useState('');
+  const [selectedVillage, setSelectedVillage] = useState<Village | null>(null);
   const [dob, setDob] = useState('1990-01-01');
   const [language, setLanguage] = useState('ta');
   const [emergencyPhone, setEmergencyPhone] = useState('');
@@ -45,43 +39,26 @@ export const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadVillages();
-  }, []);
-
-  const loadVillages = async () => {
-    try {
-      setLoadingVillages(true);
+  const handleLocationSelect = (village: Village | null) => {
+    if (village) {
+      setVillageId(village.id);
+      setSelectedVillage(village);
       setError(null);
-      const data = await authService.getVillages();
-      if (data && data.length > 0) {
-        setVillages(data);
-        setVillageId(data[0].id);
-      } else if (config.isMockMode) {
-        setVillages(MOCK_VILLAGES);
-        setVillageId(MOCK_VILLAGES[0].id);
-      } else {
-        setError('No registered villages found on server. Please verify database seeding.');
-      }
-    } catch (err: any) {
-      if (config.isMockMode) {
-        console.warn('Backend /api/villages unavailable in mock mode, using mock directory:', err);
-        setVillages(MOCK_VILLAGES);
-        if (MOCK_VILLAGES.length > 0) {
-          setVillageId(MOCK_VILLAGES[0].id);
-        }
-      } else {
-        setError(err.message || 'Unable to connect to village directory. Verify backend server is running.');
-      }
-    } finally {
-      setLoadingVillages(false);
+    } else {
+      setVillageId('');
+      setSelectedVillage(null);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !password || !villageId || !dob) {
+    if (!name.trim() || !phone.trim() || !password || !dob) {
       setError('Please fill in all mandatory fields.');
+      return;
+    }
+
+    if (!villageId) {
+      setError('Please search and select a verified village, town, or city from the suggestions.');
       return;
     }
 
@@ -133,7 +110,7 @@ export const RegisterPage: React.FC = () => {
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-slate-800">New Patient Registration</h2>
             <p className="text-xs text-slate-500 mt-1">
-              Create an account linked with your village healthcare network
+              Create an account linked with your village healthcare network across India
             </p>
           </div>
 
@@ -207,49 +184,38 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Village & Language */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Home Village <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                  <select
-                    value={villageId}
-                    onChange={(e) => setVillageId(e.target.value)}
-                    disabled={loadingVillages}
-                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
-                    required
-                  >
-                    {villages.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} ({v.district})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            {/* Nationwide Village / Town / City Search */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Home Village, Town, or City <span className="text-rose-500">*</span>
+              </label>
+              <LocationSearchInput
+                selectedVillageId={villageId}
+                onSelect={handleLocationSelect}
+                required
+                placeholder="Search across all Indian states (e.g. Rampur, Bilaspur, Tiruchirappalli)..."
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Preferred Language <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <Languages className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
-                    required
-                  >
-                    {LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.label} ({lang.nativeName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Language Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Preferred Language <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <Languages className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
+                  required
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label} ({lang.nativeName})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -299,32 +265,31 @@ export const RegisterPage: React.FC = () => {
                   className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <span>
-                  I consent to CareBridge maintaining my healthcare records and sharing them with verified PHC/CHC
-                  medical officers and ASHA coordinators for clinical coordination.
+                  I consent to sharing my healthcare requirements, medication history, and status updates with
+                  authorized CareBridge health workers, doctors, and primary health centres.
                 </span>
               </label>
             </div>
 
+            <EmergencyNotice />
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full mt-4 flex items-center justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-colors"
             >
-              <CheckCircle className="w-4 h-4" />
-              {loading ? 'Creating Account...' : 'Complete Patient Registration'}
+              {loading ? 'Creating Account & Profile...' : 'Complete Registration'}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-slate-500">
-            Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
-              Sign In
+          {/* Footer Link */}
+          <div className="mt-6 text-center text-xs text-slate-600">
+            Already have a CareBridge account?{' '}
+            <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
+              Sign in here
             </Link>
           </div>
-        </div>
-
-        <div className="mt-6">
-          <EmergencyNotice />
         </div>
       </div>
     </div>

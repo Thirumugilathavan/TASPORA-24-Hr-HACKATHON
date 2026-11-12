@@ -33,6 +33,8 @@ class VillageOut(BaseModel):
     id: UUID
     name: str
     district: str
+    state: Optional[str] = None
+    subdistrict: Optional[str] = None
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
     is_synthetic: bool = True
@@ -42,6 +44,7 @@ class VillageIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     district: str = Field(..., min_length=1, max_length=255)
     state: Optional[str] = Field(default=None, max_length=100)
+    subdistrict: Optional[str] = Field(default=None, max_length=255)
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
     is_synthetic: bool = True

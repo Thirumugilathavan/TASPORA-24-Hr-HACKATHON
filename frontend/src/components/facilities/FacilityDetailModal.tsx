@@ -54,15 +54,41 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
                 </span>
               </div>
             )}
-            {facility.operating_hours && (
+            {facility.directions_url && (
               <div className="flex items-center gap-2.5 text-slate-700">
-                <Clock className="h-4 w-4 text-healthcare-600 flex-shrink-0" />
+                <MapPin className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                 <span>
-                  <strong className="text-slate-900 block">Operating Hours:</strong>
-                  {facility.operating_hours}
+                  <strong className="text-slate-900 block">Navigation:</strong>
+                  <a
+                    href={facility.directions_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-700 hover:underline font-semibold"
+                  >
+                    Open in Google Maps ↗
+                  </a>
                 </span>
               </div>
             )}
+            {facility.ownership && (
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <span className="h-4 w-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center text-slate-600">G</span>
+                <span>
+                  <strong className="text-slate-900 block">Facility Ownership:</strong>
+                  {facility.ownership}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Operational Availability Note */}
+          <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 text-xs text-amber-900">
+            <p className="font-semibold flex items-center gap-1.5">
+              <span>⚠️</span> Availability Not Verified
+            </p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
+              Distances are calculated geographically from your location. Live attendance and medicine stock are subject to real-time verification before travel.
+            </p>
           </div>
 
           {/* Doctors on Duty */}
@@ -105,15 +131,19 @@ export const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({
               <CheckCircle className="h-4 w-4 text-healthcare-700" /> Available Healthcare Services
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {facility.services.map((service, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 text-xs font-medium text-slate-700 bg-slate-50 py-2 px-3 rounded-lg border border-slate-100"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-healthcare-500" />
-                  {service}
-                </div>
-              ))}
+              {(facility.services || []).length > 0 ? (
+                (facility.services || []).map((service, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 text-xs font-medium text-slate-700 bg-slate-50 py-2 px-3 rounded-lg border border-slate-100"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-healthcare-500" />
+                    {service}
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 italic col-span-2">Standard primary outpatient and emergency care services available.</p>
+              )}
             </div>
           </div>
         </div>

@@ -10,6 +10,10 @@ class FacilityType(str, Enum):
     CHC = "CHC"
     HOSPITAL = "HOSPITAL"
     PHARMACY = "PHARMACY"
+    SCE = "SCE"  # Health Sub-Centre
+    THO = "THO"  # Taluk Hospital
+    DHO = "DHO"  # District Hospital
+    SUB_CENTRE = "SUB_CENTRE"
 
 
 class FacilityServiceResponse(BaseModel):
@@ -35,9 +39,15 @@ class FacilityBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     facility_type: str
     address: str = Field(..., min_length=1, max_length=500)
-    village_id: UUID
+    village_id: Optional[UUID] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    subdistrict: Optional[str] = None
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in range [-90.0, 90.0]")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in range [-180.0, 180.0]")
+    ownership: Optional[str] = "Government"
+    source: Optional[str] = "nic"
+    source_id: Optional[str] = None
     contact_details: Optional[Dict[str, Any]] = None
 
     @field_validator("facility_type")
@@ -59,6 +69,7 @@ class FacilityBase(BaseModel):
 
 
 class FacilityCreate(FacilityBase):
+    village_id: UUID = Field(..., description="Village UUID for facility creation")
     services: Optional[List[str]] = []
 
     @field_validator("services")
@@ -72,10 +83,26 @@ class FacilityCreate(FacilityBase):
 
 class FacilityResponse(FacilityBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class NearbyFacilityResponse(FacilityResponse):
+    distance_km: float = Field(..., description="Calculated straight-line geographic distance in kilometres")
+    unverified_availability: bool = Field(True, description="Flag indicating availability data is not verified")
+    directions_url: Optional[str] = Field(None, description="Google Maps navigation link")
+
+
+class NearbyFacilityList(BaseModel):
+    items: List[NearbyFacilityResponse]
+    total: int
+    resolved_location: Dict[str, Any]
+    radius_km: float
+    skip: int = 0
+    limit: int = 20
+    has_more: bool = False
 
 
 class FacilityDetailResponse(FacilityBase):
