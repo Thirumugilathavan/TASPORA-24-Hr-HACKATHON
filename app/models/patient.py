@@ -28,8 +28,8 @@ class Patient(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         index=True,
     )
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
-    preferred_language: Mapped[str] = mapped_column(String(50), nullable=False, default="hi")
-    consent_given: Mapped[Optional[bool]] = mapped_column(Boolean, default=True, nullable=True)
+    preferred_language: Mapped[str] = mapped_column(String(50), nullable=False, default="ta")
+    consent_given: Mapped[Optional[bool]] = mapped_column(Boolean, default=False, nullable=True)
     emergency_contact_phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="patient")
