@@ -17,12 +17,18 @@ This document details the complete step-by-step caller interaction flows, DTMF k
    ├── 1: Nearby Healthcare Facilities (Public)
    ├── 2: Doctor Availability Today (Public)
    ├── 3: Medicine Stock Availability (Public)
-   ├── 4: Create Healthcare Request (Protected - Requires PIN)
+   ├── 4: Healthcare Requests & ASHA Callback (Protected - Requires PIN)
+   │      ├── 1: Medical Consultation
+   │      ├── 2: Medicine Refill
+   │      ├── 3: General Checkup
+   │      ├── 4: Diagnostics / Lab Tests
+   │      └── 5: Request ASHA Worker Callback Assistance
    ├── 5: Check Request & Appointment Status / Cancellation (Protected - Requires PIN)
    ├── 6: Book an Appointment (Protected - Requires PIN)
-   ├── 7: Emergency 108 Guidance (Immediate Public Guidance)
+   ├── 7: Emergency 108 Guidance (Immediate Public Guidance - No PIN)
    ├── 8: Repeat Current Menu Prompt
-   └── 9: End Call Gracefully
+   ├── 9: End Call Gracefully
+   └── 0: Support Desk Transfer / Live Representative (or Return to Menu from submenus)
 ```
 
 ---
@@ -31,7 +37,8 @@ This document details the complete step-by-step caller interaction flows, DTMF k
 
 The following keys behave consistently across all menus:
 - **`9`**: End call immediately. Plays a courteous goodbye and disconnects.
-- **`0` or `*`**: Return to the Main Menu from any submenu.
+- **`0`**: From Main Menu, transfers call to live healthcare representative (if configured); from any submenu, returns immediately to Main Menu.
+- **`*`**: Return to the Main Menu from any submenu.
 - **`8`**: Repeat the current menu's audio options.
 - **`#`**: Finish DTMF input (e.g. following PIN entry).
 
@@ -132,6 +139,7 @@ The following keys behave consistently across all menus:
    - `2`: Medicine Refill (மருந்து மறு நிரப்பல்)
    - `3`: General Checkup (பொது பரிசோதனை)
    - `4`: Diagnostics / Lab Test (ஆய்வக பரிசோதனை)
+   - `5`: Request ASHA Worker Callback Assistance (ஆஷா பணியாளர் தொடர்பு உதவி)
 2. **Urgency Submenu:**
    - `1`: Normal (சாதாரண)
    - `2`: Priority (அவசரமல்லாத முன்னுரிமை)
@@ -170,3 +178,44 @@ The following keys behave consistently across all menus:
   *"அவசர மருத்துவ உதவிக்கு உடனடியாக 108 என்ற எண்ணை அழைக்கவும். உங்கள் அருகிலுள்ள அவசர சிகிச்சை மையம்: City General Hospital, Central Ring Road. முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."*
 - **English:**  
   *"For medical emergencies, please dial 108 immediately for an ambulance. Your nearest emergency facility is City General Hospital, Central Ring Road. Press 0 for main menu."*
+
+---
+
+### Flow 8: ASHA Community Health Worker Assistance (Key `4` $\to$ Option `5`)
+
+- **Access:** Protected (Requires 4-digit PIN authentication).
+- **Behavior:** Enters Healthcare Request creation and allows selecting option `5` to request a dedicated ASHA worker callback.
+- **Backend Action:** Persists `HealthcareRequest` with `request_type=RequestType.CONSULTATION`, `urgency=Urgency.PRIORITY` or `NORMAL`, `description="IVR phone request: Patient requested ASHA worker callback assistance"`, and links to the patient's registered village.
+- **Notice on Village Scope:** Explicitly reminds the caller that ASHA workers serve within their designated village scope.
+
+#### Prompts:
+- **Confirmation (Tamil):**  
+  *"ஆஷா சுகாதார பணியாளர் உங்களை மீண்டும் தொடர்பு கொள்ள கோரிக்கை வெற்றிகரமாக பதிவு செய்யப்பட்டது. உங்கள் கிராம ஆஷா பணியாளர் உங்களை விரைவில் தொடர்புகொள்வார். கவனிக்க: ஆஷா பணியாளர் தங்கள் ஒதுக்கப்பட்ட கிராம எல்லைக்குள் மட்டுமே சேவை புரிவர். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."*
+- **Confirmation (English):**  
+  *"Your request for an ASHA community health worker callback has been registered successfully. Your assigned village ASHA worker will contact you. Note: ASHA workers provide assistance within their designated village scope. Press 0 for main menu."*
+
+---
+
+### Flow 9: Human Health Desk Support Transfer (Key `0` from Main Menu)
+
+- **Access:** Public from Main Menu.
+- **Transfer Capability:**
+  - When `IVR_ENABLE_CALL_TRANSFER=True` and `IVR_TRANSFER_PHONE_NUMBER` is configured, generates standard TwiML `<Dial timeout="25">+91XXXXXXXXXX</Dial>` to bridge the caller to a live healthcare representative.
+  - If the line is unanswered, busy, or after-hours, gracefully falls back to spoken instructions and returns the caller to the Main Menu without dropping the call.
+- **Unavailable Behavior:**
+  - If call transfer is not enabled or outside working hours:
+  - *Tamil:* *"மன்னிக்கவும்! சுகாதார உதவி மேசை தற்போது பயன்பாட்டில் இல்லை அல்லது பணி நேரத்திற்கு வெளியில் உள்ளது. ஆஷா பணியாளர் உதவி பெற 4-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."*
+  - *English:* *"Live healthcare support is currently unavailable or outside duty hours. Please request ASHA assistance under option 4, or press 0 for main menu."*
+
+---
+
+### Flow 10: Automated Outbound Follow-Up Callbacks
+
+- **Trigger:** Initiated via `POST /api/ivr/callbacks/initiate` for scheduled appointment reminders or patient-requested ASHA callbacks.
+- **Telecommunication Compliance:**
+  - Automated outbound dialing is restricted to 08:00 to 20:00 Indian Standard Time (IST) per national consumer protection regulations.
+  - Normalizes numbers into strict 10-digit Indian mobile formats.
+  - Uses Twilio REST API `POST /2010-04-01/Accounts/{AccountSid}/Calls.json` with fallback simulation mode when carrier accounts are unprovisioned.
+- **Greeting Audio:**
+  - *Tamil:* *"வணக்கம்! இது CareBridge சுகாதார மையத்திலிருந்து வரும் அழைப்பு. உங்கள் சுகாதார உதவி கோரிக்கை தொடர்பாக அழைக்கின்றோம். தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."*
+  - *English:* *"Hello! This is CareBridge rural healthcare service following up on your healthcare request. For Tamil, press 1. For English, press 2."*

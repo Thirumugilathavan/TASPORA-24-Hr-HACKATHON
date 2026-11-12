@@ -196,6 +196,7 @@ class IVRPromptService:
                 "மருந்து மறு நிரப்பலுக்கு 2-ஐ அழுத்தவும். "
                 "பொது சுகாதார பரிசோதனைக்கு 3-ஐ அழுத்தவும். "
                 "பரிசோதனை ஆய்வக சேவைக்கு 4-ஐ அழுத்தவும். "
+                "ஆஷா பணியாளர் உதவிக்கு 5-ஐ அழுத்தவும். "
                 "முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
             )
         return (
@@ -204,6 +205,7 @@ class IVRPromptService:
             "Press 2 for Medicine Refill. "
             "Press 3 for General Checkup. "
             "Press 4 for Diagnostics. "
+            "Press 5 for ASHA worker callback assistance. "
             "Press 0 for main menu."
         )
 
@@ -357,3 +359,51 @@ class IVRPromptService:
         if lang == "ta":
             return "எந்த பொத்தானும் அழுத்தப்படவில்லை. மீண்டும் ஒருமுறை சொல்லப்படுகின்றது."
         return "No keypress detected. Repeating option."
+
+    @staticmethod
+    def get_asha_callback_prompt(lang: str = "ta") -> str:
+        if lang == "ta":
+            return (
+                "ஆஷா சுகாதார பணியாளர் உங்களை மீண்டும் தொடர்பு கொள்ள கோரிக்கை வெற்றிகரமாக பதிவு செய்யப்பட்டது. "
+                "உங்கள் கிராம ஆஷா பணியாளர் உங்களை விரைவில் தொடர்புகொள்வார். "
+                "கவனிக்க: ஆஷா பணியாளர் தங்கள் ஒதுக்கப்பட்ட கிராம எல்லைக்குள் மட்டுமே சேவை புரிவர். "
+                "முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
+            )
+        return (
+            "Your request for an ASHA community health worker callback has been registered successfully. "
+            "Your assigned village ASHA worker will contact you. "
+            "Note: ASHA workers provide assistance within their designated village scope. "
+            "Press 0 for main menu."
+        )
+
+    @staticmethod
+    def get_call_transfer_prompt(lang: str = "ta") -> str:
+        if lang == "ta":
+            return "உங்கள் அழைப்பு சுகாதார மைய பிரதிநிதிக்கு இணைக்கப்படுகிறது. தயவுசெய்து காத்திருக்கவும்."
+        return "Connecting your call to a healthcare support representative. Please hold."
+
+    @staticmethod
+    def get_call_transfer_unavailable(lang: str = "ta") -> str:
+        if lang == "ta":
+            return (
+                "மன்னிக்கவும்! சுகாதார உதவி மேசை தற்போது பயன்பாட்டில் இல்லை அல்லது பணி நேரத்திற்கு வெளியில் உள்ளது. "
+                "ஆஷா பணியாளர் உதவி பெற 4-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
+            )
+        return (
+            "Live healthcare support is currently unavailable or outside duty hours. "
+            "Please request ASHA assistance under option 4, or press 0 for main menu."
+        )
+
+    @staticmethod
+    def get_outbound_greeting(purpose: str = "ASHA_CALLBACK", lang: str = "ta") -> str:
+        if lang == "ta":
+            return (
+                "வணக்கம்! இது CareBridge சுகாதார மையத்திலிருந்து வரும் அழைப்பு. "
+                "உங்கள் சுகாதார உதவி கோரிக்கை தொடர்பாக அழைக்கின்றோம். "
+                "தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."
+            )
+        return (
+            "Hello! This is CareBridge rural healthcare service following up on your healthcare request. "
+            "For Tamil, press 1. For English, press 2."
+        )
+

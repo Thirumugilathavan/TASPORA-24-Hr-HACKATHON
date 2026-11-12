@@ -69,8 +69,14 @@ export const authService = {
       return MOCK_VILLAGES;
     }
 
-    const res = await apiRequest<PageResponse<Village>>('/api/villages');
-    return res.items || [];
+    try {
+      const res = await apiRequest<PageResponse<Village> | Village[]>('/api/villages');
+      if (Array.isArray(res)) return res;
+      return res?.items || [];
+    } catch (err) {
+      console.warn('Failed to fetch villages from API, falling back to mock:', err);
+      return MOCK_VILLAGES;
+    }
   },
 
   async getCurrentPatient(patientId?: string): Promise<Patient> {

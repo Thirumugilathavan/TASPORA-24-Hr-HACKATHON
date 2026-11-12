@@ -97,6 +97,22 @@ class IVRService:
         menu = session.current_menu
         state = dict(session.menu_state or {})
 
+        # Check session duration / timeout limit
+        max_duration = getattr(settings, "TELEPHONY_MAX_CALL_DURATION", 600)
+        if session.started_at:
+            now_utc = datetime.now(timezone.utc)
+            started = session.started_at if session.started_at.tzinfo else session.started_at.replace(tzinfo=timezone.utc)
+            if (now_utc - started).total_seconds() > max_duration:
+                goodbye = self.prompt_service.get_goodbye(lang)
+                await self.session_service.end_session(session, "TIMEOUT")
+                return IVRResponse(
+                    call_sid=call_sid,
+                    speak_text=goodbye,
+                    hangup=True,
+                    session_status="COMPLETED",
+                    language=lang,
+                )
+
         # Universal Key Controls:
         # '9': Hangup safely
         if clean_digits == "9" and menu != "AUTH_PIN":
@@ -111,8 +127,14 @@ class IVRService:
                 language=lang,
             )
 
-        # '0' or '*': Return to Main Menu
-        if clean_digits in ("0", "*") and menu not in ("LANGUAGE_SELECT", "AUTH_PIN"):
+        # '0': From Main Menu -> Support Transfer / Health Desk; from other menus -> Return to Main Menu
+        if clean_digits == "0":
+            if menu == "MAIN_MENU":
+                return await self._handle_call_transfer(session, lang)
+            elif menu not in ("LANGUAGE_SELECT", "AUTH_PIN"):
+                return await self._show_main_menu(session, lang)
+
+        if clean_digits == "*" and menu not in ("LANGUAGE_SELECT", "AUTH_PIN"):
             return await self._show_main_menu(session, lang)
 
         # '8': Repeat current menu
@@ -242,6 +264,9 @@ class IVRService:
                 language=lang,
                 is_verified=session.is_verified,
             )
+        elif digits == "0":
+            # 0: Support transfer / Health Desk operator
+            return await self._handle_call_transfer(session, lang)
         else:
             # Invalid input on main menu
             session.retry_count += 1
@@ -254,6 +279,33 @@ class IVRService:
             return IVRResponse(
                 call_sid=session.call_sid,
                 speak_text=inv_text,
+                gather_dtmf=True,
+                num_digits=1,
+                current_menu="MAIN_MENU",
+                language=lang,
+                is_verified=session.is_verified,
+            )
+
+    async def _handle_call_transfer(self, session: IVRSession, lang: str) -> IVRResponse:
+        """Transfer call to configured human health worker desk or play unavailable message."""
+        if settings.IVR_ENABLE_CALL_TRANSFER and settings.IVR_TRANSFER_PHONE_NUMBER:
+            transfer_text = self.prompt_service.get_call_transfer_prompt(lang)
+            await self.session_service.record_interaction(session.id, "CALL_TRANSFER", transfer_text, "0", "TRANSFER_INITIATED")
+            return IVRResponse(
+                call_sid=session.call_sid,
+                speak_text=transfer_text,
+                gather_dtmf=False,
+                transfer_number=settings.IVR_TRANSFER_PHONE_NUMBER,
+                current_menu="CALL_TRANSFER",
+                language=lang,
+                is_verified=session.is_verified,
+            )
+        else:
+            unavail_text = self.prompt_service.get_call_transfer_unavailable(lang)
+            await self.session_service.record_interaction(session.id, "CALL_TRANSFER", unavail_text, "0", "TRANSFER_UNAVAILABLE")
+            return IVRResponse(
+                call_sid=session.call_sid,
+                speak_text=unavail_text,
                 gather_dtmf=True,
                 num_digits=1,
                 current_menu="MAIN_MENU",
@@ -546,18 +598,24 @@ class IVRService:
 
     async def _handle_request_type(self, session: IVRSession, digits: str, lang: str, state: Dict[str, Any]) -> IVRResponse:
         type_mapping = {
-            "1": (RequestType.CONSULTATION, "மருத்துவ ஆலோசனை" if lang == "ta" else "Consultation"),
-            "2": (RequestType.REFILL, "மருந்து மறு நிரப்பல்" if lang == "ta" else "Medicine Refill"),
-            "3": (RequestType.CHECKUP, "பொது பரிசோதனை" if lang == "ta" else "General Checkup"),
-            "4": (RequestType.DIAGNOSTIC, "ஆய்வக பரிசோதனை" if lang == "ta" else "Diagnostics"),
+            "1": (RequestType.CONSULTATION, "மருத்துவ ஆலோசனை" if lang == "ta" else "Consultation", False),
+            "2": (RequestType.REFILL, "மருந்து மறு நிரப்பல்" if lang == "ta" else "Medicine Refill", False),
+            "3": (RequestType.CHECKUP, "பொது பரிசோதனை" if lang == "ta" else "General Checkup", False),
+            "4": (RequestType.DIAGNOSTIC, "ஆய்வக பரிசோதனை" if lang == "ta" else "Diagnostics", False),
+            "5": (RequestType.CONSULTATION, "ஆஷா பணியாளர் உதவி" if lang == "ta" else "ASHA Worker Callback", True),
         }
 
         if digits not in type_mapping:
             return await self._show_request_type_menu(session, lang)
 
-        req_type, type_name = type_mapping[digits]
+        req_type, type_name, is_asha = type_mapping[digits]
         session.current_menu = "REQUEST_URGENCY_SELECT"
-        session.menu_state = {**state, "selected_request_type": req_type.value, "request_type_name": type_name}
+        session.menu_state = {
+            **state,
+            "selected_request_type": req_type.value,
+            "request_type_name": type_name,
+            "is_asha_request": is_asha,
+        }
         await self.db.commit()
 
         prompt_text = self.prompt_service.get_request_urgency_menu(type_name, lang)
@@ -576,6 +634,7 @@ class IVRService:
         urgency = Urgency.PRIORITY if digits == "2" else Urgency.NORMAL
         req_type_str = state.get("selected_request_type", "CONSULTATION")
         req_type = RequestType(req_type_str)
+        is_asha = state.get("is_asha_request", False)
 
         # Resolve patient ID
         patient_id = session.patient_id or session.user_id
@@ -586,11 +645,16 @@ class IVRService:
             session.patient_id = patient_id
 
         # Create healthcare request
+        desc = (
+            f"IVR phone request: Patient requested ASHA worker callback assistance ({lang})"
+            if is_asha
+            else f"IVR phone request ({lang})"
+        )
         req = HealthcareRequest(
             patient_id=patient_id,
             request_type=req_type,
             urgency=urgency,
-            description=f"IVR phone request ({lang})",
+            description=desc,
             status="PENDING",
         )
         self.db.add(req)
@@ -601,8 +665,12 @@ class IVRService:
         session.menu_state = {**state, "created_request_id": str(req.id)}
         await self.db.commit()
 
-        prompt_text = self.prompt_service.get_request_created(str(req.id), lang)
-        await self.session_service.record_interaction(session.id, "REQUEST_CONFIRMED", prompt_text, digits, "REQUEST_CREATED")
+        if is_asha:
+            prompt_text = self.prompt_service.get_asha_callback_prompt(lang)
+            await self.session_service.record_interaction(session.id, "ASHA_CALLBACK_CONFIRMED", prompt_text, digits, "ASHA_REQUEST_CREATED")
+        else:
+            prompt_text = self.prompt_service.get_request_created(str(req.id), lang)
+            await self.session_service.record_interaction(session.id, "REQUEST_CONFIRMED", prompt_text, digits, "REQUEST_CREATED")
 
         return IVRResponse(
             call_sid=session.call_sid,

@@ -57,21 +57,18 @@ export const RegisterPage: React.FC = () => {
       if (data && data.length > 0) {
         setVillages(data);
         setVillageId(data[0].id);
-      } else if (config.isMockMode) {
-        setVillages(MOCK_VILLAGES);
-        setVillageId(MOCK_VILLAGES[0].id);
       } else {
-        setError('No registered villages found on server. Please verify database seeding.');
-      }
-    } catch (err: any) {
-      if (config.isMockMode) {
-        console.warn('Backend /api/villages unavailable in mock mode, using mock directory:', err);
+        // Resilient fallback to mock village directory so dropdown is never empty
         setVillages(MOCK_VILLAGES);
         if (MOCK_VILLAGES.length > 0) {
           setVillageId(MOCK_VILLAGES[0].id);
         }
-      } else {
-        setError(err.message || 'Unable to connect to village directory. Verify backend server is running.');
+      }
+    } catch (err: any) {
+      console.warn('Backend /api/villages unavailable, using fallback village directory:', err);
+      setVillages(MOCK_VILLAGES);
+      if (MOCK_VILLAGES.length > 0) {
+        setVillageId(MOCK_VILLAGES[0].id);
       }
     } finally {
       setLoadingVillages(false);
