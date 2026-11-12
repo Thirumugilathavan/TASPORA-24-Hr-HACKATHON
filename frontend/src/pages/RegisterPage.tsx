@@ -282,11 +282,19 @@ export const RegisterPage: React.FC = () => {
           </form>
 
           {/* Footer Link */}
-          <div className="mt-6 text-center text-xs text-slate-600">
-            {t('alreadyHaveAccount', 'Already have a CareBridge account?')}{' '}
-            <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
-              {t('signInHere', 'Sign in here')}
-            </Link>
+          <div className="mt-6 text-center text-xs text-slate-600 space-y-2">
+            <div>
+              {t('alreadyHaveAccount', 'Already have a CareBridge account?')}{' '}
+              <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
+                {t('signInHere', 'Sign in here')}
+              </Link>
+            </div>
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-slate-500">No account or mobile internet?</span>{' '}
+              <Link to="/ivr" className="font-semibold text-emerald-600 hover:text-emerald-700 underline">
+                Dial Toll-Free Voice Helpline (Simulated IVR)
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -13,6 +13,7 @@ import { MedicinesPage } from './pages/MedicinesPage';
 import { RequestsPage } from './pages/RequestsPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { IVRPage } from './pages/IVRPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -39,6 +40,9 @@ export const App: React.FC = () => {
       {/* Public Authentication Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* Public Zero-Cost Telephone IVR Helpline Simulation Route */}
+      <Route path="/ivr" element={<IVRPage />} />
 
       {/* Protected Portal Routes wrapped in AppLayout */}
       <Route

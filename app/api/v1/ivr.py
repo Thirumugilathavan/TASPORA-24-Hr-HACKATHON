@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -472,3 +472,65 @@ async def ivr_feedback(
         "status": "RECORDED",
         "message": "Thank you for your feedback. Recorded for health worker follow-up.",
     }
+
+
+# =============================================================================
+# Simulated Zero-Cost Public IVR Endpoints (No Auth / No Telecom Account Required)
+# =============================================================================
+
+
+@router.post(
+    "/simulation/start",
+    status_code=status.HTTP_200_OK,
+    summary="Start zero-cost simulated IVR session",
+    description="Public endpoint to initialize a browser-simulated telephone call flow starting at language selection.",
+)
+async def start_ivr_simulation(
+    payload: Optional[Dict[str, Any]] = None,
+):
+    from app.services.ivr_simulation_service import IVRSimulationService
+
+    lang = (payload or {}).get("language", "ta")
+    return IVRSimulationService.start_call(language=lang)
+
+
+@router.post(
+    "/simulation/input",
+    status_code=status.HTTP_200_OK,
+    summary="Submit keypad input for simulated IVR",
+    description="Public endpoint to process simulated telephone DTMF digits or PIN code entries.",
+)
+async def process_ivr_simulation_input(
+    payload: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.ivr_simulation_service import IVRSimulationService
+
+    call_sid = payload.get("call_sid") or f"sim-{uuid4().hex[:10]}"
+    digits = str(payload.get("digits", "")).strip()
+    current_menu = payload.get("current_menu", "MAIN_MENU")
+    language = payload.get("language", "ta")
+    location_data = payload.get("location_data")
+
+    return await IVRSimulationService.process_input(
+        db=db,
+        call_sid=call_sid,
+        digits=digits,
+        current_menu=current_menu,
+        language=language,
+        location_data=location_data,
+    )
+
+
+@router.get(
+    "/pincode/resolve",
+    summary="Public IVR PIN code resolver",
+    description="Resolves a 6-digit Indian PIN code to postal centroid coordinates and administrative district.",
+)
+async def ivr_resolve_pincode(
+    pincode: str = Query(..., min_length=6, max_length=6, description="6-digit Indian PIN code"),
+):
+    from app.services.pincode_service import PincodeService
+
+    return PincodeService.resolve_pincode(pincode)
+

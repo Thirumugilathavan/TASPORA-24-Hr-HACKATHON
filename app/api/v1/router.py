@@ -10,6 +10,7 @@ from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.requests import router as requests_router
 from app.api.v1.stock import router as stock_router
 from app.api.v1.villages import router as villages_router
+from app.api.v1.pincodes import router as pincodes_router
 from app.api.v1.ivr import router as ivr_router
 from app.api.v1.ai import router as ai_router
 
@@ -21,6 +22,7 @@ api_router.include_router(auth_router)
 
 # Member 1: Patient and Village Routers
 api_router.include_router(villages_router)
+api_router.include_router(pincodes_router)
 api_router.include_router(patients_router)
 
 # Member 2: Facility, Doctor, Medicine, and Stock Routers

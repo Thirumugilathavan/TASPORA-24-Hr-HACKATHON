@@ -153,6 +153,35 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
+        {/* IVR Voice Access Callout Banner */}
+        <div className="mt-4 bg-gradient-to-r from-slate-900 to-emerald-950 border border-emerald-800/80 rounded-2xl p-4 text-white shadow-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-md shadow-emerald-950/60">
+                <Phone className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  Voice Helpline (Simulated IVR)
+                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-900 text-emerald-300 border border-emerald-700">
+                    Public 0-Cost
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Find nearby clinics using phone keypad without mobile data or login.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/ivr"
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shrink-0 shadow transition flex items-center gap-1.5"
+            >
+              <span>Dial Helpline</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+
         <div className="mt-6">
           <EmergencyNotice />
         </div>
