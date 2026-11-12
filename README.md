@@ -63,6 +63,15 @@ CareBridge is built on **FastAPI**, **SQLAlchemy (Async)**, and **Alembic**, mod
 - **Emergency Bypass:** Key `7` triggers immediate 108 ambulance dispatch advice and emergency hospital routing without authentication barriers.
 - **Provider Agnostic:** Pluggable adapter architecture supporting Mock (JSON / CLI simulator) and Twilio (TwiML XML).
 
+### 6. AI Healthcare Assistant, Tool Calling, RAG & Voice Access
+- **Closed-Loop Execution:** Understand -> Execute -> Retrieve -> Verify -> Explain -> Display. The assistant executes real database tools and returns factual records in the same turn (never merely announcing intent).
+- **Backend Tool Calling:** Live database queries for nearby facilities (haversine distances), verified doctor attendance (`PRESENT` vs `EXPECTED`), probabilistic medicine inventory beliefs, and Expected Loss calculations.
+- **RAG Knowledge Engine:** BM25 semantic retrieval over project documentation (`STOCK_ALGORITHM.md`, `README.md`, `IVR_*.md`, `API.md`) for technical and algorithm queries.
+- **Non-Diagnostic Safety Guard:** Refuses prescription generation and dosage recommendations; routes to nearest operating PHC.
+- **108 Emergency Protocol:** Instant triage and direct 108 ambulance dispatch guidance for life-threatening symptoms.
+- **Multimodal Indic Voice:** Gnani.ai speech adapter supporting spoken Tamil and Indian English (STT and TTS) with offline resilient fallback.
+- **Interactive Web UI:** `AIAssistantModal` with speech mic, text-to-speech speaker, quick suggestion chips, and structured interactive UI cards with direct appointment booking.
+
 ---
 
 ## Disclosures & Safety Notices
