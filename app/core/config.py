@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,6 +65,16 @@ class Settings(BaseSettings):
     TELEPHONY_WEBHOOK_SECRET: str = ""
     TELEPHONY_CALL_TIMEOUT: int = 30
     TELEPHONY_MAX_CALL_DURATION: int = 600
+
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def assemble_database_url(cls, v: str) -> str:
+        if v.startswith("sqlite+aiosqlite:///./"):
+            base_dir = Path(__file__).resolve().parent.parent.parent
+            db_filename = v.replace("sqlite+aiosqlite:///./", "")
+            abs_path = (base_dir / db_filename).resolve().as_posix()
+            return f"sqlite+aiosqlite:///{abs_path}"
+        return v
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

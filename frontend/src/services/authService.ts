@@ -4,12 +4,22 @@ import { LoginRequest, LoginResponse, PageResponse, RegisterRequest, RegisterRes
 import { Patient, User, Village } from '../types/index';
 import { apiRequest } from './apiClient';
 
+export function cleanPhoneNumber(rawPhone: string): string {
+  if (!rawPhone) return '';
+  const digits = rawPhone.replace(/[^\d]/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  if (digits.length > 10) return digits.slice(-10);
+  return digits || rawPhone.trim();
+}
+
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
+    const cleanPhone = cleanPhoneNumber(credentials.phone);
     if (config.isMockMode) {
       // Simulate network latency in mock mode
       await new Promise((r) => setTimeout(r, 400));
-      if (credentials.phone.length < 10) {
+      if (cleanPhone.length < 10) {
         throw new Error('Please enter a valid 10-digit mobile number.');
       }
       const response: LoginResponse = {
@@ -26,19 +36,23 @@ export const authService = {
 
     const res = await apiRequest<LoginResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({
+        phone: cleanPhone,
+        password: credentials.password,
+      }),
     });
     localStorage.setItem('carebridge_token', res.access_token);
     return res;
   },
 
   async register(data: RegisterRequest): Promise<RegisterResponse> {
+    const cleanPhone = cleanPhoneNumber(data.phone);
     if (config.isMockMode) {
       await new Promise((r) => setTimeout(r, 500));
       const newUser: User = {
         id: `mock-user-${Date.now()}`,
         name: data.name,
-        phone: data.phone,
+        phone: cleanPhone,
         role: 'PATIENT',
         created_at: new Date().toISOString(),
       };
@@ -55,8 +69,8 @@ export const authService = {
     return await apiRequest<RegisterResponse>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({
-        name: data.name,
-        phone: data.phone,
+        name: data.name.trim(),
+        phone: cleanPhone,
         password: data.password,
         role: 'PATIENT', // Contract: public self-registration enforces PATIENT
       }),

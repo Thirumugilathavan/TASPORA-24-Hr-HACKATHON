@@ -38,9 +38,16 @@ export async function apiRequest<T>(
         errorData = null;
       }
 
-      const errorCode = errorData?.error?.code || `HTTP_${response.status}`;
+      const errorCode =
+        errorData?.error?.code ||
+        errorData?.detail?.error?.code ||
+        `HTTP_${response.status}`;
+
       const errorMessage =
         errorData?.error?.message ||
+        errorData?.detail?.error?.message ||
+        (typeof errorData?.detail === 'string' ? errorData.detail : null) ||
+        (Array.isArray(errorData?.detail) ? errorData.detail.map((e: any) => e.msg || e.message).join(', ') : null) ||
         `Request failed with status ${response.status} (${response.statusText})`;
 
       throw new ApiConnectionError(errorMessage, response.status, errorCode);

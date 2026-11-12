@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Patient, User } from '../types';
 import { MOCK_PATIENT, MOCK_USER } from '../mocks/data';
-import { authService } from '../services/authService';
+import { authService, cleanPhoneNumber } from '../services/authService';
 import { patientService } from '../services/patientService';
 import { config } from '../lib/config';
 
@@ -86,11 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (phone: string, pass: string) => {
     setIsLoading(true);
     try {
-      const loginRes = await authService.login({ phone, password: pass });
+      const cleanPhone = cleanPhoneNumber(phone) || phone.trim();
+      const loginRes = await authService.login({ phone: cleanPhone, password: pass });
       const loggedUser: User = {
         id: loginRes.user_id,
-        name: phone,
-        phone,
+        name: cleanPhone,
+        phone: cleanPhone,
         role: loginRes.role,
       };
       setUser(loggedUser);
@@ -129,20 +130,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     setIsLoading(true);
     try {
+      const cleanPhone = cleanPhoneNumber(phone) || phone.trim();
       // 1. Create auth user in backend
       const regRes = await authService.register({
         name,
-        phone,
+        phone: cleanPhone,
         password: pass,
         role: 'PATIENT',
       });
 
       // 2. Obtain JWT credentials
-      const loginRes = await authService.login({ phone, password: pass });
+      const loginRes = await authService.login({ phone: cleanPhone, password: pass });
       const newUser: User = {
         id: regRes.id || loginRes.user_id,
         name: regRes.name || name,
-        phone: regRes.phone || phone,
+        phone: regRes.phone || cleanPhone,
         role: regRes.role || 'PATIENT',
       };
       setUser(newUser);

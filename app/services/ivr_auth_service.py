@@ -6,40 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.security import verify_password
+from app.core.security import normalize_phone_number, verify_password
 from app.models.ivr import IVRAuthAttempt
 from app.models.patient import Patient
 from app.models.user import User
-
-
-def normalize_phone_number(raw_phone: str) -> str:
-    """Normalize Indian phone numbers to standard 10-digit format (e.g. 9876500001).
-
-    Handles +91, 0 prefix, spaces, dashes, parentheses.
-    """
-    if not raw_phone:
-        return ""
-
-    # Strip everything except digits and leading plus
-    digits = re.sub(r"[^\d]", "", raw_phone)
-
-    # If starts with 91 and has 12 digits (country code + 10 digits)
-    if len(digits) == 12 and digits.startswith("91"):
-        return digits[2:]
-
-    # If starts with 0 and has 11 digits (STD zero + 10 digits)
-    if len(digits) == 11 and digits.startswith("0"):
-        return digits[1:]
-
-    # If already 10 digits
-    if len(digits) == 10:
-        return digits
-
-    # Fallback to last 10 digits if longer, or raw digits
-    if len(digits) > 10:
-        return digits[-10:]
-
-    return digits
 
 
 class IVRAuthService:
