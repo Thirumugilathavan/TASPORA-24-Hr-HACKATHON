@@ -62,3 +62,36 @@ class TwilioTelephonyProvider(TelephonyProvider):
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<Response><Say language="{lang_code}">{escaped_text}</Say></Response>'
         )
+
+    @staticmethod
+    def validate_signature(
+        url: str,
+        params: Dict[str, Any],
+        signature: str,
+        auth_token: str,
+    ) -> bool:
+        """Validate Twilio request signature using standard HMAC-SHA1 algorithm.
+
+        Algorithm:
+        1. Take full request URL
+        2. Sort POST parameter keys alphabetically
+        3. Append each key and its value to the URL string
+        4. Sign with HMAC-SHA1 using the Twilio Auth Token
+        5. Base64-encode and constant-time compare with signature
+        """
+        import base64
+        import hashlib
+        import hmac
+
+        if not signature or not auth_token:
+            return False
+
+        data = url
+        for key in sorted(params.keys()):
+            val = params[key]
+            if val is not None:
+                data += f"{key}{val}"
+
+        mac = hmac.new(auth_token.encode("utf-8"), data.encode("utf-8"), hashlib.sha1)
+        expected = base64.b64encode(mac.digest()).decode("utf-8").strip()
+        return hmac.compare_digest(expected, signature.strip())

@@ -229,3 +229,36 @@ async def test_ivr_production_prevents_predictable_phone_derived_pin(db_session,
         settings.ENVIRONMENT = orig_env
         settings.IVR_ALLOW_DEMO_PHONE_PIN = orig_demo
 
+
+@pytest.mark.asyncio
+async def test_ivr_twilio_signature_verification():
+    """Verify HMAC-SHA1 signature verification algorithm for live Twilio webhooks."""
+    from app.integrations.telephony.twilio_provider import TwilioTelephonyProvider
+    import base64
+    import hashlib
+    import hmac
+
+    url = "https://carebridge-telecom.ngrok-free.app/api/ivr/webhook"
+    params = {"CallSid": "CA12345", "From": "+919876543203", "Digits": "1"}
+    auth_token = "my-twilio-secret-auth-token-12345"
+
+    # Compute expected signature
+    data = url + "CallSidCA12345Digits1From+919876543203"
+    mac = hmac.new(auth_token.encode("utf-8"), data.encode("utf-8"), hashlib.sha1)
+    valid_sig = base64.b64encode(mac.digest()).decode("utf-8")
+
+    # 1. Valid signature -> True
+    assert TwilioTelephonyProvider.validate_signature(url, params, valid_sig, auth_token) is True
+
+    # 2. Forged signature -> False
+    assert TwilioTelephonyProvider.validate_signature(url, params, "forged-signature", auth_token) is False
+
+    # 3. Altered parameter -> False
+    tampered_params = dict(params)
+    tampered_params["Digits"] = "9"
+    assert TwilioTelephonyProvider.validate_signature(url, tampered_params, valid_sig, auth_token) is False
+
+    # 4. Missing token or sig -> False
+    assert TwilioTelephonyProvider.validate_signature(url, params, "", auth_token) is False
+    assert TwilioTelephonyProvider.validate_signature(url, params, valid_sig, "") is False
+

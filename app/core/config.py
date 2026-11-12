@@ -1,5 +1,5 @@
 import json
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     IVR_AUDIO_BASE_URL: str = ""
     IVR_EMERGENCY_NUMBER: str = "108"
     IVR_ALLOW_DEMO_PHONE_PIN: bool = True
+    TWILIO_AUTH_TOKEN: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
