@@ -2,10 +2,12 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.models.doctor import Doctor
 from app.models.user import User
 from app.schemas.doctor import (
     DoctorCreate,
@@ -120,7 +122,27 @@ async def verify_doctor_attendance(
     """Record verified attendance (PRESENT / ABSENT) for a doctor.
 
     Restricted to authorized STAFF, ADMIN, and DOCTOR roles.
+    DOCTOR role callers may only verify attendance for their own linked doctor profile.
     """
+    if current_user.role == "DOCTOR":
+        d_stmt = select(Doctor).where(Doctor.id == id)
+        doc = (await db.execute(d_stmt)).scalar_one_or_none()
+        if not doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": f"Doctor {id} not found"}},
+            )
+        is_own = (
+            doc.id == current_user.id
+            or (doc.contact_phone and current_user.phone and doc.contact_phone == current_user.phone)
+            or (doc.name and current_user.name and doc.name.strip().lower() == current_user.name.strip().lower())
+        )
+        if not is_own:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": {"code": "FORBIDDEN", "message": "Doctors can only verify attendance for their own doctor profile."}},
+            )
+
     handler = DoctorServiceHandler(db)
     try:
         return await handler.verify_attendance(

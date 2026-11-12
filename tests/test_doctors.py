@@ -3,6 +3,9 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.core.security import create_access_token
+from app.models.user import User
+
 
 @pytest.mark.asyncio
 async def test_get_doctors_list(client: AsyncClient, seed_data: dict):
@@ -52,20 +55,22 @@ async def test_doctor_schedule_expected_vs_present(client: AsyncClient, seed_dat
     data_2 = resp_2.json()
     assert data_2["attendance_status"] == "PRESENT"
     assert data_2["doctor_name"] == "Dr. Rajesh Kumar"
+    assert data_2["schedule"] is not None
+    assert data_2["schedule"]["attendance_status"] == "PRESENT"
+    assert data_2["last_verified_at"] is not None
 
 
 @pytest.mark.asyncio
 async def test_doctor_schedule_unscheduled_date_returns_unknown(client: AsyncClient, seed_data: dict):
-    """Do not invent doctor attendance.
-    If no schedule is logged for the requested date, returns UNKNOWN.
-    """
+    """Verify unscheduled date returns UNKNOWN rather than phantom attendance."""
     doc_1 = seed_data["doctors"][0]
-    future_date = "2026-12-25"
-    response = await client.get(f"/api/doctors/{doc_1.id}/schedule?date={future_date}")
+    unscheduled = "2026-12-25"
+    response = await client.get(f"/api/doctors/{doc_1.id}/schedule?date={unscheduled}")
     assert response.status_code == 200
     data = response.json()
     assert data["attendance_status"] == "UNKNOWN"
     assert data["schedule"] is None
+    assert data["last_verified_at"] is None
 
 
 @pytest.mark.asyncio
@@ -161,3 +166,41 @@ async def test_create_doctor_schedule_invalid_time_range(client: AsyncClient, se
     }
     response = await client.post(f"/api/doctors/{doc_1.id}/schedule", json=payload, headers=staff_headers)
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_doctor_cannot_verify_another_doctor_attendance(client: AsyncClient, db_session, seed_data: dict):
+    """SECURITY TEST: A DOCTOR role caller cannot verify attendance for another doctor."""
+    doc_1 = seed_data["doctors"][0]  # Dr. Anita Sharma, phone 9876543220
+    doc_2 = seed_data["doctors"][1]  # Dr. Rajesh Kumar, phone 9876543221
+
+    # Create user for Doctor 1
+    doc_user_1 = User(
+        name="Dr. Anita Sharma",
+        phone="9876543220",
+        password_hash="fakehash",
+        role="DOCTOR",
+        is_active=True,
+    )
+    db_session.add(doc_user_1)
+    await db_session.commit()
+
+    token_doc_1 = create_access_token({"sub": str(doc_user_1.id), "role": "DOCTOR"})
+    headers_doc_1 = {"Authorization": f"Bearer {token_doc_1}"}
+    today = date.today().isoformat()
+
+    # Doctor 1 tries to verify Doctor 2's attendance -> Forbidden (403)
+    res_forbidden = await client.post(
+        f"/api/doctors/{doc_2.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=headers_doc_1,
+    )
+    assert res_forbidden.status_code == 403
+    assert res_forbidden.json()["error"]["code"] == "FORBIDDEN"
+
+    # Doctor 1 can verify their OWN attendance -> Success (200)
+    res_own = await client.post(
+        f"/api/doctors/{doc_1.id}/verify-attendance?date={today}&attendance_status=PRESENT",
+        headers=headers_doc_1,
+    )
+    assert res_own.status_code == 200
+    assert res_own.json()["attendance_status"] == "PRESENT"
