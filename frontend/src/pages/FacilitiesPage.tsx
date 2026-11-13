@@ -73,7 +73,7 @@ export const FacilitiesPage: React.FC = () => {
       setActiveLocation(currentPatient.village);
       setIsChangingLocation(false);
     } else {
-      const saved = sessionStorage.getItem('carebridge_active_village');
+      const saved = sessionStorage.getItem('nalam_active_village') || sessionStorage.getItem('carebridge_active_village');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -165,6 +165,7 @@ export const FacilitiesPage: React.FC = () => {
       setUsingGps(false);
       setGpsCoords(null);
       setIsChangingLocation(false);
+      sessionStorage.setItem('nalam_active_village', JSON.stringify(village));
       sessionStorage.setItem('carebridge_active_village', JSON.stringify(village));
     }
   };

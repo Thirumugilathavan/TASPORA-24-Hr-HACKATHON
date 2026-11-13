@@ -118,8 +118,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
   const initWelcomeMessage = useCallback(() => {
     const welcomeText =
       selectedLanguage === 'ta'
-        ? 'வணக்கம்! நான் கேர்பிரிட்ஜ் (CareBridge) AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் வருகை, மருந்து இருப்பு மற்றும் அவசர சிகிச்சை தகவல்களை என்னிடம் தட்டச்சு செய்தோ அல்லது மைக்ரோஃபோன் மூலம் பேசியோ கேட்கலாம்.'
-        : 'Hello! I am your CareBridge AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), verify doctor duty attendance, check medicine stock, or explain loss-minimizing recommendations. You can type or use the microphone to speak!';
+        ? 'வணக்கம்! நான் நலம் (NALAM) AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் வருகை, மருந்து இருப்பு மற்றும் அவசர சிகிச்சை தகவல்களை என்னிடம் தட்டச்சு செய்தோ அல்லது மைக்ரோஃபோன் மூலம் பேசியோ கேட்கலாம்.'
+        : 'Hello! I am your NALAM AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), verify doctor duty attendance, check medicine stock, or explain loss-minimizing recommendations. You can type or use the microphone to speak!';
 
     setMessages([
       {
@@ -127,7 +127,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         sender: 'assistant',
         text: welcomeText,
         timestamp: new Date(),
-        voiceProvider: cloudVoiceStatus?.provider || 'CareBridge Indic Engine',
+        voiceProvider: cloudVoiceStatus?.provider || 'NALAM Indic Engine',
       },
     ]);
   }, [selectedLanguage, cloudVoiceStatus]);
@@ -421,13 +421,31 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     setVoiceState(isVoiceTurn ? 'waiting_ai' : 'idle');
 
     try {
+      // Derive dynamic location context: registered patient profile village or active session village.
+      // Never hardcode Tiruchengode!
+      const activeLocationContext =
+        patient?.village?.name ||
+        (typeof window !== 'undefined'
+          ? sessionStorage.getItem('nalam_active_village_name') ||
+            (() => {
+              try {
+                const raw =
+                  sessionStorage.getItem('nalam_active_village') ||
+                  sessionStorage.getItem('carebridge_active_village');
+                return raw ? JSON.parse(raw)?.name : undefined;
+              } catch {
+                return undefined;
+              }
+            })()
+          : undefined);
+
       const response: AIChatResponse = await aiService.sendMessage({
         message: textToSend,
         conversation_id: conversationId || undefined,
         language: selectedLanguage,
         patient_id: patient?.id,
         village_id: patient?.village_id,
-        location_context: 'Tiruchengode',
+        location_context: activeLocationContext,
         user_role: user?.role || 'PATIENT',
         include_audio: isVoiceTurn,
         voice_name: selectedVoice,
@@ -465,7 +483,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         text:
           selectedLanguage === 'ta'
             ? 'மன்னிக்கவும், சேவையகத்துடன் தொடர்புகொள்வதில் சிக்கல் ஏற்பட்டது. தயவுசெய்து சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.'
-            : 'Sorry, I encountered an error communicating with the CareBridge backend server. Please try again in a moment.',
+            : 'Sorry, I encountered an error communicating with the NALAM backend server. Please try again in a moment.',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -477,8 +495,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
 
   const quickPrompts = [
     {
-      en: 'Find a PHC near Tiruchengode',
-      ta: 'திருச்செங்கோடு அருகே உள்ள PHC எங்கே?',
+      en: 'Find nearby Primary Health Centres (PHC)',
+      ta: 'அருகிலுள்ள ஆரம்ப சுகாதார நிலையங்களை காட்டு',
       icon: <Building2 className="w-3.5 h-3.5 text-teal-600" />,
     },
     {
@@ -642,7 +660,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                     ) : (
                       <>
                         <Bot className="w-3 h-3 text-teal-600" />
-                        CareBridge AI
+                        NALAM AI
                       </>
                     )}
                   </span>

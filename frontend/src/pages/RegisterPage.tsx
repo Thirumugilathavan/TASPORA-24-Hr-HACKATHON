@@ -82,7 +82,7 @@ export const RegisterPage: React.FC = () => {
         consentGiven
       );
 
-      notify('Registration complete! Welcome to CareBridge.', 'success');
+      notify('Registration complete! Welcome to NALAM.', 'success');
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -101,7 +101,7 @@ export const RegisterPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">CareBridge</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">NALAM</h1>
           <p className="text-sm text-slate-600 mt-1">Rural Healthcare Accessibility & Coordination</p>
         </div>
 
@@ -266,7 +266,7 @@ export const RegisterPage: React.FC = () => {
                 />
                 <span>
                   I consent to sharing my healthcare requirements, medication history, and status updates with
-                  authorized CareBridge health workers, doctors, and primary health centres.
+                  authorized NALAM health workers, doctors, and primary health centres.
                 </span>
               </label>
             </div>
@@ -285,7 +285,7 @@ export const RegisterPage: React.FC = () => {
 
           {/* Footer Link */}
           <div className="mt-6 text-center text-xs text-slate-600">
-            Already have a CareBridge account?{' '}
+            Already have a NALAM account?{' '}
             <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
               Sign in here
             </Link>

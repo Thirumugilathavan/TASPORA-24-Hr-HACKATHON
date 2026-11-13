@@ -241,7 +241,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
           <div className="p-3 bg-emerald-50/60 rounded-lg border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-800">
             <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
             <span>
-              Booking with CareBridge guarantees queued check-in and priority triage review at rural health centers.
+              Booking with NALAM guarantees queued check-in and priority triage review at rural health centers.
             </span>
           </div>
 

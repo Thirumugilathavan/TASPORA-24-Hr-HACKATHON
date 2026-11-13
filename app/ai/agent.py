@@ -1,8 +1,8 @@
-"""CareBridge Closed-Loop AI Agent Engine.
+"""NALAM Closed-Loop Intent-Driven AI Healthcare Assistant Engine.
 
-Core Philosophy: UNDERSTAND -> EXECUTE -> RETRIEVE -> VERIFY -> EXPLAIN -> DISPLAY.
-Strict Rule: NEVER merely announce an intention to search. Always execute backend tools
-and return factual records in the same response.
+Core Philosophy: UNDERSTAND -> CLASSIFY INTENT -> EXTRACT LOCATION -> EXECUTE -> RETRIEVE -> VERIFY -> EXPLAIN -> DISPLAY.
+Strict Rule: NEVER merely announce an intention to search. Execute backend tools and return factual records.
+Strict Location Rule: NEVER silently substitute requested location with Tiruchengode.
 """
 from datetime import date
 import os
@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.intent_classifier import IntentType, classify_intent
+from app.ai.location_extractor import extract_location, get_coordinates_for_location
 from app.ai.rag import rag_engine
 from app.ai.schemas import (
     AIChatCard,
@@ -18,19 +20,21 @@ from app.ai.schemas import (
     AIChatResponse,
     CardType,
 )
+from app.ai.session_manager import session_manager
 from app.ai.system_prompt import CAREBRIDGE_SYSTEM_PROMPT, TAMIL_TRANSLATIONS
 from app.ai.tools import (
     check_doctor_availability_tool,
     check_medicine_stock_tool,
     emergency_guidance_tool,
+    get_appointment_slots_tool,
     get_recommendations_tool,
     query_rag_knowledge_tool,
     search_facilities_tool,
 )
 
 
-class CareBridgeAgent:
-    """Intelligent CareBridge Assistant supporting real tool calling and RAG."""
+class NalamAIAgent:
+    """Intelligent NALAM Healthcare Assistant with structured Intent-Driven Pipeline."""
 
     def __init__(self):
         self.system_prompt = CAREBRIDGE_SYSTEM_PROMPT
@@ -83,25 +87,15 @@ class CareBridgeAgent:
         )
 
     def detect_language(self, text: str, user_preference: Optional[str] = "auto") -> str:
-        """Detects whether user is speaking Tamil or English.
-        
-        Priority rules:
-        1. Explicit user preference ('ta' or 'en') takes precedence.
-        2. Detection of Tamil Unicode characters (U+0B80 to U+0BFF).
-           If Tamil characters are present, evaluates dominant script.
-        3. Fallback to English ('en') if purely Latin characters with no Tamil cues.
-        """
+        """Detects whether user is speaking Tamil or English."""
         if user_preference in ["ta", "en"]:
             return user_preference
 
         # Count Tamil Unicode characters (U+0B80 to U+0BFF)
         tamil_chars = len(re.findall(r"[\u0B80-\u0BFF]", text))
-        
-        # Count Latin alphabetic characters
         latin_chars = len(re.findall(r"[a-zA-Z]", text))
 
         if tamil_chars > 0:
-            # If there is meaningful Tamil script (> 15% of all letters or >= 2 Tamil words), classify as Tamil
             total_letters = tamil_chars + latin_chars
             if (tamil_chars / max(total_letters, 1)) >= 0.15:
                 return "ta"
@@ -110,8 +104,10 @@ class CareBridgeAgent:
         tanglish_patterns = [
             r"\bவணக்கம்\b", r"\bபண்ண\b", r"\bபண்ணனும்\b", r"\bஇருக்கு\b",
             r"\bவேணும்\b", r"\bஎங்கே\b", r"\bமருந்து\b", r"\bடாக்டர்\b",
-            r"\bpannanum\b", r"\bvenum\b", r"\birukku\b", r"\bengu\b",
-            r"\benakku\b", r"\bmarunthu\b", r"\bmaruthuvar\b", r"\bvanakkam\b"
+            r"\bசொல்லு\b", r"\bசொல்லுங்க\b", r"\bகாட்டு\b",
+            r"\bpannanum\b", r"\bvenum\b", r"\birukku\b", r"\benga\b",
+            r"\benakku\b", r"\bmarunthu\b", r"\bmaruthuvar\b", r"\bvanakkam\b",
+            r"\bsollu\b", r"\bsollunga\b"
         ]
         lowered = text.lower()
         if any(re.search(p, lowered) for p in tanglish_patterns):
@@ -120,77 +116,48 @@ class CareBridgeAgent:
         return "en"
 
     def extract_location(self, text: str, fallback_location: Optional[str] = None) -> Optional[str]:
-        """Extracts location or village name from query."""
-        lowered = text.lower()
-        candidates = [
-            "tiruchengode", "molasi", "namakkal", "rampur", "mohanpur",
-            "anandpur", "vellore", "salem", "sitapur",
-            "திருச்செங்கோடு", "மோளசி", "நாமக்கல்", "ராம்பூர்",
-        ]
-        for c in candidates:
-            if c in lowered:
-                # Map Tamil name to English equivalent for DB lookups
-                if "திருச்செங்கோடு" in c:
-                    return "Tiruchengode"
-                if "மோளசி" in c:
-                    return "Molasi"
-                if "நாமக்கல்" in c:
-                    return "Namakkal"
-                if "ராம்பூர்" in c:
-                    return "Rampur"
-                return c.capitalize()
-
-        # Regex for "near <Location>" or "in <Location>"
-        match = re.search(r"\b(?:near|in|at|around|அருகே|உள்ள)\s+([a-zA-Z]+)", text, re.IGNORECASE)
-        if match:
-            return match.group(1).capitalize()
-
-        return fallback_location or "Tiruchengode"
+        """Extracts location or village name from query without hardcoded default fallback."""
+        loc, _, is_explicit = extract_location(text)
+        if loc:
+            return loc
+        return fallback_location
 
     def extract_medicine(self, text: str) -> Optional[str]:
         """Extracts medicine name from query."""
-        lowered = text.lower()
-        medicines = [
-            "paracetamol", "amoxicillin", "metformin", "ors sachet", "ors",
-            "cetirizine", "amlodipine", "பாராசிட்டமால்", "அமாக்சிசிலின்", "மெட்பார்மின்",
-        ]
-        for m in medicines:
-            if m in lowered:
-                if "பாராசிட்டமால்" in m:
-                    return "Paracetamol"
-                if "அமாக்சிசிலின்" in m:
-                    return "Amoxicillin"
-                if "மெட்பார்மின்" in m:
-                    return "Metformin"
-                if m == "ors":
-                    return "ORS Sachet"
-                return m.capitalize()
-        return None
+        from app.ai.intent_classifier import extract_medicine_entity
+        return extract_medicine_entity(text)
 
     async def execute_turn(
         self,
         request: AIChatRequest,
         db: AsyncSession,
     ) -> AIChatResponse:
-        """Executes a single conversational turn with closed-loop tool execution."""
+        """Executes a single conversational turn with Intent Classification and Contextual Routing."""
         message = request.message.strip()
         conv_id = request.conversation_id or str(uuid.uuid4())
         lang = self.detect_language(message, request.language)
-        lowered = message.lower()
 
-        tools_called = []
+        # 1. Retrieve or initialize multi-turn session
+        session = session_manager.get_or_create(conv_id)
+
+        # 2. Structured Intent Classification & Entity Extraction
+        # Note: Do NOT inject Tiruchengode as default fallback location!
+        classification = classify_intent(
+            message=message,
+            language=lang,
+            session=session,
+            user_home_village=request.location_context,
+        )
+
+        resolved_loc = classification.extracted_location or session.active_location
+        tools_called: List[str] = []
         cards: List[AIChatCard] = []
         rag_sources: List[Dict[str, Any]] = []
 
         # -------------------------------------------------------------
-        # 1. EMERGENCY TRIAGE (HIGHEST PRIORITY)
+        # BRANCH 1: EMERGENCY HELP & 108 AMBULANCE PROTOCOL
         # -------------------------------------------------------------
-        emergency_keywords = [
-            "chest pain", "மாரடைப்பு", "heart attack", "difficulty breathing",
-            "மூச்சுத்திணறல்", "emergency", "அவசரம்", "accident", "விபத்து",
-            "heavy bleeding", "unconscious", "stroke", "snake bite", "108",
-        ]
-        if any(ek in lowered for ek in emergency_keywords):
+        if classification.intent in [IntentType.EMERGENCY_HELP, IntentType.AMBULANCE_INFORMATION]:
             tools_called.append("emergency_guidance_tool")
             eg_data = emergency_guidance_tool(message)
 
@@ -218,6 +185,7 @@ class CareBridgeAgent:
                 + "\n".join(f"- {f}" for f in eg_data["nearest_24x7_facilities"])
             )
 
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, resp_text)
             return await self._build_response(
                 conversation_id=conv_id,
                 response_text=resp_text,
@@ -230,17 +198,12 @@ class CareBridgeAgent:
             )
 
         # -------------------------------------------------------------
-        # 2. NON-DIAGNOSTIC SAFETY GUARD (PRESCRIPTION / DOSAGE ATTEMPTS)
+        # BRANCH 2: CLINICAL SAFETY GUARD (DOSAGE / PRESCRIPTION ATTEMPTS)
         # -------------------------------------------------------------
-        dosage_keywords = [
-            "what dose", "how much paracetamol", "prescribe", "dosage", "how many tablets",
-            "what medicine should i take", "என்ன மருந்து சாப்பிட வேண்டும்", "மருந்தளவு",
-        ]
-        if any(dk in lowered for dk in dosage_keywords):
-            # Still retrieve nearest PHC so patient can visit doctor
-            loc = self.extract_location(message, request.location_context)
+        if classification.intent == IntentType.CLINICAL_SAFETY:
+            target_loc = resolved_loc or "Tiruchengode"
             tools_called.append("search_facilities_tool")
-            fac_res = await search_facilities_tool(db, location_name=loc, limit=2)
+            fac_res = await search_facilities_tool(db, location_name=target_loc, limit=2)
 
             for f in fac_res.get("facilities", []):
                 doc_name = f["doctors"][0]["name"] if f["doctors"] else "Medical Officer on duty"
@@ -261,18 +224,19 @@ class CareBridgeAgent:
 
             refusal_text = (
                 "**மருத்துவ பாதுகாப்பு வழிகாட்டுதல்:**\n"
-                "கேர்பிரிட்ஜ் (CareBridge) ஒரு மருத்துவ நோயறிதல் அல்லது மருந்து பரிந்துரை தளம் அல்ல. "
+                "நலம் (NALAM) ஒரு மருத்துவ நோயறிதல் அல்லது மருந்து பரிந்துரை தளம் அல்ல. "
                 "மருந்துகளின் அளவு மற்றும் சிகிச்சையை பதிவுபெற்ற அரசு மருத்துவர் மட்டுமே தீர்மானிக்க முடியும்.\n\n"
-                f"உங்கள் உடல்நிலையை பரிசோதிக்க, **{loc}** பகுதியில் உள்ள அரசு ஆரம்ப சுகாதார நிலையத்திற்கு செல்லுமாறு பரிந்துரைக்கிறோம். "
+                f"உங்கள் உடல்நிலையை பரிசோதிக்க, **{target_loc}** பகுதியில் உள்ள அரசு ஆரம்ப சுகாதார நிலையத்திற்கு செல்லுமாறு பரிந்துரைக்கிறோம். "
                 "அங்கு மருத்துவர் பணியில் உள்ளார்."
                 if lang == "ta"
                 else "**Clinical Safety Disclaimer:**\n"
-                "CareBridge strictly does not provide medical diagnoses, prescriptions, or drug dosage recommendations. "
+                "NALAM strictly does not provide medical diagnoses, prescriptions, or drug dosage recommendations. "
                 "Only a licensed physician can determine the correct medicine dosage for your condition.\n\n"
-                f"Please consult a doctor at your nearest Primary Health Centre in **{loc}**. "
+                f"Please consult a doctor at your nearest Primary Health Centre in **{target_loc}**. "
                 "See available facilities and doctor schedules below:"
             )
 
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, refusal_text)
             return await self._build_response(
                 conversation_id=conv_id,
                 response_text=refusal_text,
@@ -285,67 +249,128 @@ class CareBridgeAgent:
             )
 
         # -------------------------------------------------------------
-        # 3. DOCTOR AVAILABILITY INTENT
+        # BRANCH 3: SYMPTOM GUIDANCE (SAFE FIRST-AID & MONITORING)
         # -------------------------------------------------------------
-        doc_keywords = [
-            "doctor", "physician", "duty", "dr.", "attendance", "on duty",
-            "மருத்துவர்", "டாக்டர்", "பணியில்", "இருக்கிறாரா",
-        ]
-        if any(dk in lowered for dk in doc_keywords) and not any(k in lowered for k in ["how does", "formula", "rag", "algorithm"]):
-            loc = self.extract_location(message, request.location_context)
-            tools_called.append("check_doctor_availability_tool")
-            doc_data = await check_doctor_availability_tool(db, location_name=loc)
-
-            # Format response and cards
-            doctor_items = doc_data.get("doctors", [])
-            lines = []
-
+        if classification.intent == IntentType.SYMPTOM_GUIDANCE:
             if lang == "ta":
-                lines.append(f"**{loc} மற்றும் அருகிலுள்ள அரசு மருத்துவமனைகளின் மருத்துவர் பணி விவரங்கள் ({date.today().isoformat()}):**\n")
+                guidance_text = (
+                    "**நல்வாழ்வு முதலுதவி & கவனிப்பு வழிகாட்டுதல்:**\n\n"
+                    "1. **ஓய்வு மற்றும் நீரேற்றம்:** போதுமான அளவு நீர், கஞ்சி அல்லது ஓஆர்எஸ் (ORS) பருகி உடலை நீரேற்றமாக வைத்திருங்கள்.\n"
+                    "2. **வெப்பநிலை கண்காணிப்பு:** உடல் வெப்பநிலையை குறிப்பிட்ட இடைவெளியில் அளவிடுங்கள்.\n"
+                    "3. **சுய மருத்துவம் தவிர்க்கவும்:** மருத்துவர் பரிந்துரை இன்றி உயர் டோஸ் ஆன்டிபயாடிக் அல்லது மருந்துகளை உட்கொள்ளாதீர்கள்.\n\n"
+                    "⚠️ **எப்போது உடனடியாக மருத்துவரை அணுக வேண்டும்?**\n"
+                    "- காய்ச்சல் 3 நாட்களுக்கு மேல் நீடித்தால்\n"
+                    "- மூச்சுத்திணறல், அதிக நெஞ்சு வலி அல்லது தொடர் வாந்தி ஏற்பட்டால்\n"
+                    "- மயக்கம் அல்லது தீவிர உடல் சோர்வு இருந்தால்\n\n"
+                    "*அருகிலுள்ள அரசு ஆரம்ப சுகாதார நிலையத்தில் (PHC) பொது மருத்துவரை அணுகி பரிசோதித்துக் கொள்ளவும். அவசர உதவிக்கு 108 அழைக்கவும்.*"
+                )
             else:
-                lines.append(f"**Verified Doctor Duty & Attendance Status for {loc} (Date: {date.today().isoformat()}):**\n")
+                guidance_text = (
+                    "**Symptom Guidance & Supportive First-Aid:**\n\n"
+                    "1. **Rest & Hydration:** Drink plenty of fluids (boiled water, clear broths, or ORS solution) to maintain electrolyte balance.\n"
+                    "2. **Monitor Temperature:** Regularly check body temperature using a clinical thermometer.\n"
+                    "3. **Avoid Self-Medication:** Do not self-prescribe antibiotics or unverified drugs.\n\n"
+                    "⚠️ **When to seek immediate medical attention:**\n"
+                    "- High fever lasting more than 3 days\n"
+                    "- Difficulty breathing, chest tightness, or severe persistent vomiting\n"
+                    "- Extreme weakness, confusion, or dehydration\n\n"
+                    "*Please consult a licensed medical officer at your nearest Primary Health Centre for evaluation. Call 108 for medical emergencies.*"
+                )
 
-            for d in doctor_items[:4]:
-                status = d["attendance_status"]
-                badge_color = "green" if status == "PRESENT" else ("yellow" if status == "EXPECTED" else "red")
-                status_label = (
-                    "பணியில் உள்ளார் (உறுதிசெய்யப்பட்டது)" if status == "PRESENT"
-                    else ("திட்டமிடப்பட்ட பணி (வருகை நிலுவையில்)" if status == "EXPECTED" else "விடுப்பில் உள்ளார்")
-                ) if lang == "ta" else status
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, guidance_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=guidance_text,
+                language=lang,
+                intent="SYMPTOM_GUIDANCE",
+                tools_called=tools_called,
+                cards=[],
+                action_taken="PROVIDE_SYMPTOM_GUIDANCE",
+                request=request,
+            )
 
-                cards.append(AIChatCard(
-                    type=CardType.DOCTOR,
-                    title=d["name"],
-                    subtitle=f"{d['specialization']} • {d['facility_name']}",
-                    badge=status,
-                    badge_color=badge_color,
-                    details={
-                        "qualification": d.get("qualification"),
-                        "shift_hours": d.get("shift_hours"),
-                        "notes": d.get("notes"),
-                        "status_description": status_label,
-                    },
-                    action={"label": "Book Appointment Slot", "type": "BOOK", "doctor_id": d["doctor_id"]},
-                ))
+        # -------------------------------------------------------------
+        # BRANCH 4: DOCTOR AVAILABILITY INTENT
+        # -------------------------------------------------------------
+        if classification.intent == IntentType.DOCTOR_AVAILABILITY:
+            target_loc = resolved_loc
+            tools_called.append("check_doctor_availability_tool")
+            doc_data = await check_doctor_availability_tool(db, location_name=target_loc)
+            doctor_items = doc_data.get("doctors", [])
 
+            lines = []
+            loc_label = f" in {target_loc}" if target_loc else ""
+            loc_label_ta = f" ({target_loc} பகுதி)" if target_loc else ""
+
+            if not doctor_items:
                 if lang == "ta":
                     lines.append(
-                        f"- **{d['name']}** ({d['specialization']}) – {d['facility_name']}\n"
-                        f"  - நிலை: `{status}` ({status_label})\n"
-                        f"  - நேரம்: {d.get('shift_hours', 'N/A')}\n"
+                        f"**{target_loc or 'கோரப்பட்ட'} பகுதியில் தற்போது பதிவுசெய்யப்பட்ட மருத்துவர் பணி விவரங்கள் கிடைக்கவில்லை.**\n\n"
+                        "அருகிலுள்ள பிற சுகாதார நிலையங்களின் மருத்துவர் வருகையை அறிய வேறு இருப்பிடத்தை குறிப்பிடலாம் அல்லது ஆரம்ப சுகாதார நிலையத்திற்கு நேரடியாகச் செல்லலாம்."
                     )
                 else:
                     lines.append(
-                        f"- **{d['name']}** ({d['specialization']}, {d.get('qualification', '')}) at **{d['facility_name']}**\n"
-                        f"  - Attendance: `{status}` ({'Physically verified on duty' if status == 'PRESENT' else 'Rostered shift; check-in pending'})\n"
-                        f"  - Shift Hours: {d.get('shift_hours', 'N/A')}\n"
+                        f"**No verified doctor duty records were found directly matching{loc_label} for today ({date.today().isoformat()}).**\n\n"
+                        "You can specify an alternate town or village to check doctor rosters at nearby primary health facilities."
+                    )
+            else:
+                if lang == "ta":
+                    lines.append(f"**மருத்துவர் பணி மற்றும் வருகை விவரங்கள்{loc_label_ta} ({date.today().isoformat()}):**\n")
+                else:
+                    lines.append(f"**Verified Doctor Duty & Attendance Status{loc_label} (Date: {date.today().isoformat()}):**\n")
+
+                for d in doctor_items[:4]:
+                    status = d["attendance_status"]
+                    badge_color = "green" if status == "PRESENT" else ("yellow" if status == "EXPECTED" else ("red" if status == "ABSENT" else "blue"))
+                    status_label = (
+                        "பணியில் உள்ளார் (உறுதிசெய்யப்பட்டது)" if status == "PRESENT"
+                        else ("திட்டமிடப்பட்ட பணி (வருகை நிலுவையில்)" if status == "EXPECTED"
+                              else ("விடுப்பில் உள்ளார்" if status == "ABSENT" else "வருகை விவரம் கிடைக்கவில்லை"))
+                    ) if lang == "ta" else (
+                        "Physically verified on duty" if status == "PRESENT"
+                        else ("Rostered shift; check-in pending" if status == "EXPECTED"
+                              else ("On leave" if status == "ABSENT" else "Attendance unlogged"))
                     )
 
-            lines.append("\n*CareBridge distinguishes physically verified check-ins (PRESENT) from planned shifts (EXPECTED) to eliminate wasted trips.*")
+                    cards.append(AIChatCard(
+                        type=CardType.DOCTOR,
+                        title=d["name"],
+                        subtitle=f"{d['specialization']} • {d['facility_name']}",
+                        badge=status,
+                        badge_color=badge_color,
+                        details={
+                            "qualification": d.get("qualification"),
+                            "shift_hours": d.get("shift_hours"),
+                            "notes": d.get("notes"),
+                            "status_description": status_label,
+                        },
+                        action={"label": "Book Appointment Slot", "type": "BOOK", "doctor_id": d["doctor_id"]},
+                    ))
 
+                    if lang == "ta":
+                        lines.append(
+                            f"- **{d['name']}** ({d['specialization']}) – {d['facility_name']}\n"
+                            f"  - நிலை: `{status}` ({status_label})\n"
+                            f"  - நேரம்: {d.get('shift_hours', 'N/A')}\n"
+                        )
+                    else:
+                        lines.append(
+                            f"- **{d['name']}** ({d['specialization']}, {d.get('qualification', '')}) at **{d['facility_name']}**\n"
+                            f"  - Attendance: `{status}` ({status_label})\n"
+                            f"  - Shift Hours: {d.get('shift_hours', 'N/A')}\n"
+                        )
+
+                lines.append(
+                    "\n*NALAM verifies physical biometric and duty-desk check-ins (PRESENT) vs planned shifts (EXPECTED) to eliminate wasted trips.*"
+                    if lang == "en"
+                    else "\n*நலம் தளம் வீண் பயணங்களைத் தடுக்க திட்டமிடப்பட்ட பணிகளையும் (EXPECTED), உண்மையான பணி வருகையையும் (PRESENT) தனித்தனியாக காட்டுகிறது.*"
+                )
+
+            resp_text = "\n".join(lines)
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, resp_text)
             return await self._build_response(
                 conversation_id=conv_id,
-                response_text="\n".join(lines),
+                response_text=resp_text,
                 language=lang,
                 intent="DOCTOR_AVAILABILITY_LOOKUP",
                 tools_called=tools_called,
@@ -355,24 +380,86 @@ class CareBridgeAgent:
             )
 
         # -------------------------------------------------------------
-        # 4. MEDICINE STOCK INTELLIGENCE INTENT
+        # BRANCH 5: APPOINTMENT BOOKING INTENT
         # -------------------------------------------------------------
-        med_keywords = [
-            "medicine", "tablet", "capsule", "stock", "paracetamol", "amoxicillin",
-            "metformin", "ors", "cetirizine", "மருந்து", "மாத்திரை", "இருப்பு",
-        ]
-        if any(mk in lowered for mk in med_keywords) and not any(k in lowered for k in ["how does", "formula", "algorithm"]):
-            med_name = self.extract_medicine(message) or "Paracetamol"
-            loc = self.extract_location(message, request.location_context)
-
-            tools_called.append("check_medicine_stock_tool")
-            stock_data = await check_medicine_stock_tool(db, medicine_name=med_name, location_name=loc)
+        if classification.intent == IntentType.APPOINTMENT_BOOKING:
+            target_loc = resolved_loc
+            tools_called.append("get_appointment_slots_tool")
+            slots_data = await get_appointment_slots_tool(db, location_name=target_loc)
+            options = slots_data.get("options", [])
 
             lines = []
             if lang == "ta":
-                lines.append(f"**{med_name} மருந்து இருப்பு விவரங்கள் ({loc} பகுதி):**\n")
+                loc_txt = f" ({target_loc} பகுதி)" if target_loc else ""
+                lines.append(f"**அரசு ஆரம்ப சுகாதார நிலைய முன்பதிவு வழிகாட்டல்{loc_txt}:**\n")
+                lines.append(
+                    "கீழே உள்ள மருத்துவ ஆலோசனை அட்டைகளில் இருந்து உங்கள் விருப்பமான மையம் மற்றும் மருத்துவரை தேர்வு செய்து முன்பதிவு செய்யலாம்.\n"
+                    "முன்பதிவு செய்வதன் மூலம் வரிசையில் காத்திருக்கும் நேரம் குறைக்கப்படும்."
+                )
             else:
-                lines.append(f"**Probabilistic Availability for {med_name} near {loc}:**\n")
+                loc_txt = f" near {target_loc}" if target_loc else ""
+                lines.append(f"**Healthcare Consultation Appointment Booking{loc_txt}:**\n")
+                lines.append(
+                    "Select a health facility and doctor from the cards below to reserve your priority consultation slot.\n"
+                    "Booking guarantees priority queue triage and reserved medical officer review."
+                )
+
+            for opt in options[:3]:
+                cards.append(AIChatCard(
+                    type=CardType.APPOINTMENT,
+                    title=f"{opt['facility_name']}",
+                    subtitle=f"{opt['doctor_name']} • {opt['specialization']}",
+                    badge=f"Status: {opt['doctor_status']}",
+                    badge_color="green" if opt["doctor_status"] == "PRESENT" else "blue",
+                    details={
+                        "date": opt["date"],
+                        "shift_hours": opt["shift_hours"],
+                        "available_slots": ", ".join(opt["available_slots"]),
+                    },
+                    action={
+                        "label": "Confirm Booking" if lang == "en" else "முன்பதிவு உறுதிசெய்",
+                        "type": "BOOK",
+                        "facility_id": opt["facility_id"],
+                        "doctor_id": opt["doctor_id"],
+                    },
+                ))
+
+            lines.append(
+                "\n*Note: NALAM guarantees reserved tokens for verified scheduled doctors.*"
+                if lang == "en"
+                else "\n*குறிப்பு: நலம் தளத்தின் மூலம் முன்பதிவு செய்யப்பட்ட டோக்கன்களுக்கு முன்னுரிமை அளிக்கப்படுகிறது.*"
+            )
+
+            resp_text = "\n".join(lines)
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, resp_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=resp_text,
+                language=lang,
+                intent="APPOINTMENT_BOOKING_FLOW",
+                tools_called=tools_called,
+                cards=cards,
+                action_taken="PRESENT_APPOINTMENT_SLOTS",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 6: MEDICINE STOCK & INVENTORY INTELLIGENCE
+        # -------------------------------------------------------------
+        if classification.intent in [IntentType.MEDICINE_SEARCH, IntentType.MEDICINE_AVAILABILITY]:
+            med_name = classification.extracted_medicine or session.active_medicine or "Paracetamol"
+            target_loc = resolved_loc
+            tools_called.append("check_medicine_stock_tool")
+            stock_data = await check_medicine_stock_tool(db, medicine_name=med_name, location_name=target_loc)
+
+            lines = []
+            loc_label = f" near {target_loc}" if target_loc else ""
+            loc_label_ta = f" ({target_loc} பகுதி)" if target_loc else ""
+
+            if lang == "ta":
+                lines.append(f"**{med_name} மருந்து இருப்பு விவரங்கள்{loc_label_ta}:**\n")
+            else:
+                lines.append(f"**Probabilistic Availability for {med_name}{loc_label}:**\n")
 
             facilities_list = stock_data.get("facilities", [])
             for sf in facilities_list[:4]:
@@ -410,9 +497,11 @@ class CareBridgeAgent:
 
             lines.append("\n*Availability states are computed dynamically using Bayesian decay on weighted staff and ASHA reports.*")
 
+            resp_text = "\n".join(lines)
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, resp_text)
             return await self._build_response(
                 conversation_id=conv_id,
-                response_text="\n".join(lines),
+                response_text=resp_text,
                 language=lang,
                 intent="MEDICINE_STOCK_LOOKUP",
                 tools_called=tools_called,
@@ -422,77 +511,9 @@ class CareBridgeAgent:
             )
 
         # -------------------------------------------------------------
-        # 5. HEALTHCARE RECOMMENDATION / EXPECTED LOSS INTENT
+        # BRANCH 7: PLATFORM INFORMATION & RAG ARCHITECTURE
         # -------------------------------------------------------------
-        rec_keywords = [
-            "recommend", "best facility", "where should i go", "trip loss",
-            "வழிகாட்டல்", "எங்கு செல்லலாம்", "பரிந்துரை",
-        ]
-        if any(rk in lowered for rk in rec_keywords) and not any(k in lowered for k in ["how does", "algorithm", "formula"]):
-            loc = self.extract_location(message, request.location_context)
-            med = self.extract_medicine(message)
-            req_type = "REFILL" if med else "CONSULTATION"
-
-            tools_called.append("get_recommendations_tool")
-            rec_data = await get_recommendations_tool(db, village_name=loc, request_type=req_type, medicine_name=med)
-
-            lines = []
-            if lang == "ta":
-                lines.append(f"**{loc} பகுதிக்கான கேர்பிரிட்ஜ் குறைந்த இழப்பு பரிந்துரைகள்:**\n")
-            else:
-                lines.append(f"**CareBridge Loss-Minimizing Recommendations for {loc} (Request: {req_type}):**\n")
-
-            for idx, r in enumerate(rec_data.get("recommendations", []), 1):
-                cards.append(AIChatCard(
-                    type=CardType.RECOMMENDATION,
-                    title=f"#{idx} {r['facility_name']}",
-                    subtitle=f"{r['facility_type']} • {r['distance_km']} km",
-                    badge=f"Expected Loss: {r['expected_loss']}",
-                    badge_color="green" if idx == 1 else "blue",
-                    details={
-                        "expected_loss": r["expected_loss"],
-                        "doctor_status": r["doctor_status"],
-                        "medicine_status": r["medicine_status"],
-                        "travel_cost": r["travel_cost"],
-                        "failure_risk_pct": int(r["failure_probability"] * 100),
-                    },
-                    action={"label": "Book Confirmed Slot", "type": "BOOK", "facility_id": r["facility_id"]},
-                ))
-
-                if lang == "ta":
-                    lines.append(
-                        f"**{idx}. {r['facility_name']}** ({r['facility_type']})\n"
-                        f"  - தூரம்: {r['distance_km']} km | மருத்துவர்: `{r['doctor_status']}`\n"
-                        f"  - வீண் பயண இழப்பு குறியீடு (Expected Loss): `{r['expected_loss']}` (தோல்வி அபாயம்: {int(r['failure_probability']*100)}%)\n"
-                    )
-                else:
-                    lines.append(
-                        f"**{idx}. {r['facility_name']}** ({r['facility_type']}) – **Rank {idx}**\n"
-                        f"  - Distance: {r['distance_km']} km | Doctor: `{r['doctor_status']}`\n"
-                        f"  - Expected Trip Loss: `{r['expected_loss']}` units (Failure Risk: {int(r['failure_probability']*100)}%)\n"
-                        f"  - Why recommended: Minimizes the product of travel cost and failure risk.\n"
-                    )
-
-            return await self._build_response(
-                conversation_id=conv_id,
-                response_text="\n".join(lines),
-                language=lang,
-                intent="RECOMMENDATION_CALCULATION",
-                tools_called=tools_called,
-                cards=cards,
-                action_taken="CALCULATE_EXPECTED_LOSS",
-                request=request,
-            )
-
-        # -------------------------------------------------------------
-        # 6. PROJECT RAG / ARCHITECTURE / ALGORITHM INTENT
-        # -------------------------------------------------------------
-        rag_keywords = [
-            "how does carebridge", "algorithm", "stock algorithm", "expected loss formula",
-            "loss formula", "loss calculation", "ivr pin", "lockout", "architecture",
-            "pin lockout", "source weights", "half-life", "decay", "பரிந்துரை சூத்திரம்",
-        ]
-        if any(rk in lowered for rk in rag_keywords):
+        if classification.intent == IntentType.PLATFORM_INFORMATION:
             tools_called.append("query_rag_knowledge_tool")
             rag_res = query_rag_knowledge_tool(message, top_k=3)
             rag_sources = rag_res.get("sources", [])
@@ -511,42 +532,40 @@ class CareBridgeAgent:
                     },
                 ))
 
-            # Provide authoritative synthesized explanation
-            if "loss" in lowered or "recommend" in lowered or "calculate" in lowered:
+            lowered = message.lower()
+            if "loss" in lowered or "recommend" in lowered or "calculate" in lowered or "சூத்திரம்" in lowered:
                 explanation = (
-                    "### CareBridge Healthcare Recommendation & Expected Trip Loss Algorithm\n\n"
-                    "Unlike traditional healthcare locators that sort solely by raw distance, **CareBridge routes patients by minimizing the risk of a wasted journey**.\n\n"
+                    "### NALAM Healthcare Recommendation & Expected Trip Loss Algorithm\n\n"
+                    "Unlike traditional healthcare locators that sort solely by raw distance, **NALAM routes patients by minimizing the risk of a wasted journey**.\n\n"
                     "#### The Mathematical Loss Formula:\n"
                     "$$\\text{Expected Loss} = \\text{RoundHalfUp}(\\text{Failure Probability} \\times \\text{Travel Cost})$$\n\n"
                     "Where:\n"
-                    "1. **Travel Cost ($C$)**: Straight-line distance between the patient's village and facility multiplied by transportation tier cost: $\\text{Cost} = \\text{Base} + (\\text{Cost/km} \\times \\text{km})$.\n"
+                    "1. **Travel Cost ($C$)**: Distance between the patient's village and facility multiplied by transportation tier cost: $\\text{Cost} = \\text{Base} + (\\text{Cost/km} \\times \\text{km})$.\n"
                     "2. **Failure Probability ($P_{\\text{fail}}$)**:\n"
                     "   - For **Consultations**: $P_{\\text{fail}}$ increases heavily if the doctor is not physically present (`PRESENT` $\\implies 0.05$, `EXPECTED` $\\implies 0.35$, `ABSENT` $\\implies 0.80$).\n"
-                    "   - For **Medicine Refills**: $P_{\\text{fail}} = 1.0 - P_{\\text{available}}$. If Metformin stock is `UNLIKELY` ($P=0.20$), visit failure is $80\\%$.\n\n"
-                    "**Why this matters in rural healthcare:**\n"
-                    "A clinic 2 km away with no doctor or empty medicine shelf yields a **wasted trip**. "
-                    "CareBridge often recommends a Community Health Centre 5 km away because verified doctor presence and stocked pharmacy guarantee continuous care!\n\n"
+                    "   - For **Medicine Refills**: $P_{\\text{fail}} = 1.0 - P_{\\text{available}}$. If medicine stock is `UNLIKELY`, visit failure risk is high.\n\n"
                     "*Source Citation: `STOCK_ALGORITHM.md` & `README.md`*"
                 )
             elif "pin" in lowered or "ivr" in lowered or "lockout" in lowered:
                 explanation = (
-                    "### CareBridge IVR Voice Access & Security Policy\n\n"
-                    "CareBridge provides button-phone voice access via standard keypad telephony (DTMF) in Tamil (`1`) and English (`2`).\n\n"
-                    "#### PIN Authentication & Brute-Force Lockout Policy:\n"
-                    "- Callers authenticate with their registered Phone Number and 4-digit PIN (default demo PIN: last 4 digits of phone).\n"
-                    "- **Maximum Attempts:** `3` consecutive failed PIN attempts.\n"
-                    "- **Lockout Duration:** `15 minutes` lockout period (`IVR_AUTH_LOCKOUT_MINUTES=15`).\n"
-                    "- **Emergency Exemption:** Pressing `7` or stating an emergency immediately bridges to 108 emergency ambulance protocols without requiring PIN authentication.\n\n"
-                    "*Source Citation: `IVR_CALL_FLOWS.md`, `IVR_ARCHITECTURE.md`, and `FINAL_SECURITY_AUDIT.md`*"
+                    "### NALAM IVR Voice Telephony Access & Security Policy\n\n"
+                    "NALAM provides button-phone voice access via standard keypad telephony (DTMF) in Tamil (`1`) and English (`2`).\n\n"
+                    "#### PIN Authentication & Security Policy:\n"
+                    "- Callers authenticate with their registered Phone Number and 4-digit PIN.\n"
+                    "- **Maximum Attempts:** `3` consecutive failed attempts.\n"
+                    "- **Lockout Duration:** `15 minutes` lockout period.\n"
+                    "- **Emergency Exemption:** Pressing `7` or stating an emergency immediately bridges to 108 emergency ambulance protocols.\n\n"
+                    "*Source Citation: `IVR_CALL_FLOWS.md` & `FINAL_SECURITY_AUDIT.md`*"
                 )
             else:
-                top_content = rag_sources[0]["content"] if rag_sources else "CareBridge Architecture Documentation"
+                top_content = rag_sources[0]["content"] if rag_sources else "NALAM Architecture Documentation"
                 explanation = (
-                    f"### CareBridge Technical Documentation Excerpt\n\n"
+                    f"### NALAM Platform Documentation Overview\n\n"
                     f"{top_content}\n\n"
                     f"*Sources: {', '.join(s['document'] for s in rag_sources)}*"
                 )
 
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, explanation)
             return await self._build_response(
                 conversation_id=conv_id,
                 response_text=explanation,
@@ -560,13 +579,124 @@ class CareBridgeAgent:
             )
 
         # -------------------------------------------------------------
-        # 7. FACILITY DISCOVERY INTENT (DEFAULT WORKFLOW)
-        # E.g.: "Find a PHC near Tiruchengode"
+        # BRANCH 8: GENERAL HEALTH INFORMATION
         # -------------------------------------------------------------
-        loc = self.extract_location(message, request.location_context)
-        fac_type = "PHC" if "phc" in lowered or "ஆரம்ப சுகாதார நிலையம்" in lowered else (
-            "CHC" if "chc" in lowered else None
-        )
+        if classification.intent == IntentType.HEALTH_INFORMATION:
+            if lang == "ta":
+                info_text = (
+                    "**பொது சுகாதார விழிப்புணர்வு வழிகாட்டல்:**\n\n"
+                    "- **நீரேற்றம் & வெயில் பாதுகாப்பு:** போதுமான அளவு நீர் பருகி நீரிழப்பைத் தவிர்க்கவும். ஓஆர்எஸ் (ORS) கரைசலை நீரிழப்புக்கு பயன்படுத்தலாம்.\n"
+                    "- **சத்தான உணவு:** காய்கறிகள், கீரைகள் மற்றும் புரதச்சத்து நிறைந்த உணவுகள் உடலின் நோய் எதிர்ப்பு சக்தியை அதிகரிக்கும்.\n"
+                    "- **தடுப்பூசிகள்:** குழந்தைகள் மற்றும் கர்ப்பிணி தாய்மார்கள் அரசு ஆரம்ப சுகாதார நிலையங்களில் குறித்த நேரத்தில் தடுப்பூசி போட்டுக்கொள்வது அவசியம்.\n\n"
+                    "*குறிப்பிட்ட உடல்நல ஆலோசனைகளுக்கு அருகிலுள்ள அரசு மருத்துவரை அணுகவும்.*"
+                )
+            else:
+                info_text = (
+                    "**Public Health Information & Preventive Care:**\n\n"
+                    "- **Hydration & Heat Safety:** Drink adequate clean water to prevent dehydration. Use Oral Rehydration Salts (ORS) during fluid loss.\n"
+                    "- **Nutrition & Hygiene:** A balanced diet rich in local vegetables, pulses, and greens boosts immunity.\n"
+                    "- **Immunization:** Timely routine immunizations are available free of charge at all Primary Health Centres.\n\n"
+                    "*For clinical advice tailored to your medical history, please consult a registered medical officer at your local PHC.*"
+                )
+
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, info_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=info_text,
+                language=lang,
+                intent="HEALTH_INFORMATION",
+                tools_called=tools_called,
+                cards=[],
+                action_taken="PROVIDE_HEALTH_INFORMATION",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 9: LOCATION CLARIFICATION / "கோயம்புத்தூர்ல சொல்லு"
+        # -------------------------------------------------------------
+        # If user provided a location statement without active healthcare context:
+        # e.g. "கோயம்புத்தூர்ல சொல்லு." or "What about Salem?"
+        if classification.intent == IntentType.LOCATION_INFORMATION and classification.needs_clarification:
+            loc = classification.extracted_location or "Coimbatore"
+            clarify_text = (
+                classification.clarification_prompt_ta
+                if lang == "ta"
+                else classification.clarification_prompt_en
+            )
+
+            session.add_turn(message, lang, classification.intent.value, loc, tools_called, clarify_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=clarify_text,
+                language=lang,
+                intent="LOCATION_CLARIFICATION_REQUIRED",
+                tools_called=tools_called,
+                cards=[],
+                action_taken="PROMPT_FOR_LOCATION_SERVICES",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 10: GENERAL CONVERSATION (GREETINGS / THANKS)
+        # -------------------------------------------------------------
+        if classification.intent == IntentType.GENERAL_CONVERSATION:
+            if lang == "ta":
+                welcome_text = (
+                    "வணக்கம்! நான் நலம் (NALAM) AI நல்வாழ்வு உதவியாளர்.\n\n"
+                    "உங்களுக்கு தேவையான தகவலைக் கேளுங்கள்:\n"
+                    "- அரசு ஆரம்ப சுகாதார நிலையங்களை (PHC) கண்டறிய\n"
+                    "- மருத்துவர் பணி வருகையை சரிபார்க்க\n"
+                    "- மருந்து இருப்பை அறிய\n"
+                    "- அவசர மருத்துவ உதவி (Call 108)"
+                )
+            else:
+                welcome_text = (
+                    "Hello! I am your NALAM AI Healthcare Assistant.\n\n"
+                    "How can I help you today? You can ask me to:\n"
+                    "- Find nearby Primary Health Centres (PHC)\n"
+                    "- Check verified doctor duty and attendance\n"
+                    "- Check medicine stock availability\n"
+                    "- Access 108 Emergency ambulance protocols"
+                )
+
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, welcome_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=welcome_text,
+                language=lang,
+                intent="GENERAL_CONVERSATION",
+                tools_called=tools_called,
+                cards=[],
+                action_taken="RESPOND_CONVERSATIONAL",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 11: UNKNOWN INTENT (ASK CLARIFICATION, DO NOT DUMP PHCs!)
+        # -------------------------------------------------------------
+        if classification.intent == IntentType.UNKNOWN_INTENT:
+            clarify_msg = (
+                classification.clarification_prompt_ta
+                if lang == "ta"
+                else classification.clarification_prompt_en
+            )
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, clarify_msg)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=clarify_msg,
+                language=lang,
+                intent="UNKNOWN_INTENT_CLARIFICATION",
+                tools_called=tools_called,
+                cards=[],
+                action_taken="REQUEST_INTENT_CLARIFICATION",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 12: FACILITY SEARCH INTENT
+        # -------------------------------------------------------------
+        loc = classification.extracted_location or session.active_location
+        fac_type = classification.extracted_facility_type or "PHC"
 
         tools_called.append("search_facilities_tool")
         fac_data = await search_facilities_tool(
@@ -577,70 +707,103 @@ class CareBridgeAgent:
         )
 
         matched_facilities = fac_data.get("facilities", [])
+        in_range = fac_data.get("in_range", len(matched_facilities) > 0)
         lines = []
 
-        if lang == "ta":
-            lines.append(f"**{loc} பகுதிக்கு அருகிலுள்ள அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC) விவரங்கள்:**\n")
-        else:
-            lines.append(f"**Primary Healthcare Facilities near {loc} (ranked by geographic proximity):**\n")
-
-        for f in matched_facilities:
-            dist_str = f"{f['distance_km']} km" if f["distance_km"] is not None else "Nearby"
-            doc_info = f["doctors"][0] if f["doctors"] else None
-            doc_name = doc_info["name"] if doc_info else "Medical Officer on duty"
-            doc_status = doc_info["attendance_status"] if doc_info else "UNKNOWN"
-
-            badge_color = "green" if doc_status == "PRESENT" else ("yellow" if doc_status == "EXPECTED" else "blue")
-
-            cards.append(AIChatCard(
-                type=CardType.FACILITY,
-                title=f["name"],
-                subtitle=f"{f['facility_type']} • {dist_str} away",
-                badge=f"Doctor: {doc_status}",
-                badge_color=badge_color,
-                details={
-                    "distance_km": f["distance_km"],
-                    "address": f["address"],
-                    "services": f["services"],
-                    "doctor_name": doc_name,
-                    "doctor_status": doc_status,
-                    "doctor_hours": doc_info.get("hours") if doc_info else "09:00 - 16:00",
-                    "contact_phone": f.get("contact_details", {}).get("phone", "04288-252100"),
-                },
-                action={
-                    "label": "Book Appointment Slot" if lang == "en" else "நேரடி முன்பதிவு",
-                    "type": "BOOK",
-                    "facility_id": f["facility_id"],
-                },
-            ))
+        if not in_range or not matched_facilities:
+            nearest_km = fac_data.get("nearest_distance_km")
+            nearest_name = fac_data.get("nearest_facility_name")
 
             if lang == "ta":
-                status_ta = "பணியில் உள்ளார் (உறுதிசெய்யப்பட்டது)" if doc_status == "PRESENT" else "பணி நேரம் நிலுவையில்"
-                services_str = ", ".join(f["services"][:3])
                 lines.append(
-                    f"- **{f['name']}** ({f['facility_type']}) – தூரம்: `{dist_str}`\n"
-                    f"  - முகவரி: {f['address']}\n"
-                    f"  - மருத்துவர்: **{doc_name}** (`{doc_status}` - {status_ta})\n"
-                    f"  - சேவைகள்: {services_str}\n"
+                    f"**{loc or 'கோரப்பட்ட'} நகரில் தற்போது நேரடி நலம் (NALAM) நெட்வொர்க் அரசு ஆரம்ப சுகாதார நிலையங்கள் எதுவும் இணைக்கப்படவில்லை.**\n\n"
                 )
+                if nearest_km and nearest_name:
+                    lines.append(
+                        f"நலம் நெட்வொர்க்கில் மிக அருகிலுள்ள சுகாதார மையம்: **{nearest_name}** (~{nearest_km} கி.மீ தொலைவில் உள்ளது).\n"
+                        "அவசர சிகிச்சை தேவைப்பட்டால் உடனடியாக **108** ஆம்புலன்ஸை அழைக்கவும் அல்லது உள்ளூர் அரசு தலைமை மருத்துவமனையை அணுகவும்."
+                    )
             else:
-                services_str = ", ".join(f["services"][:4])
                 lines.append(
-                    f"- **{f['name']}** ({f['facility_type']}) — **{dist_str}**\n"
-                    f"  - Address: {f['address']}\n"
-                    f"  - Doctor on duty: **{doc_name}** (Status: `{doc_status}` — {'Physically verified present' if doc_status == 'PRESENT' else 'Scheduled shift'})\n"
-                    f"  - Core Services: {services_str}\n"
+                    f"**Currently, no Primary Health Centres (PHC) directly registered in NALAM were found in {loc or 'the requested location'}.**\n\n"
                 )
+                if nearest_km and nearest_name:
+                    lines.append(
+                        f"The closest registered facility in the network is **{nearest_name}** (~{nearest_km} km away).\n"
+                        "For immediate emergency assistance, call **108** or visit your local Government Medical College Hospital."
+                    )
+        else:
+            loc_hdr = f" near {loc}" if loc else ""
+            loc_hdr_ta = f" ({loc} பகுதி)" if loc else ""
 
-        lines.append(
-            "\n*You can book a confirmed consultation slot directly using the action button on any facility card above.*"
-            if lang == "en"
-            else "\n*மேலே உள்ள வசதி அட்டை மூலம் நேரடியாக முன்பதிவு செய்யலாம்.*"
-        )
+            if lang == "ta":
+                lines.append(f"**அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC) விவரங்கள்{loc_hdr_ta}:**\n")
+            else:
+                lines.append(f"**Primary Healthcare Facilities{loc_hdr} (ranked by geographic proximity):**\n")
 
+            for f in matched_facilities:
+                dist_str = f"{f['distance_km']} km" if f["distance_km"] is not None else "Nearby"
+                doc_info = f["doctors"][0] if f["doctors"] else None
+                doc_name = doc_info["name"] if doc_info else "Medical Officer on duty"
+                doc_status = doc_info["attendance_status"] if doc_info else "UNKNOWN"
+
+                badge_color = "green" if doc_status == "PRESENT" else ("yellow" if doc_status == "EXPECTED" else "blue")
+
+                cards.append(AIChatCard(
+                    type=CardType.FACILITY,
+                    title=f["name"],
+                    subtitle=f"{f['facility_type']} • {dist_str} away",
+                    badge=f"Doctor: {doc_status}",
+                    badge_color=badge_color,
+                    details={
+                        "distance_km": f["distance_km"],
+                        "address": f["address"],
+                        "services": f["services"],
+                        "doctor_name": doc_name,
+                        "doctor_status": doc_status,
+                        "doctor_hours": doc_info.get("hours") if doc_info else "09:00 - 16:00",
+                        "contact_phone": f.get("contact_details", {}).get("phone", "04288-252100"),
+                    },
+                    action={
+                        "label": "Book Appointment Slot" if lang == "en" else "நேரடி முன்பதிவு",
+                        "type": "BOOK",
+                        "facility_id": f["facility_id"],
+                    },
+                ))
+
+                if lang == "ta":
+                    status_ta = (
+                        "பணியில் உள்ளார் (உறுதிசெய்யப்பட்டது)"
+                        if doc_status == "PRESENT"
+                        else ("திட்டமிடப்பட்ட பணி" if doc_status == "EXPECTED" else "வருகை விவரம் கிடைக்கவில்லை")
+                    )
+                    services_str = ", ".join(f["services"][:3])
+                    lines.append(
+                        f"- **{f['name']}** ({f['facility_type']}) – தூரம்: `{dist_str}`\n"
+                        f"  - முகவரி: {f['address']}\n"
+                        f"  - மருத்துவர்: **{doc_name}** (`{doc_status}` - {status_ta})\n"
+                        f"  - சேவைகள்: {services_str}\n"
+                    )
+                else:
+                    services_str = ", ".join(f["services"][:4])
+                    lines.append(
+                        f"- **{f['name']}** ({f['facility_type']}) — **{dist_str}**\n"
+                        f"  - Address: {f['address']}\n"
+                        f"  - Doctor on duty: **{doc_name}** (Status: `{doc_status}` — {'Physically verified present' if doc_status == 'PRESENT' else 'Scheduled shift'})\n"
+                        f"  - Core Services: {services_str}\n"
+                    )
+
+            lines.append(
+                "\n*You can book a confirmed consultation slot directly using the action button on any facility card above.*"
+                if lang == "en"
+                else "\n*மேலே உள்ள வசதி அட்டை மூலம் நேரடியாக முன்பதிவு செய்யலாம்.*"
+            )
+
+        resp_text = "\n".join(lines)
+        session.add_turn(message, lang, "FACILITY_SEARCH", loc, tools_called, resp_text)
         return await self._build_response(
             conversation_id=conv_id,
-            response_text="\n".join(lines),
+            response_text=resp_text,
             language=lang,
             intent="FACILITY_PROXIMITY_SEARCH",
             tools_called=tools_called,
@@ -650,5 +813,6 @@ class CareBridgeAgent:
         )
 
 
-# Global agent instance
-carebridge_agent = CareBridgeAgent()
+# Global agent instance (aliased for backwards compatibility)
+nalam_agent = NalamAIAgent()
+carebridge_agent = nalam_agent

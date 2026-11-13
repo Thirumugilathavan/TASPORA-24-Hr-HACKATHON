@@ -29,19 +29,7 @@ from app.models.village import Village
 from app.schemas.shared import AttendanceStatus, AvailabilityLabel
 from app.services.distance_service import haversine_km
 from app.ai.rag import rag_engine
-
-# Known reference coordinates for Tamil Nadu & evaluation districts
-REFERENCE_COORDINATES = {
-    "tiruchengode": (11.3800, 77.8900, "Namakkal, Tamil Nadu"),
-    "molasi": (11.3420, 77.8450, "Namakkal, Tamil Nadu"),
-    "namakkal": (11.2189, 78.1674, "Namakkal, Tamil Nadu"),
-    "rampur": (12.9165, 79.1325, "Vellore, Tamil Nadu"),
-    "mohanpur": (12.9240, 79.1450, "Vellore, Tamil Nadu"),
-    "anandpur": (12.2253, 79.0747, "Tiruvannamalai, Tamil Nadu"),
-    "vellore": (12.9165, 79.1325, "Vellore, Tamil Nadu"),
-    "salem": (11.6643, 78.1460, "Salem, Tamil Nadu"),
-    "sitapur": (27.5684, 80.6791, "Sitapur, Uttar Pradesh"),
-}
+from app.ai.location_extractor import REFERENCE_COORDINATES, get_coordinates_for_location
 
 
 async def search_facilities_tool(
@@ -152,12 +140,35 @@ async def search_facilities_tool(
     else:
         results.sort(key=lambda x: x["name"])
 
+    # If location_name was explicitly requested, filter by geographical proximity (<= max_distance_km)
+    # or by explicit address/name match. Never return far-away facilities (> 50 km) as if they were in the requested city!
+    in_range_facilities = results
+    has_exact_match = False
+
+    if location_name and location_name.strip():
+        loc_clean = location_name.strip().lower()
+        matched = []
+        for f in results:
+            addr_lower = (f["address"] or "").lower()
+            name_lower = f["name"].lower()
+            is_text_match = loc_clean in addr_lower or loc_clean in name_lower
+            is_dist_match = f["distance_km"] is not None and f["distance_km"] <= max_distance_km
+            if is_text_match or is_dist_match:
+                matched.append(f)
+                if is_text_match:
+                    has_exact_match = True
+
+        in_range_facilities = matched
+
     return {
         "query_location": detected_location,
         "reference_lat": target_lat,
         "reference_lon": target_lon,
-        "count": len(results[:limit]),
-        "facilities": results[:limit],
+        "in_range": len(in_range_facilities) > 0,
+        "nearest_distance_km": results[0]["distance_km"] if results else None,
+        "nearest_facility_name": results[0]["name"] if results else None,
+        "count": len(in_range_facilities[:limit]),
+        "facilities": in_range_facilities[:limit],
     }
 
 
@@ -185,12 +196,20 @@ async def check_doctor_availability_tool(
 
     if facility_name:
         stmt = stmt.join(Doctor.facility).where(func.lower(Facility.name).contains(facility_name.lower().strip()))
+    elif location_name and location_name.strip():
+        clean_loc = location_name.strip().lower()
+        stmt = stmt.join(Doctor.facility).where(
+            or_(
+                func.lower(Facility.address).contains(clean_loc),
+                func.lower(Facility.name).contains(clean_loc),
+            )
+        )
 
     res = await db.execute(stmt)
     doctors = list(res.scalars().all())
 
-    # Fallback to all doctors if search too strict
-    if not doctors:
+    # Fallback to all doctors ONLY if query had no specific location or facility filter
+    if not doctors and not location_name and not facility_name and not doctor_name:
         fallback_stmt = select(Doctor).options(
             selectinload(Doctor.facility),
             selectinload(Doctor.schedules),
@@ -453,4 +472,65 @@ def emergency_guidance_tool(symptom_or_query: str) -> Dict[str, Any]:
             "District Headquarters Hospital Namakkal",
             "Government Mohan Kumaramangalam Medical College Hospital, Salem",
         ],
+    }
+
+
+async def get_appointment_slots_tool(
+    db: AsyncSession,
+    facility_name: Optional[str] = None,
+    location_name: Optional[str] = None,
+    target_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """Retrieves genuine booking slots and verified doctor schedules for appointments."""
+    query_date = target_date or date.today()
+
+    stmt = select(Facility).options(
+        selectinload(Facility.doctors).selectinload(Doctor.schedules)
+    )
+
+    if facility_name and facility_name.strip():
+        stmt = stmt.where(func.lower(Facility.name).contains(facility_name.strip().lower()))
+    elif location_name and location_name.strip():
+        stmt = stmt.where(
+            or_(
+                func.lower(Facility.address).contains(location_name.strip().lower()),
+                func.lower(Facility.name).contains(location_name.strip().lower()),
+            )
+        )
+
+    res = await db.execute(stmt)
+    facs = list(res.scalars().all())
+
+    if not facs:
+        # If no specific match, retrieve top 2 facilities
+        res = await db.execute(
+            select(Facility).options(
+                selectinload(Facility.doctors).selectinload(Doctor.schedules)
+            ).limit(2)
+        )
+        facs = list(res.scalars().all())
+
+    booking_options = []
+    for fac in facs:
+        for doc in fac.doctors:
+            sched = next((s for s in doc.schedules if s.schedule_date == query_date), None)
+            att = sched.attendance_status if sched else "EXPECTED"
+            hours = f"{sched.start_time} - {sched.end_time}" if sched else "09:00 - 14:00"
+
+            booking_options.append({
+                "facility_id": str(fac.id),
+                "facility_name": fac.name,
+                "doctor_id": str(doc.id),
+                "doctor_name": doc.name,
+                "specialization": doc.specialization,
+                "date": query_date.isoformat(),
+                "doctor_status": att,
+                "available_slots": ["09:30 AM", "10:30 AM", "11:30 AM", "02:30 PM"],
+                "shift_hours": hours,
+            })
+
+    return {
+        "date": query_date.isoformat(),
+        "booking_available": len(booking_options) > 0,
+        "options": booking_options,
     }

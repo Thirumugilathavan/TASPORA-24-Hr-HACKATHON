@@ -132,12 +132,12 @@ export const DashboardPage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('open-carebridge-ai'))}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-nalam-ai'))}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md hover:shadow-lg transition-all border border-emerald-400/30 cursor-pointer"
           >
             <Bot className="w-4 h-4 text-emerald-100" />
             <Mic className="w-3.5 h-3.5 text-teal-200" />
-            Talk to CareBridge (AI Voice)
+            Talk to NALAM (AI Voice)
           </button>
           <button
             onClick={() => setIsRequestModalOpen(true)}
@@ -156,7 +156,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Prominent CareBridge Voice & Chatbot Banner */}
+      {/* Prominent NALAM Voice & Chatbot Banner */}
       <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-teal-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center shrink-0">
@@ -164,7 +164,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base tracking-wide">CareBridge Multilingual Voice Assistant</h3>
+              <h3 className="font-bold text-base tracking-wide">NALAM Multilingual Voice Assistant</h3>
               <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full">
                 Gnani.ai Voice Cloud
               </span>
@@ -175,11 +175,11 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-carebridge-ai'))}
+          onClick={() => window.dispatchEvent(new CustomEvent('open-nalam-ai'))}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all shrink-0 cursor-pointer"
         >
           <Mic className="w-4 h-4" />
-          Speak to CareBridge
+          Speak to NALAM
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -320,7 +320,7 @@ export const DashboardPage: React.FC = () => {
               <h2 className="text-sm font-bold text-slate-900">No Wasted Trips Policy</h2>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              CareBridge ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.
+              NALAM ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.
             </p>
             <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5 text-slate-600">
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">

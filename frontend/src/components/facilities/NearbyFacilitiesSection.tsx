@@ -57,7 +57,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
       setActiveLocation(currentPatient.village);
       setIsChangingLocation(false);
     } else {
-      const saved = sessionStorage.getItem('carebridge_active_village');
+      const saved = sessionStorage.getItem('nalam_active_village') || sessionStorage.getItem('carebridge_active_village');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -148,6 +148,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
       setUsingGps(false);
       setGpsCoords(null);
       setIsChangingLocation(false);
+      sessionStorage.setItem('nalam_active_village', JSON.stringify(village));
       sessionStorage.setItem('carebridge_active_village', JSON.stringify(village));
     }
   };

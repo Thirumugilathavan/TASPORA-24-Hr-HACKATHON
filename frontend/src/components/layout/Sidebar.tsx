@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <HeartHandshake className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-lg font-bold text-navy-900 tracking-tight">CareBridge</span>
+              <span className="text-lg font-bold text-navy-900 tracking-tight">NALAM</span>
               <span className="block text-[10px] uppercase font-semibold text-healthcare-700 tracking-wider">
                 Rural Healthcare
               </span>

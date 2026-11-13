@@ -61,7 +61,7 @@ class AIChatResponse(BaseModel):
     audio_duration: Optional[float] = Field(None, description="Audio duration in seconds")
     voice_provider: Optional[str] = Field(None, description="Voice provider name")
     disclaimer: str = (
-        "CareBridge provides accessibility and coordination information only. "
+        "NALAM provides accessibility and coordination information only. "
         "It does not provide clinical diagnosis, prescriptions, or dosage advice. "
         "For medical emergencies, call 108 immediately."
     )

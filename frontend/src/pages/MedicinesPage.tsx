@@ -86,7 +86,7 @@ export const MedicinesPage: React.FC = () => {
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-900 text-xs flex items-start gap-3">
         <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong>Bayesian Stock Estimation:</strong> CareBridge computes medicine availability probabilities
+          <strong>Bayesian Stock Estimation:</strong> NALAM computes medicine availability probabilities
           combining physical dispensary reports, facility stock audits, and ASHA refill logs.
           Status tags indicate <strong>Likely (p &ge; 0.65)</strong>, <strong>Uncertain (0.35 &lt; p &lt; 0.65)</strong>, or{' '}
           <strong>Unlikely (p &le; 0.35)</strong> in stock.

@@ -12,7 +12,7 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${config.apiBaseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('carebridge_token') : null;
+  const token = typeof window !== 'undefined' ? (localStorage.getItem('nalam_token') || localStorage.getItem('carebridge_token')) : null;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

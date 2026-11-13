@@ -11,7 +11,7 @@ let mockRequestsState = [...MOCK_REQUESTS];
 function getStoredRequestIds(): string[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem('carebridge_my_request_ids');
+    const raw = localStorage.getItem('nalam_my_request_ids') || localStorage.getItem('carebridge_my_request_ids');
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -24,6 +24,7 @@ function saveRequestId(id: string) {
     const ids = getStoredRequestIds();
     if (!ids.includes(id)) {
       ids.unshift(id);
+      localStorage.setItem('nalam_my_request_ids', JSON.stringify(ids.slice(0, 50)));
       localStorage.setItem('carebridge_my_request_ids', JSON.stringify(ids.slice(0, 50)));
     }
   } catch {
@@ -108,7 +109,7 @@ export const requestService = {
             failure_probability: 0.12,
             expected_loss: 4,
             doctor_status: 'PRESENT',
-            explanation: 'Automated CareBridge recommendation: Balanced proximity with verified staff attendance and high medicine stock.',
+            explanation: 'Automated NALAM recommendation: Balanced proximity with verified staff attendance and high medicine stock.',
           },
           {
             rank: 2,

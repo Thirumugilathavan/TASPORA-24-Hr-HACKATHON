@@ -4,7 +4,9 @@ const envMock = import.meta.env?.VITE_MOCK_MODE;
 const defaultMockMode = envMock === 'true';
 
 // Allow runtime override via localStorage for demo flexibility
-const storedMockOverride = typeof window !== 'undefined' ? localStorage.getItem('carebridge_mock_mode') : null;
+const storedMockOverride = typeof window !== 'undefined'
+  ? (localStorage.getItem('nalam_mock_mode') || localStorage.getItem('carebridge_mock_mode'))
+  : null;
 
 /**
  * Determine API base URL:
@@ -37,6 +39,7 @@ export const config = {
   apiBaseUrl: getApiBaseUrl(),
   isMockMode: storedMockOverride !== null ? storedMockOverride === 'true' : defaultMockMode,
   setMockMode: (enabled: boolean) => {
+    localStorage.setItem('nalam_mock_mode', enabled ? 'true' : 'false');
     localStorage.setItem('carebridge_mock_mode', enabled ? 'true' : 'false');
     window.location.reload();
   },

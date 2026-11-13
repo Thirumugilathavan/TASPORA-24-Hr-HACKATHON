@@ -2,7 +2,7 @@ export type LanguageCode = 'en' | 'ta' | 'hi' | 'te' | 'bn';
 
 export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   en: {
-    appName: 'CareBridge',
+    appName: 'NALAM',
     tagline: 'No Wasted Trips. Better Access. Continuous Care.',
     taglineSub: 'AI-Powered Rural Healthcare Accessibility and Coordination Platform',
     
@@ -69,7 +69,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     emergencyNotice: 'Emergency Warning: For life-threatening symptoms, immediately dial 108 or reach the nearest emergency hospital.',
     distanceNotice: 'Distance Note: All calculated distances represent straight-line Haversine geodesic estimates. Rural road transit distances and times may be greater.',
     demoNotice: 'Notice: Operating in evaluation mode. All facility, doctor, inventory, and logistics records are simulated for hackathon demonstration.',
-    medicalSafety: 'Medical Safety: CareBridge is an accessibility and logistics coordination platform, not a diagnostic engine. No prescription, dosage, or medical advice is provided.',
+    medicalSafety: 'Medical Safety: NALAM is an accessibility and logistics coordination platform, not a diagnostic engine. No prescription, dosage, or medical advice is provided.',
     consentRequired: 'Clinical Consent: Explicit consent is required to share demographic and medical records with healthcare workers.',
     
     // Form fields
@@ -83,9 +83,9 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     grantConsent: 'I give consent to securely store my profile for healthcare coordination',
 
     // AI Assistant
-    aiTitle: 'CareBridge AI Voice Assistant',
+    aiTitle: 'NALAM AI Voice Assistant',
     aiSubtitle: 'No Wasted Trips • Multilingual Speech & Closed-Loop Tools',
-    aiWelcome: 'Hello! I am your CareBridge AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), verify doctor duty attendance, check medicine stock, or explain loss-minimizing recommendations. You can type or use the microphone to speak!',
+    aiWelcome: 'Hello! I am your NALAM AI Healthcare Assistant. Ask me to find nearby Primary Health Centres (PHC), verify doctor duty attendance, check medicine stock, or explain loss-minimizing recommendations. You can type or use the microphone to speak!',
     aiSuggestions: 'Suggestions:',
     aiInputPlaceholder: 'Type or speak: "Find a PHC near Tiruchengode", "Paracetamol stock"...',
     aiSendButton: 'Send message',
@@ -95,7 +95,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     aiPause: 'Pause',
     aiSynthesizing: 'Synthesizing...',
     aiLoading: 'Executing database tools, verifying doctor attendance & inventory...',
-    aiDisclaimer: 'CareBridge provides logistical coordination only. Does not provide clinical diagnosis or prescriptions. For medical emergencies, call 108 immediately.',
+    aiDisclaimer: 'NALAM provides logistical coordination only. Does not provide clinical diagnosis or prescriptions. For medical emergencies, call 108 immediately.',
     aiSpeech_requesting: 'Requesting microphone access...',
     aiSpeech_processing: 'Transcribing speech via Gnani.ai Prisma STT...',
     aiSpeech_ready: 'Speech recognized! You can review or edit text below.',
@@ -117,7 +117,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   
   ta: {
-    appName: 'கேர்பிரிட்ஜ் (CareBridge)',
+    appName: 'நலம் (NALAM)',
     tagline: 'வீணான பயணங்கள் இல்லை. சிறந்த அணுகல். தொடர் பராமரிப்பு.',
     taglineSub: 'கிராமப்புற சுகாதார அணுகல் மற்றும் வழிகாட்டுதல் தளம்',
     
@@ -184,7 +184,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     emergencyNotice: 'அவசர எச்சரிக்கை: உயிருக்கு ஆபத்தான அவசர நிலைகளுக்கு உடனடியாக 108 என்ற எண்ணை அழைக்கவும் அல்லது அவசர சிகிச்சை மையத்தை அணுகவும்.',
     distanceNotice: 'தொலைவு குறிப்பு: அனைத்து தூரங்களும் நேர்கோட்டு தோராய தூரமாகும். கிராமப்புற சாலைப் பயண தூரம் மற்றும் நேரம் அதிகமாக இருக்கலாம்.',
     demoNotice: 'அறிவிப்பு: மாதிரி மதிப்பீட்டு முறையில் இயங்குகிறது. அனைத்து வசதிகள், மருத்துவர்கள் மற்றும் இருப்புத் தகவல்கள் மாதிரி மதிப்பீட்டிற்கானவை.',
-    medicalSafety: 'மருத்துவ பாதுகாப்பு: கேர்பிரிட்ஜ் ஒரு சுகாதார அணுகல் மற்றும் ஒருங்கிணைப்பு தளம் மட்டுமே; மருத்துவ சிகிச்சை இயந்திரம் அல்ல. மருந்து பரிந்துரைகள் அல்லது மருந்தளவுகள் வழங்கப்படாது.',
+    medicalSafety: 'மருத்துவ பாதுகாப்பு: நலம் ஒரு சுகாதார அணுகல் மற்றும் ஒருங்கிணைப்பு தளம் மட்டுமே; மருத்துவ சிகிச்சை இயந்திரம் அல்ல. மருந்து பரிந்துரைகள் அல்லது மருந்தளவுகள் வழங்கப்படாது.',
     consentRequired: 'சுகாதார ஒப்புதல்: சுகாதாரப் பணியாளர்களுடன் உங்கள் சுயவிவரத்தைப் பகிர வெளிப்படையான ஒப்புதல் தேவை.',
     
     // Form fields
@@ -198,9 +198,9 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     grantConsent: 'சுகாதார ஒருங்கிணைப்பிற்காக எனது சுயவிவரத்தைப் பயன்படுத்த ஒப்புதல் அளிக்கிறேன்',
 
     // AI Assistant
-    aiTitle: 'கேர்பிரிட்ஜ் AI குரல் உதவியாளர்',
+    aiTitle: 'நலம் AI குரல் உதவியாளர்',
     aiSubtitle: 'வீண் பயணங்களைத் தவிர்ப்போம் • நேரடித் தகவல் மற்றும் குரல் வழி',
-    aiWelcome: 'வணக்கம்! நான் கேர்பிரிட்ஜ் (CareBridge) AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் வருகை, மருந்து இருப்பு மற்றும் அவசர சிகிச்சை தகவல்களை என்னிடம் தட்டச்சு செய்தோ அல்லது மைக்ரோஃபோன் மூலம் பேசியோ கேட்கலாம்.',
+    aiWelcome: 'வணக்கம்! நான் நலம் (NALAM) AI நல்வாழ்வு உதவியாளர். அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC), மருத்துவர் வருகை, மருந்து இருப்பு மற்றும் அவசர சிகிச்சை தகவல்களை என்னிடம் தட்டச்சு செய்தோ அல்லது மைக்ரோஃபோன் மூலம் பேசியோ கேட்கலாம்.',
     aiSuggestions: 'வினாக்கள்:',
     aiInputPlaceholder: 'தட்டச்சு செய்யவும் அல்லது மைக்கை அழுத்தி பேசவும்: "திருச்செங்கோடு அருகே உள்ள PHC எங்கே?"...',
     aiSendButton: 'அனுப்பு',
@@ -209,8 +209,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     aiListen: 'கேளுங்கள்',
     aiPause: 'நிறுத்து',
     aiSynthesizing: 'குரல் உருவாக்குகிறது...',
-    aiLoading: 'கேர்பிரிட்ஜ் தரவுத்தளத்தில் மருத்துவமனை மற்றும் மருத்துவர் வருகையை சரிபார்க்கிறது...',
-    aiDisclaimer: 'கேர்பிரிட்ஜ் வழிகாட்டுதல் தகவல் மட்டுமே. இது மருத்துவ நோயறிதல் அல்லது மருந்துச் சீட்டுகளை வழங்காது. அவசர நிலைக்கு 108 அழைக்கவும்.',
+    aiLoading: 'நலம் தரவுத்தளத்தில் மருத்துவமனை மற்றும் மருத்துவர் வருகையை சரிபார்க்கிறது...',
+    aiDisclaimer: 'நலம் வழிகாட்டுதல் தகவல் மட்டுமே. இது மருத்துவ நோயறிதல் அல்லது மருந்துச் சீட்டுகளை வழங்காது. அவசர நிலைக்கு 108 அழைக்கவும்.',
     aiSpeech_requesting: 'மைக்ரோஃபோன் அனுமதி கோருகிறது...',
     aiSpeech_processing: 'Gnani Prisma STT மூலம் குரலை உரையாக மாற்றுகிறது...',
     aiSpeech_ready: 'குரல் அடையாளம் காணப்பட்டது! கீழே சரிபார்க்கலாம்.',
@@ -232,7 +232,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   
   hi: {
-    appName: 'केयरब्रिज (CareBridge)',
+    appName: 'NALAM (नलम)',
     tagline: 'कोई व्यर्थ यात्रा नहीं। बेहतर पहुँच। निरंतर देखभाल।',
     taglineSub: 'ग्रामीण स्वास्थ्य सेवा सुलभता एवं समन्वय मंच',
     navDashboard: 'डैशबोर्ड',
@@ -294,7 +294,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   
   te: {
-    appName: 'కేర్‌బ్రిడ్జ్ (CareBridge)',
+    appName: 'NALAM (నలం)',
     tagline: 'వృధా ప్రయాణాలు లేవు. మెరుగైన ప్రాప్యత. నిరంతర సంరక్షణ.',
     taglineSub: 'గ్రామీణ ఆరోగ్య సంరక్షణ సమన్వయ వేదిక',
     navDashboard: 'డాష్‌బోర్డ్',
@@ -356,7 +356,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   
   bn: {
-    appName: 'কেয়ারব্রিজ (CareBridge)',
+    appName: 'NALAM (নলম)',
     tagline: 'অপ্রয়োজনীয় যাত্রা নয়। উন্নত প্রবেশাধিকার। অবিচ্ছিন্ন সেবা।',
     taglineSub: 'গ্রামীণ স্বাস্থ্যসেবা সমন্বয় প্ল্যাটফর্ম',
     navDashboard: 'ড্যাশবোর্ড',

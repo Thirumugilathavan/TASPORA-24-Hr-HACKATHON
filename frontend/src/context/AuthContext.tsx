@@ -37,9 +37,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const initAuth = async () => {
-    const token = localStorage.getItem('carebridge_token');
-    const storedUser = localStorage.getItem('carebridge_user');
-    const storedPatient = localStorage.getItem('carebridge_patient');
+    const token = localStorage.getItem('nalam_token') || localStorage.getItem('carebridge_token');
+    const storedUser = localStorage.getItem('nalam_user') || localStorage.getItem('carebridge_user');
+    const storedPatient = localStorage.getItem('nalam_patient') || localStorage.getItem('carebridge_patient');
 
     if (token && storedUser) {
       try {
@@ -60,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const freshPatient = await patientService.getPatient(parsedUser.id);
             if (freshPatient) {
               setPatient(freshPatient);
+              localStorage.setItem('nalam_patient', JSON.stringify(freshPatient));
               localStorage.setItem('carebridge_patient', JSON.stringify(freshPatient));
             }
           } catch {
@@ -94,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: loginRes.role,
       };
       setUser(loggedUser);
+      localStorage.setItem('nalam_user', JSON.stringify(loggedUser));
       localStorage.setItem('carebridge_user', JSON.stringify(loggedUser));
 
       // Resolve patient profile using user_id
@@ -103,10 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // If patient profile returns full name, update user object
           if (patientData.name) {
             loggedUser.name = patientData.name;
+            localStorage.setItem('nalam_user', JSON.stringify(loggedUser));
             localStorage.setItem('carebridge_user', JSON.stringify(loggedUser));
             setUser({ ...loggedUser });
           }
           setPatient(patientData);
+          localStorage.setItem('nalam_patient', JSON.stringify(patientData));
           localStorage.setItem('carebridge_patient', JSON.stringify(patientData));
         }
       } catch (err) {
@@ -146,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: regRes.role || 'PATIENT',
       };
       setUser(newUser);
+      localStorage.setItem('nalam_user', JSON.stringify(newUser));
       localStorage.setItem('carebridge_user', JSON.stringify(newUser));
 
       // 3. Establish canonical Patient profile linked to village
@@ -162,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const fullPatient = await patientService.getPatient(newUser.id);
         if (fullPatient) {
           setPatient(fullPatient);
+          localStorage.setItem('nalam_patient', JSON.stringify(fullPatient));
           localStorage.setItem('carebridge_patient', JSON.stringify(fullPatient));
         }
       } catch (err) {
@@ -180,8 +186,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Backend login for demo user failed, using local profile:', e);
       setUser(MOCK_USER);
       setPatient(MOCK_PATIENT);
+      localStorage.setItem('nalam_user', JSON.stringify(MOCK_USER));
       localStorage.setItem('carebridge_user', JSON.stringify(MOCK_USER));
+      localStorage.setItem('nalam_patient', JSON.stringify(MOCK_PATIENT));
       localStorage.setItem('carebridge_patient', JSON.stringify(MOCK_PATIENT));
+      localStorage.setItem('nalam_token', 'demo-patient-token-session');
       localStorage.setItem('carebridge_token', 'demo-patient-token-session');
     } finally {
       setIsLoading(false);
@@ -198,8 +207,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (patient) {
       const updated = { ...patient, preferred_language: lang };
       setPatient(updated);
+      localStorage.setItem('nalam_patient', JSON.stringify(updated));
       localStorage.setItem('carebridge_patient', JSON.stringify(updated));
     }
+    localStorage.setItem('nalam_language', lang);
     localStorage.setItem('carebridge_language', lang);
   };
 
@@ -209,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const fresh = await patientService.getPatient(user.id);
         if (fresh) {
           setPatient(fresh);
+          localStorage.setItem('nalam_patient', JSON.stringify(fresh));
           localStorage.setItem('carebridge_patient', JSON.stringify(fresh));
         }
       } catch (err) {

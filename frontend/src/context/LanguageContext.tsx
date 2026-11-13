@@ -12,17 +12,18 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<LanguageCode>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('carebridge_language');
+      const stored = localStorage.getItem('nalam_language') || localStorage.getItem('carebridge_language');
       if (stored && (stored === 'en' || stored === 'ta' || stored === 'hi' || stored === 'te' || stored === 'bn')) {
         return stored as LanguageCode;
       }
     }
-    return 'ta'; // Tamil default for CareBridge Tamil Nadu platform context
+    return 'ta'; // Tamil default for NALAM Tamil Nadu platform context
   });
 
   const setLanguage = (lang: LanguageCode) => {
     setLanguageState(lang);
     if (typeof window !== 'undefined') {
+      localStorage.setItem('nalam_language', lang);
       localStorage.setItem('carebridge_language', lang);
     }
   };
