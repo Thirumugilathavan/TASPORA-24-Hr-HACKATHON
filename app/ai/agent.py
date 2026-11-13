@@ -127,6 +127,126 @@ class NalamAIAgent:
         from app.ai.intent_classifier import extract_medicine_entity
         return extract_medicine_entity(text)
 
+    def _build_symptom_guidance(self, symptom: str, lang: str, message: str) -> str:
+        """Builds comprehensive, medically responsible symptom guidance."""
+        lowered = message.lower()
+        is_child = any(w in lowered for w in ["child", "baby", "infant", "குழந்தை", "சிசு", "பிள்ளை", "kid", "toddler"])
+        is_breathing = any(w in lowered for w in ["breathing", "breathe", "மூச்சு", "மூச்சுத்திணறல்"])
+        is_severe_pain = any(w in lowered for w in ["severe", "கடுமையான", "தீவிர", "unbearable"])
+
+        if symptom == "fever":
+            if lang == "ta":
+                text = (
+                    "**காய்ச்சல் — முதலுதவி வழிகாட்டுதல்:**\n\n"
+                    "நீங்கள் உடல்நலமின்றி இருப்பதாகத் தெரிகிறது. இது ஒரு பொதுவான வழிகாட்டுதல், மருத்துவ ஆலோசனை அல்ல.\n\n"
+                    "**உடனடி நடவடிக்கைகள்:**\n"
+                    "1. 🌡️ **வெப்பநிலை அளவிடுங்கள்** — தெர்மாமீட்டர் கொண்டு உடல் வெப்பநிலையை சரிபார்க்கவும்.\n"
+                    "2. 🛌 **ஓய்வு எடுங்கள்** — கடினமான வேலைகளைத் தவிர்த்து போதுமான ஓய்வு எடுங்கள்.\n"
+                    "3. 💧 **நிறைய நீர் பருகுங்கள்** — தண்ணீர், இளநீர், கஞ்சி அல்லது ORS கரைசல் பருகுங்கள். நீரிழப்பைத் தவிர்க்கவும்.\n"
+                    "4. 👕 **லேசான ஆடை அணியுங்கள்** — அதிக போர்வைகள் தவிர்க்கவும்.\n"
+                    "5. 🚿 **வெதுவெதுப்பான ஈரத் துணியால்** நெற்றி, கழுத்தில் ஒத்தடம் கொடுக்கலாம். குளிர்ந்த நீர் அல்லது ஆல்கஹால் தவிர்க்கவும்.\n"
+                    "6. 📊 **சிறுநீர் அளவை கவனியுங்கள்** — குறைவான சிறுநீர் நீரிழப்பின் அறிகுறி.\n\n"
+                )
+                if is_child:
+                    text += (
+                        "👶 **குழந்தைகளுக்கு முக்கிய எச்சரிக்கை:**\n"
+                        "- 3 மாதத்திற்குக் குறைவான குழந்தைக்கு காய்ச்சல் இருந்தால் **உடனடியாக மருத்துவரை அணுகுங்கள்**.\n"
+                        "- குழந்தைகளுக்கு ஆஸ்பிரின் கொடுக்க வேண்டாம்.\n"
+                        "- எடையின் அடிப்படையில் மருந்தளவை மருத்துவர் தீர்மானிக்க வேண்டும்.\n\n"
+                    )
+                text += (
+                    "⚠️ **உடனடியாக மருத்துவரை அணுக வேண்டிய அபாய அறிகுறிகள்:**\n"
+                    "- மூச்சுத்திணறல் அல்லது நெஞ்சு வலி\n"
+                    "- குழப்பம் அல்லது மயக்கம்\n"
+                    "- வலிப்பு\n"
+                    "- கடுமையான நீரிழப்பு (நீர் அருந்த இயலாமை, தொடர் வாந்தி)\n"
+                    "- அசாதாரண இரத்தப்போக்கு\n"
+                    "- கடுமையான தலைவலி + பிடரி விறைப்பு\n"
+                    "- காய்ச்சல் 3 நாட்களுக்கு மேல் நீடித்தால்\n\n"
+                    "🦟 **டெங்கு / மலேரியா விழிப்புணர்வு:**\n"
+                    "காய்ச்சலுக்கு பல காரணங்கள் இருக்கலாம். டெங்கு அல்லது மலேரியா சந்தேகம் இருந்தால் ஆஸ்பிரின் / இப்யூபுரோஃபன் தவிர்த்து, "
+                    "இரத்தப் பரிசோதனை செய்துகொள்ளுங்கள்.\n\n"
+                    "💊 **மருந்து பாதுகாப்பு:**\n"
+                    "- பாராசிட்டமால் பொதுவாக பாதுகாப்பானது, ஆனால் அளவு வயது, எடை மற்றும் உடல்நிலையைப் பொறுத்தது.\n"
+                    "- மருத்துவர் பரிந்துரை இன்றி ஆன்டிபயாடிக் எடுக்க வேண்டாம்.\n"
+                    "- ஒரே நேரத்தில் பாராசிட்டமால் கொண்ட பல மருந்துகள் எடுக்க வேண்டாம்.\n\n"
+                    "அவசர உதவிக்கு **108** அழைக்கவும்.\n\n"
+                    "---\n*இது பொது வழிகாட்டுதல் மட்டுமே, மருத்துவ ஆலோசனை அல்ல. (ஆதாரம்: MoHFW India, NHM, WHO)*\n\n"
+                    "உங்கள் வெப்பநிலை என்ன? எத்தனை நாட்கள் காய்ச்சல் இருக்கிறது?"
+                )
+            else:
+                text = (
+                    "**Fever — General First-Aid Guidance:**\n\n"
+                    "I'm sorry you're feeling unwell. This is general guidance, not a medical diagnosis or prescription.\n\n"
+                    "**Immediate Steps:**\n"
+                    "1. 🌡️ **Check your temperature** using a thermometer.\n"
+                    "2. 🛌 **Rest** and avoid strenuous activity.\n"
+                    "3. 💧 **Drink adequate fluids** — water, coconut water, clear broths, or ORS solution. Monitor for dehydration.\n"
+                    "4. 👕 **Wear light, comfortable clothing.** Avoid excessive blankets.\n"
+                    "5. 🚿 **Lukewarm sponge** on forehead and neck for comfort. Avoid cold baths or alcohol rubs.\n"
+                    "6. 📊 **Monitor urine output** — reduced output may indicate dehydration.\n\n"
+                )
+                if is_child:
+                    text += (
+                        "👶 **Important — Children:**\n"
+                        "- Fever in infants **younger than 3 months** requires **urgent medical assessment**.\n"
+                        "- Do not give aspirin to children unless prescribed.\n"
+                        "- Dosage must be weight-based; consult a clinician or pharmacist.\n\n"
+                    )
+                text += (
+                    "⚠️ **Danger Signs — Seek Immediate Medical Help If:**\n"
+                    "- Difficulty breathing or chest pain\n"
+                    "- Confusion or reduced consciousness\n"
+                    "- Seizures\n"
+                    "- Severe dehydration (inability to drink, repeated vomiting)\n"
+                    "- Unusual bleeding\n"
+                    "- Severe headache with neck stiffness\n"
+                    "- Fever persisting more than 3 days\n"
+                    "- Rapidly worsening condition\n\n"
+                    "🦟 **Dengue & Malaria Awareness:**\n"
+                    "Fever can have many causes. If dengue or malaria is suspected, avoid aspirin/ibuprofen and get a blood test. "
+                    "Do not self-medicate — seek clinical assessment.\n\n"
+                    "💊 **Medication Safety:**\n"
+                    "- Paracetamol is generally suitable, but dosage depends on age, weight, liver health, and other medicines.\n"
+                    "- Do not self-prescribe antibiotics for routine fever.\n"
+                    "- Avoid taking multiple products containing paracetamol simultaneously.\n"
+                    "- When in doubt, consult a clinician or pharmacist.\n\n"
+                    "For emergencies, call **108**.\n\n"
+                    "---\n*This is general guidance only, not a diagnosis or prescription. (Sources: MoHFW India, NHM, WHO, NHS)*\n\n"
+                    "Can you tell me your measured temperature and how many days you have had fever?"
+                )
+            return text
+
+        # General symptom guidance for non-fever symptoms
+        if lang == "ta":
+            return (
+                "**நல்வாழ்வு முதலுதவி & கவனிப்பு வழிகாட்டுதல்:**\n\n"
+                "1. **ஓய்வு மற்றும் நீரேற்றம்:** போதுமான அளவு நீர், கஞ்சி அல்லது ORS பருகி உடலை நீரேற்றமாக வைத்திருங்கள்.\n"
+                "2. **அறிகுறிகளை கவனியுங்கள்:** வெப்பநிலை, வலி, மூச்சு சிரமம் போன்றவற்றை தொடர்ந்து கண்காணியுங்கள்.\n"
+                "3. **சுய மருத்துவம் தவிர்க்கவும்:** மருத்துவர் பரிந்துரை இன்றி ஆன்டிபயாடிக் அல்லது வலி நிவாரணிகளை உட்கொள்ளாதீர்கள்.\n\n"
+                "⚠️ **எப்போது உடனடியாக மருத்துவரை அணுக வேண்டும்?**\n"
+                "- காய்ச்சல் 3 நாட்களுக்கு மேல் நீடித்தால்\n"
+                "- மூச்சுத்திணறல், நெஞ்சு வலி அல்லது தொடர் வாந்தி\n"
+                "- மயக்கம், வலிப்பு அல்லது தீவிர உடல் சோர்வு\n"
+                "- கடுமையான வயிற்று வலி அல்லது அசாதாரண இரத்தப்போக்கு\n\n"
+                "*அருகிலுள்ள அரசு ஆரம்ப சுகாதார நிலையத்தில் (PHC) பரிசோதித்துக் கொள்ளவும். அவசர உதவிக்கு 108 அழைக்கவும்.*\n\n"
+                "---\n*பொது வழிகாட்டுதல் மட்டுமே, மருத்துவ ஆலோசனை அல்ல. (ஆதாரம்: MoHFW India, NHM, WHO)*"
+            )
+        else:
+            return (
+                "**Symptom Guidance & Supportive First-Aid:**\n\n"
+                "1. **Rest & Hydration:** Drink plenty of fluids (boiled water, clear broths, or ORS solution).\n"
+                "2. **Monitor Symptoms:** Track temperature, pain levels, and breathing regularly.\n"
+                "3. **Avoid Self-Medication:** Do not self-prescribe antibiotics or unverified drugs.\n\n"
+                "⚠️ **Seek Immediate Medical Attention If:**\n"
+                "- Fever lasting more than 3 days\n"
+                "- Difficulty breathing, chest pain, or severe persistent vomiting\n"
+                "- Confusion, seizures, or extreme weakness\n"
+                "- Severe abdominal pain or unusual bleeding\n\n"
+                "*Please consult a medical officer at your nearest Primary Health Centre. Call 108 for emergencies.*\n\n"
+                "---\n*General guidance only, not a diagnosis or prescription. (Sources: MoHFW India, NHM, WHO, NHS)*"
+            )
+
     async def execute_turn(
         self,
         request: AIChatRequest,
@@ -249,33 +369,11 @@ class NalamAIAgent:
             )
 
         # -------------------------------------------------------------
-        # BRANCH 3: SYMPTOM GUIDANCE (SAFE FIRST-AID & MONITORING)
+        # BRANCH 3: SYMPTOM GUIDANCE (COMPREHENSIVE, MEDICALLY RESPONSIBLE)
         # -------------------------------------------------------------
         if classification.intent == IntentType.SYMPTOM_GUIDANCE:
-            if lang == "ta":
-                guidance_text = (
-                    "**நல்வாழ்வு முதலுதவி & கவனிப்பு வழிகாட்டுதல்:**\n\n"
-                    "1. **ஓய்வு மற்றும் நீரேற்றம்:** போதுமான அளவு நீர், கஞ்சி அல்லது ஓஆர்எஸ் (ORS) பருகி உடலை நீரேற்றமாக வைத்திருங்கள்.\n"
-                    "2. **வெப்பநிலை கண்காணிப்பு:** உடல் வெப்பநிலையை குறிப்பிட்ட இடைவெளியில் அளவிடுங்கள்.\n"
-                    "3. **சுய மருத்துவம் தவிர்க்கவும்:** மருத்துவர் பரிந்துரை இன்றி உயர் டோஸ் ஆன்டிபயாடிக் அல்லது மருந்துகளை உட்கொள்ளாதீர்கள்.\n\n"
-                    "⚠️ **எப்போது உடனடியாக மருத்துவரை அணுக வேண்டும்?**\n"
-                    "- காய்ச்சல் 3 நாட்களுக்கு மேல் நீடித்தால்\n"
-                    "- மூச்சுத்திணறல், அதிக நெஞ்சு வலி அல்லது தொடர் வாந்தி ஏற்பட்டால்\n"
-                    "- மயக்கம் அல்லது தீவிர உடல் சோர்வு இருந்தால்\n\n"
-                    "*அருகிலுள்ள அரசு ஆரம்ப சுகாதார நிலையத்தில் (PHC) பொது மருத்துவரை அணுகி பரிசோதித்துக் கொள்ளவும். அவசர உதவிக்கு 108 அழைக்கவும்.*"
-                )
-            else:
-                guidance_text = (
-                    "**Symptom Guidance & Supportive First-Aid:**\n\n"
-                    "1. **Rest & Hydration:** Drink plenty of fluids (boiled water, clear broths, or ORS solution) to maintain electrolyte balance.\n"
-                    "2. **Monitor Temperature:** Regularly check body temperature using a clinical thermometer.\n"
-                    "3. **Avoid Self-Medication:** Do not self-prescribe antibiotics or unverified drugs.\n\n"
-                    "⚠️ **When to seek immediate medical attention:**\n"
-                    "- High fever lasting more than 3 days\n"
-                    "- Difficulty breathing, chest tightness, or severe persistent vomiting\n"
-                    "- Extreme weakness, confusion, or dehydration\n\n"
-                    "*Please consult a licensed medical officer at your nearest Primary Health Centre for evaluation. Call 108 for medical emergencies.*"
-                )
+            symptom = classification.extracted_symptom or "general"
+            guidance_text = self._build_symptom_guidance(symptom, lang, message)
 
             session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, guidance_text)
             return await self._build_response(
@@ -286,6 +384,89 @@ class NalamAIAgent:
                 tools_called=tools_called,
                 cards=[],
                 action_taken="PROVIDE_SYMPTOM_GUIDANCE",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 3B: SYMPTOM + FACILITY COMBINED
+        # -------------------------------------------------------------
+        if classification.intent == IntentType.SYMPTOM_WITH_FACILITY:
+            symptom = classification.extracted_symptom or "general"
+            guidance_text = self._build_symptom_guidance(symptom, lang, message)
+
+            # Also search for facilities
+            loc = classification.extracted_location or session.active_location
+            fac_type = classification.extracted_facility_type
+            own = classification.entities.get("ownership")
+
+            if loc:
+                tools_called.append("search_facilities_tool")
+                fac_data = await search_facilities_tool(
+                    db,
+                    location_name=loc,
+                    facility_type=fac_type,
+                    ownership=own,
+                    limit=3,
+                )
+                matched = fac_data.get("facilities", [])
+                sub_loc = fac_data.get("query_sub_locality")
+
+                if matched:
+                    loc_label = sub_loc or loc
+                    if lang == "ta":
+                        guidance_text += f"\n\n---\n\n**{loc_label} பகுதியில் உள்ள மருத்துவமனைகள்:**\n"
+                    else:
+                        guidance_text += f"\n\n---\n\n**Verified Healthcare Facilities in {loc_label}:**\n"
+
+                    for f in matched:
+                        f_locality = f.get("locality") or f.get("block") or f.get("district") or ""
+                        phone = f.get("official_phone") or f.get("emergency_contact")
+                        method = f.get("appointment_booking_method", "WALK_IN_ONLY")
+                        hours = f.get("opening_hours") or ""
+
+                        if lang == "ta":
+                            booking_desc = "நேரடி OPD பதிவு" if method == "WALK_IN_ONLY" else f"இணைய முன்பதிவு: {f.get('online_booking_url', '')}"
+                            guidance_text += (
+                                f"- **{f['name']}** ({f.get('ownership', '')}) — {f_locality}\n"
+                                f"  - முகவரி: {f['address']}\n"
+                                f"  - தொலைபேசி: {phone or 'பட்டியலிடப்படவில்லை'}\n"
+                                f"  - நேரம்: {hours}\n"
+                                f"  - முன்பதிவு: {booking_desc}\n"
+                            )
+                        else:
+                            booking_desc = "Walk-in OPD registration" if method == "WALK_IN_ONLY" else f"Online: {f.get('online_booking_url', '')}"
+                            guidance_text += (
+                                f"- **{f['name']}** ({f.get('ownership', '')}) — {f_locality}\n"
+                                f"  - Address: {f['address']}\n"
+                                f"  - Phone: {phone or 'Not listed'}\n"
+                                f"  - Hours: {hours}\n"
+                                f"  - Booking: {booking_desc}\n"
+                            )
+
+                        cards.append(AIChatCard(
+                            type=CardType.FACILITY,
+                            title=f["name"],
+                            subtitle=f"{f.get('ownership', '')} • {f_locality}",
+                            badge="24x7 EMERGENCY" if f.get("emergency_services") else f["facility_type"],
+                            badge_color="red" if f.get("emergency_services") else "blue",
+                            details={"address": f["address"], "phone": phone or "Not listed", "hours": hours},
+                            action={"label": f"Call {phone}", "type": "CALL", "target": phone} if phone else {"label": "Walk-in OPD", "type": "INFO"},
+                        ))
+                else:
+                    if lang == "ta":
+                        guidance_text += f"\n\n---\n\n**{sub_loc or loc} பகுதியில் சரிபார்க்கப்பட்ட மருத்துவமனை தகவல்கள் நலம் தரவுத்தளத்தில் இல்லை.** அவசர உதவிக்கு **108** அழைக்கவும்."
+                    else:
+                        guidance_text += f"\n\n---\n\n**No verified facility records found for {sub_loc or loc} in the NALAM database.** For emergencies, call **108**."
+
+            session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, guidance_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=guidance_text,
+                language=lang,
+                intent="SYMPTOM_WITH_FACILITY",
+                tools_called=tools_called,
+                cards=cards,
+                action_taken="PROVIDE_SYMPTOM_GUIDANCE_WITH_FACILITIES",
                 request=request,
             )
 
@@ -782,38 +963,47 @@ class NalamAIAgent:
 
         matched_facilities = fac_data.get("facilities", [])
         in_range = fac_data.get("in_range", len(matched_facilities) > 0)
+        sub_locality = fac_data.get("query_sub_locality")
         lines = []
 
         if not in_range or not matched_facilities:
-            nearest_km = fac_data.get("nearest_distance_km")
             nearest_name = fac_data.get("nearest_facility_name")
+            display_loc = sub_locality or loc or "the requested location"
 
             if lang == "ta":
                 lines.append(
-                    f"**{loc or 'கோரப்பட்ட'} பகுதியில் உங்கள் அளவுகோல்களுக்குப் பொருந்தக்கூடிய சரிபார்க்கப்பட்ட மருத்துவமனைகள் நலம் தரவுத்தளத்தில் இல்லை.**\n\n"
+                    f"**{display_loc} பகுதியில் உங்கள் அளவுகோல்களுக்குப் பொருந்தக்கூடிய சரிபார்க்கப்பட்ட மருத்துவமனைகள் நலம் தரவுத்தளத்தில் இல்லை.**\n\n"
                     "நலம் தளம் உண்மைத் தரவுகளை மட்டுமே காட்டுகிறது; கற்பனையான தகவல்களை உருவாக்காது.\n"
                 )
-                if nearest_km and nearest_name:
+                if nearest_name:
                     lines.append(
-                        f"நலம் நெட்வொர்க்கில் மிக அருகிலுள்ள சுகாதார மையம்: **{nearest_name}** (~{nearest_km} கி.மீ தொலைவில் உள்ளது).\n"
+                        f"நலம் நெட்வொர்க்கில் மிக அருகிலுள்ள சுகாதார மையம்: **{nearest_name}**.\n"
                     )
+                    if sub_locality:
+                        lines.append(
+                            f"கோயம்புத்தூர் மாவட்டத்தில் உள்ள மருத்துவமனைகளைக் காட்டவா?\n"
+                        )
                 lines.append(
                     "அவசர சிகிச்சை தேவைப்பட்டால் உடனடியாக **108** ஆம்புலன்ஸை அழைக்கவும் அல்லது உள்ளூர் அரசு தலைமை மருத்துவமனையை அணுகவும்."
                 )
             else:
                 lines.append(
-                    f"**Currently, no verified healthcare facilities matching your criteria were found in {loc or 'the requested location'} in the NALAM database.**\n\n"
+                    f"**Currently, no verified healthcare facilities matching your criteria were found for {display_loc} in the NALAM database.**\n\n"
                     "NALAM strictly adheres to zero-fabrication clinical safety and never estimates or invents healthcare facility data.\n"
                 )
-                if nearest_km and nearest_name:
+                if nearest_name:
                     lines.append(
-                        f"The closest registered facility in the network is **{nearest_name}** (~{nearest_km} km away).\n"
+                        f"The closest registered facility in the network is **{nearest_name}**.\n"
                     )
+                    if sub_locality:
+                        lines.append(
+                            f"Would you like to see verified hospitals elsewhere in Coimbatore district?\n"
+                        )
                 lines.append(
                     "For immediate emergency assistance, call **108** or visit your local Government Medical College Hospital."
                 )
         else:
-            loc_label = loc or "Coimbatore"
+            loc_label = sub_locality or loc or "Coimbatore"
             if ownership == "Government":
                 hdr_en = f"**Verified Government Healthcare Facilities in {loc_label}:**\n"
                 hdr_ta = f"**{loc_label} பகுதியில் உள்ள அரசு மருத்துவமனைகள் விவரங்கள்:**\n"
@@ -836,7 +1026,8 @@ class NalamAIAgent:
             lines.append(hdr_ta if lang == "ta" else hdr_en)
 
             for f in matched_facilities:
-                dist_str = f"{f['distance_km']} km" if f["distance_km"] is not None else "Nearby"
+                f_locality = f.get("locality") or f.get("block") or f.get("district") or "Coimbatore"
+                dist_str = f"{f['distance_km']} km" if f["distance_km"] is not None else None
                 doc_info = f["doctors"][0] if f["doctors"] else None
                 doc_name = doc_info["name"] if doc_info else "Medical Officer on duty"
                 doc_status = doc_info["attendance_status"] if doc_info else "UNKNOWN"
@@ -905,8 +1096,9 @@ class NalamAIAgent:
                         if method == "WALK_IN_ONLY"
                         else f"இணைய முன்பதிவு: {online_url}"
                     )
+                    loc_part = f" — தூரம்: `{dist_str}`" if dist_str else f" — {f_locality}"
                     lines.append(
-                        f"- **{f['name']}** ({f.get('ownership', 'மருத்துவமனை')}) – தூரம்: `{dist_str}`\n"
+                        f"- **{f['name']}** ({f.get('ownership', 'மருத்துவமனை')}){loc_part}\n"
                         f"  - முகவரி: {f['address']}\n"
                         f"  - தொலைபேசி: {phone or 'நேரடி அணுகல்'}\n"
                         f"  - செயல்படும் நேரம்: {hours}\n"
@@ -918,8 +1110,9 @@ class NalamAIAgent:
                         if method == "WALK_IN_ONLY"
                         else f"Online booking portal: {online_url}"
                     )
+                    loc_part = f" — **{dist_str}**" if dist_str else f" — {f_locality}"
                     lines.append(
-                        f"- **{f['name']}** ({f.get('ownership', 'Hospital')}) — **{dist_str}**\n"
+                        f"- **{f['name']}** ({f.get('ownership', 'Hospital')}){loc_part}\n"
                         f"  - Address: {f['address']}\n"
                         f"  - Phone: {phone or 'Not listed'}\n"
                         f"  - Hours: {hours}\n"
