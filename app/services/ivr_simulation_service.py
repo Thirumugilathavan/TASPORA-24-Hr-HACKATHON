@@ -105,22 +105,68 @@ class IVRSimulationService:
     }
 
     @classmethod
+    def _build_response(
+        cls,
+        call_sid: str,
+        menu: str,
+        lang: str,
+        speak_text: str,
+        speak_text_ta: Optional[str] = None,
+        speak_text_en: Optional[str] = None,
+        **extra,
+    ) -> Dict[str, Any]:
+        """Build a standardised IVR response dict with separate Tamil/English TTS fields."""
+        resp: Dict[str, Any] = {
+            "call_sid": call_sid,
+            "status": "IN_PROGRESS",
+            "current_menu": menu,
+            "language": lang,
+            "speak_text": speak_text,
+        }
+        # Always populate both language-specific fields so the frontend can pick
+        # the correct voice without trying to split mixed bilingual text.
+        resp["speak_text_ta"] = speak_text_ta or cls.PROMPTS.get(
+            # derive from prompt table when possible
+            {
+                "LANGUAGE_SELECT": "welcome",
+                "MAIN_MENU": "main_menu",
+                "LOCATION_INPUT": "location_prompt",
+                "SERVICES_INFO": "services_info",
+                "ASSISTANCE_INFO": "assistance_info",
+            }.get(menu, ""),
+            {},
+        ).get("ta", speak_text)
+        resp["speak_text_en"] = speak_text_en or cls.PROMPTS.get(
+            {
+                "LANGUAGE_SELECT": "welcome",
+                "MAIN_MENU": "main_menu",
+                "LOCATION_INPUT": "location_prompt",
+                "SERVICES_INFO": "services_info",
+                "ASSISTANCE_INFO": "assistance_info",
+            }.get(menu, ""),
+            {},
+        ).get("en", speak_text)
+        resp.update(extra)
+        return resp
+
+    @classmethod
     def start_call(cls, language: Optional[str] = "ta") -> Dict[str, Any]:
         """Initiate simulated call session starting at language selection."""
         call_sid = f"sim-{uuid4().hex[:10]}"
-        return {
-            "call_sid": call_sid,
-            "status": "IN_PROGRESS",
-            "current_menu": "LANGUAGE_SELECT",
-            "language": language or "ta",
-            "speak_text": cls.PROMPTS["welcome"]["ta"],
-            "options": [
+        return cls._build_response(
+            call_sid=call_sid,
+            menu="LANGUAGE_SELECT",
+            lang=language or "ta",
+            speak_text=cls.PROMPTS["welcome"]["ta"],
+            speak_text_ta=cls.PROMPTS["welcome"]["ta"],
+            speak_text_en=cls.PROMPTS["welcome"]["en"],
+            options=[
                 {"digit": "1", "label": "தமிழ் (Tamil)"},
                 {"digit": "2", "label": "English"},
             ],
-            "gather_dtmf": True,
-            "max_digits": 1,
-        }
+            gather_dtmf=True,
+            max_digits=1,
+        )
 
     @classmethod
     async def process_input(
@@ -136,9 +182,29 @@ class IVRSimulationService:
         clean_digits = (digits or "").strip()
         lang = "en" if language == "en" else "ta"
 
+        def _r(menu: str, speak_ta: str, speak_en: str, **extra) -> Dict[str, Any]:
+            """Build a response with separate Tamil/English TTS fields."""
+            speak_text = speak_ta if lang == "ta" else speak_en
+            return {
+                "call_sid": call_sid,
+                "status": "IN_PROGRESS",
+                "current_menu": menu,
+                "language": lang,
+                "speak_text": speak_text,
+                "speak_text_ta": speak_ta,
+                "speak_text_en": speak_en,
+                **extra,
+            }
+
         # Universal key 0: Return to Main Menu
         if clean_digits == "0":
-            return cls._menu_response(call_sid, "MAIN_MENU", lang, cls.PROMPTS["main_menu"][lang])
+            return _r(
+                "MAIN_MENU",
+                cls.PROMPTS["main_menu"]["ta"],
+                cls.PROMPTS["main_menu"]["en"],
+                gather_dtmf=True,
+                max_digits=1,
+            )
 
         # Universal key 9: Repeat Current Prompt
         if clean_digits == "9":
@@ -147,86 +213,82 @@ class IVRSimulationService:
         # 1. LANGUAGE SELECT
         if current_menu == "LANGUAGE_SELECT":
             if clean_digits == "1":
-                return cls._menu_response(call_sid, "MAIN_MENU", "ta", cls.PROMPTS["main_menu"]["ta"])
+                return _r(
+                    "MAIN_MENU",
+                    cls.PROMPTS["main_menu"]["ta"],
+                    cls.PROMPTS["main_menu"]["en"],
+                    gather_dtmf=True,
+                    max_digits=1,
+                )
             elif clean_digits == "2":
-                return cls._menu_response(call_sid, "MAIN_MENU", "en", cls.PROMPTS["main_menu"]["en"])
-            else:
-                return {
-                    "call_sid": call_sid,
-                    "status": "IN_PROGRESS",
-                    "current_menu": "LANGUAGE_SELECT",
-                    "language": lang,
-                    "speak_text": "தவறான தேர்வு / Invalid choice. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2.",
-                    "gather_dtmf": True,
-                    "max_digits": 1,
-                }
-
-        # 2. MAIN MENU
-        if current_menu == "MAIN_MENU":
-            if clean_digits == "1":
-                # Option 1: Find nearby healthcare facilities
-                return {
-                    "call_sid": call_sid,
-                    "status": "IN_PROGRESS",
-                    "current_menu": "LOCATION_INPUT",
-                    "language": lang,
-                    "speak_text": cls.PROMPTS["location_prompt"][lang],
-                    "gather_dtmf": True,
-                    "max_digits": 6,
-                    "supports_pincode": True,
-                    "supports_geolocation": True,
-                    "supports_village": True,
-                }
-            elif clean_digits == "2":
-                # Option 2: Healthcare services info
-                return {
-                    "call_sid": call_sid,
-                    "status": "IN_PROGRESS",
-                    "current_menu": "SERVICES_INFO",
-                    "language": lang,
-                    "speak_text": cls.PROMPTS["services_info"][lang],
-                    "gather_dtmf": True,
-                    "max_digits": 1,
-                }
-            elif clean_digits == "3":
-                # Option 3: Assistance & Contact info
-                return {
-                    "call_sid": call_sid,
-                    "status": "IN_PROGRESS",
-                    "current_menu": "ASSISTANCE_INFO",
-                    "language": lang,
-                    "speak_text": cls.PROMPTS["assistance_info"][lang],
-                    "gather_dtmf": True,
-                    "max_digits": 1,
-                }
-            else:
                 return {
                     "call_sid": call_sid,
                     "status": "IN_PROGRESS",
                     "current_menu": "MAIN_MENU",
-                    "language": lang,
-                    "speak_text": f"{cls.PROMPTS['invalid_option'][lang]} {cls.PROMPTS['main_menu'][lang]}",
+                    "language": "en",
+                    "speak_text": cls.PROMPTS["main_menu"]["en"],
+                    "speak_text_ta": cls.PROMPTS["main_menu"]["ta"],
+                    "speak_text_en": cls.PROMPTS["main_menu"]["en"],
                     "gather_dtmf": True,
                     "max_digits": 1,
                 }
+            else:
+                return _r(
+                    "LANGUAGE_SELECT",
+                    "தவறான தேர்வு. தமிழில் தொடர 1-ஐ அழுத்தவும்.",
+                    "Invalid choice. For English, press 2.",
+                    gather_dtmf=True,
+                    max_digits=1,
+                )
+
+        # 2. MAIN MENU
+        if current_menu == "MAIN_MENU":
+            if clean_digits == "1":
+                return _r(
+                    "LOCATION_INPUT",
+                    cls.PROMPTS["location_prompt"]["ta"],
+                    cls.PROMPTS["location_prompt"]["en"],
+                    gather_dtmf=True,
+                    max_digits=6,
+                    supports_pincode=True,
+                    supports_geolocation=True,
+                    supports_village=True,
+                )
+            elif clean_digits == "2":
+                return _r(
+                    "SERVICES_INFO",
+                    cls.PROMPTS["services_info"]["ta"],
+                    cls.PROMPTS["services_info"]["en"],
+                    gather_dtmf=True,
+                    max_digits=1,
+                )
+            elif clean_digits == "3":
+                return _r(
+                    "ASSISTANCE_INFO",
+                    cls.PROMPTS["assistance_info"]["ta"],
+                    cls.PROMPTS["assistance_info"]["en"],
+                    gather_dtmf=True,
+                    max_digits=1,
+                )
+            else:
+                return _r(
+                    "MAIN_MENU",
+                    f"{cls.PROMPTS['invalid_option']['ta']} {cls.PROMPTS['main_menu']['ta']}",
+                    f"{cls.PROMPTS['invalid_option']['en']} {cls.PROMPTS['main_menu']['en']}",
+                    gather_dtmf=True,
+                    max_digits=1,
+                )
 
         # 3. LOCATION INPUT (Keypad digits or explicit GPS location)
         if current_menu == "LOCATION_INPUT":
             # If caller pressed 4: Switch to village search
             if clean_digits == "4":
-                v_msg = (
-                    "கிராமத்தின் பெயரைத் தேட கீழேயுள்ள தேடல் பெட்டியைப் பயன்படுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
-                    if lang == "ta"
-                    else "Please use the village search input to find your village or town. Press 0 for the main menu."
+                return _r(
+                    "VILLAGE_SEARCH_INPUT",
+                    "கிராமத்தின் பெயரைத் தேட கீழேயுள்ள தேடல் பெட்டியைப் பயன்படுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்.",
+                    "Please use the village search input to find your village or town. Press 0 for the main menu.",
+                    gather_dtmf=True,
                 )
-                return {
-                    "call_sid": call_sid,
-                    "status": "IN_PROGRESS",
-                    "current_menu": "VILLAGE_SEARCH_INPUT",
-                    "language": lang,
-                    "speak_text": v_msg,
-                    "gather_dtmf": True,
-                }
 
             # If clean_digits looks like a PIN code (6 digits, or ended with #)
             pin_cand = clean_digits.rstrip("#").strip()
@@ -243,15 +305,13 @@ class IVRSimulationService:
                         is_approximate=True,
                     )
                 except Exception:
-                    return {
-                        "call_sid": call_sid,
-                        "status": "IN_PROGRESS",
-                        "current_menu": "LOCATION_INPUT",
-                        "language": lang,
-                        "speak_text": cls.PROMPTS["invalid_pincode"][lang],
-                        "gather_dtmf": True,
-                        "max_digits": 6,
-                    }
+                    return _r(
+                        "LOCATION_INPUT",
+                        cls.PROMPTS["invalid_pincode"]["ta"],
+                        cls.PROMPTS["invalid_pincode"]["en"],
+                        gather_dtmf=True,
+                        max_digits=6,
+                    )
 
             # If GPS coordinates passed in location_data
             if location_data and "latitude" in location_data and "longitude" in location_data:
@@ -265,15 +325,13 @@ class IVRSimulationService:
                     is_approximate=False,
                 )
 
-            return {
-                "call_sid": call_sid,
-                "status": "IN_PROGRESS",
-                "current_menu": "LOCATION_INPUT",
-                "language": lang,
-                "speak_text": cls.PROMPTS["invalid_pincode"][lang],
-                "gather_dtmf": True,
-                "max_digits": 6,
-            }
+            return _r(
+                "LOCATION_INPUT",
+                cls.PROMPTS["invalid_pincode"]["ta"],
+                cls.PROMPTS["invalid_pincode"]["en"],
+                gather_dtmf=True,
+                max_digits=6,
+            )
 
         # 4. FACILITIES RESULTS LIST (Navigation: 1 = Next, 9 = Repeat, 0 = Main Menu)
         if current_menu == "FACILITIES_RESULTS":
@@ -283,35 +341,27 @@ class IVRSimulationService:
                 current_idx = int(location_data.get("current_index", 0)) + 1 if location_data else 0
                 if items and current_idx < len(items):
                     fac = items[current_idx]
-                    fac_speech = cls._format_single_facility(fac, current_idx + 1, len(items), lang)
-                    return {
-                        "call_sid": call_sid,
-                        "status": "IN_PROGRESS",
-                        "current_menu": "FACILITIES_RESULTS",
-                        "language": lang,
-                        "speak_text": fac_speech,
-                        "current_index": current_idx,
-                        "facilities": items,
-                        "gather_dtmf": True,
-                        "max_digits": 1,
-                    }
-                else:
-                    end_msg = (
-                        "அனைத்து அருகிலுள்ள சுகாதார நிலையங்களும் கூறப்பட்டன. முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
-                        if lang == "ta"
-                        else "You have heard all nearby healthcare facilities. Press 0 for the main menu."
+                    fac_speech_ta = cls._format_single_facility(fac, current_idx + 1, len(items), "ta")
+                    fac_speech_en = cls._format_single_facility(fac, current_idx + 1, len(items), "en")
+                    return _r(
+                        "FACILITIES_RESULTS",
+                        fac_speech_ta,
+                        fac_speech_en,
+                        current_index=current_idx,
+                        facilities=items,
+                        gather_dtmf=True,
+                        max_digits=1,
                     )
-                    return {
-                        "call_sid": call_sid,
-                        "status": "IN_PROGRESS",
-                        "current_menu": "FACILITIES_RESULTS",
-                        "language": lang,
-                        "speak_text": end_msg,
-                        "current_index": len(items) - 1 if items else 0,
-                        "facilities": items,
-                        "gather_dtmf": True,
-                        "max_digits": 1,
-                    }
+                else:
+                    return _r(
+                        "FACILITIES_RESULTS",
+                        "அனைத்து அருகிலுள்ள சுகாதார நிலையங்களும் கூறப்பட்டன. முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்.",
+                        "You have heard all nearby healthcare facilities. Press 0 for the main menu.",
+                        current_index=len(items) - 1 if items else 0,
+                        facilities=items,
+                        gather_dtmf=True,
+                        max_digits=1,
+                    )
 
         # Fallback to repeating current menu
         return cls._repeat_menu(call_sid, current_menu, lang)
@@ -356,35 +406,36 @@ class IVRSimulationService:
                 "current_menu": "LOCATION_INPUT",
                 "language": lang,
                 "speak_text": cls.PROMPTS["no_facilities"][lang],
+                "speak_text_ta": cls.PROMPTS["no_facilities"]["ta"],
+                "speak_text_en": cls.PROMPTS["no_facilities"]["en"],
                 "gather_dtmf": True,
                 "max_digits": 6,
             }
 
-        # Build spoken announcement
+        # Build spoken announcement for BOTH languages
         approx_notice_ta = " (தோராயமான அஞ்சல் எல்லை)" if is_approximate else ""
         approx_notice_en = " (approximate postal area)" if is_approximate else ""
 
-        fac_summaries = []
+        fac_summaries_ta = []
+        fac_summaries_en = []
         for i, f in enumerate(items[:3], 1):
             dist_str = f"{f.distance_km:.1f}"
-            if lang == "ta":
-                fac_summaries.append(f"நிலையம் {i}: {f.name}, {f.facility_type}, தூரம் {dist_str} கிலோமீட்டர்.")
-            else:
-                fac_summaries.append(f"Facility {i}: {f.name}, {f.facility_type}, distance {dist_str} kilometres.")
+            fac_summaries_ta.append(f"நிலையம் {i}: {f.name}, {f.facility_type}, தூரம் {dist_str} கிலோமீட்டர்.")
+            fac_summaries_en.append(f"Facility {i}: {f.name}, {f.facility_type}, distance {dist_str} kilometres.")
 
-        joined = " ".join(fac_summaries)
-        if lang == "ta":
-            speech = (
-                f"{location_name}{approx_notice_ta} பகுதிக்கு அருகில் {len(items)} சுகாதார நிலையங்கள் கண்டறியப்பட்டன. "
-                f"{joined} "
-                "அடுத்த நிலையத்தைக் கேட்க 1-ஐ அழுத்தவும். மீண்டும் கேட்க 9-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
-            )
-        else:
-            speech = (
-                f"Found {len(items)} healthcare facilities near {location_name}{approx_notice_en}. "
-                f"{joined} "
-                "Press 1 to hear the next facility. Press 9 to repeat. Press 0 for the main menu."
-            )
+        joined_ta = " ".join(fac_summaries_ta)
+        joined_en = " ".join(fac_summaries_en)
+        speech_ta = (
+            f"{location_name}{approx_notice_ta} பகுதிக்கு அருகில் {len(items)} சுகாதார நிலையங்கள் கண்டறியப்பட்டன. "
+            f"{joined_ta} "
+            "அடுத்த நிலையத்தைக் கேட்க 1-ஐ அழுத்தவும். மீண்டும் கேட்க 9-ஐ அழுத்தவும். முதன்மை மெனுவிற்கு செல்ல 0-ஐ அழுத்தவும்."
+        )
+        speech_en = (
+            f"Found {len(items)} healthcare facilities near {location_name}{approx_notice_en}. "
+            f"{joined_en} "
+            "Press 1 to hear the next facility. Press 9 to repeat. Press 0 for the main menu."
+        )
+        speech = speech_ta if lang == "ta" else speech_en
 
         serializable_items = [
             {
@@ -407,6 +458,8 @@ class IVRSimulationService:
             "current_menu": "FACILITIES_RESULTS",
             "language": lang,
             "speak_text": speech,
+            "speak_text_ta": speech_ta,
+            "speak_text_en": speech_en,
             "location_name": location_name,
             "is_approximate": is_approximate,
             "latitude": latitude,
@@ -437,12 +490,24 @@ class IVRSimulationService:
 
     @classmethod
     def _menu_response(cls, call_sid: str, menu: str, lang: str, speak_text: str) -> Dict[str, Any]:
+        # Determine the Tamil and English versions from the prompt table
+        prompt_key = {
+            "MAIN_MENU": "main_menu",
+            "LOCATION_INPUT": "location_prompt",
+            "SERVICES_INFO": "services_info",
+            "ASSISTANCE_INFO": "assistance_info",
+            "LANGUAGE_SELECT": "welcome",
+        }.get(menu, "")
+        ta_text = cls.PROMPTS.get(prompt_key, {}).get("ta", speak_text) if prompt_key else speak_text
+        en_text = cls.PROMPTS.get(prompt_key, {}).get("en", speak_text) if prompt_key else speak_text
         return {
             "call_sid": call_sid,
             "status": "IN_PROGRESS",
             "current_menu": menu,
             "language": lang,
             "speak_text": speak_text,
+            "speak_text_ta": ta_text,
+            "speak_text_en": en_text,
             "gather_dtmf": True,
             "max_digits": 1,
         }
@@ -457,13 +522,17 @@ class IVRSimulationService:
             "ASSISTANCE_INFO": "assistance_info",
         }.get(current_menu, "main_menu")
 
-        text = cls.PROMPTS.get(prompt_key, cls.PROMPTS["main_menu"])[lang]
+        ta_text = cls.PROMPTS.get(prompt_key, cls.PROMPTS["main_menu"])["ta"]
+        en_text = cls.PROMPTS.get(prompt_key, cls.PROMPTS["main_menu"])["en"]
+        text = ta_text if lang == "ta" else en_text
         return {
             "call_sid": call_sid,
             "status": "IN_PROGRESS",
             "current_menu": current_menu,
             "language": lang,
             "speak_text": text,
+            "speak_text_ta": ta_text,
+            "speak_text_en": en_text,
             "gather_dtmf": True,
             "max_digits": 1,
         }

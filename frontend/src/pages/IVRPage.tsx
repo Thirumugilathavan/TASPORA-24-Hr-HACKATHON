@@ -131,12 +131,18 @@ export const IVRPage: React.FC = () => {
 
   // Load voices once and keep them cached. Chrome fires voiceschanged; Firefox
   // populates synchronously; Safari also fires the event.
+  // Also check if a Tamil TTS voice is available and update speechAvailable state.
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     const loadVoices = () => {
       const v = window.speechSynthesis.getVoices();
-      if (v.length > 0) cachedVoicesRef.current = v;
+      if (v.length > 0) {
+        cachedVoicesRef.current = v;
+        // Check if Tamil voice is available
+        const hasTamilVoice = v.some((voice) => voice.lang === 'ta-IN' || voice.lang.startsWith('ta'));
+        setSpeechAvailable(hasTamilVoice);
+      }
     };
 
     loadVoices(); // may already be populated on Firefox / Safari
@@ -159,12 +165,15 @@ export const IVRPage: React.FC = () => {
   /**
    * Speak `text` using the correct language voice.
    *
-   * When Tamil is selected the backend returns bilingual text like:
-   *   "அருகிலுள்ள மருத்துவமனை / Nearest hospital…"
-   * We detect Tamil Unicode ranges and split the string so each segment
-   * is spoken with its own language-tagged utterance. This guarantees the
-   * Tamil portions are read by a Tamil TTS engine and not mangled by an
-   * English engine.
+   * With the backend now returning `speak_text_ta` and `speak_text_en` separately,
+   * this function receives clean single-language text from `pickSpeakText`.
+   * When Tamil mode is active it always receives pure Tamil text; when English mode
+   * is active it always receives pure English text.
+   *
+   * Fallback: if no `ta-IN` voice is installed on the device the text is still
+   * queued without an explicit voice — the browser uses its default engine which
+   * may not render Tamil correctly, so we show a no-Tamil-TTS hint instead of
+   * silently failing.
    */
   const speakText = useCallback(
     (text: string, lang: 'ta' | 'en') => {
@@ -194,13 +203,13 @@ export const IVRPage: React.FC = () => {
         return;
       }
 
-      // Tamil path — split on " / " separator used by the backend bilingual format,
-      // or on transitions between Tamil and Latin character blocks.
-      // Strategy: split the text into segments; tag each with ta-IN or en-IN.
-      const segments: Array<{ text: string; langTag: string }> = [];
+      // Tamil path — backend now sends pure Tamil text in speak_text_ta.
+      // Split on " / " only as a safety fallback for any residual bilingual text.
+      const tamilVoice = pickVoice('ta-IN') || pickVoice('ta');
+      const englishVoice = pickVoice('en-IN') || pickVoice('en-GB') || pickVoice('en');
 
-      // Split on " / " which the backend uses as Tamil/English separator
       const parts = text.split(/\s*\/\s*/);
+      const segments: Array<{ text: string; langTag: string }> = [];
       parts.forEach((part) => {
         const isTamilPart = /[\u0B80-\u0BFF]/.test(part);
         if (part.trim()) {
@@ -210,9 +219,6 @@ export const IVRPage: React.FC = () => {
 
       if (segments.length === 0) return;
 
-      const tamilVoice = pickVoice('ta-IN');
-      const englishVoice = pickVoice('en-IN') || pickVoice('en-GB') || pickVoice('en');
-
       // Queue utterances — only the first fires onstart, only the last fires onend
       segments.forEach((seg, idx) => {
         const utt = new SpeechSynthesisUtterance(seg.text);
@@ -220,7 +226,8 @@ export const IVRPage: React.FC = () => {
         utt.rate = seg.langTag === 'ta-IN' ? 0.88 : 0.92; // Tamil slightly slower
         utt.pitch = 1.0;
 
-        const voice = seg.langTag === 'ta-IN' ? tamilVoice : englishVoice;
+        // Assign the best available voice for each segment
+        const voice = seg.langTag === 'ta-IN' ? (tamilVoice || null) : englishVoice;
         if (voice) utt.voice = voice;
 
         if (idx === 0) utt.onstart = () => setIsSpeaking(true);
@@ -710,7 +717,7 @@ export const IVRPage: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
-              to="/login"
+              to="/"
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 hover:text-white transition px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -800,6 +807,30 @@ export const IVRPage: React.FC = () => {
           <span className="hidden sm:inline font-mono text-emerald-400/80">Toll-Free: 1800-202-CARE</span>
         </div>
       </div>
+
+      {/* Tamil TTS Availability Warning — only shown when no ta-IN voice is found */}
+      {!speechAvailable && language === 'ta' && (
+        <div className="bg-amber-950/60 border-b border-amber-800/60 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 text-xs text-amber-300">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Tamil voice not available:</strong> Your browser does not have a Tamil (ta-IN) text-to-speech voice installed. The transcript is shown in Tamil below. For spoken Tamil audio, install a Tamil TTS voice in your OS settings, or switch to <strong>English</strong> mode above.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Tamil TTS Availability Warning — only shown when no ta-IN voice is found */}
+      {!speechAvailable && language === 'ta' && (
+        <div className="bg-amber-950/60 border-b border-amber-800/60 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 text-xs text-amber-300">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Tamil voice not available:</strong> Your browser does not have a Tamil (ta-IN) text-to-speech voice installed. The transcript is displayed in Tamil below. For spoken Tamil audio, install a Tamil TTS voice or switch to English mode.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Interactive Screen Grid */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
