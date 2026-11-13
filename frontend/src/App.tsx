@@ -13,6 +13,9 @@ import { MedicinesPage } from './pages/MedicinesPage';
 import { RequestsPage } from './pages/RequestsPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { IVRPage } from './pages/IVRPage';
+import { CampsPage } from './pages/CampsPage';
+import { SchemesPage } from './pages/SchemesPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -40,6 +43,14 @@ export const App: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
+      {/* Public Zero-Cost Telephone IVR Helpline Simulation Route */}
+      <Route path="/ivr" element={<IVRPage />} />
+
+      {/* Public Scheme Finder Direct Access (Accessible without mandatory login) */}
+      <Route path="/schemes" element={<AppLayout />}>
+        <Route index element={<SchemesPage />} />
+      </Route>
+
       {/* Protected Portal Routes wrapped in AppLayout */}
       <Route
         path="/"
@@ -54,6 +65,8 @@ export const App: React.FC = () => {
         <Route path="medicines" element={<MedicinesPage />} />
         <Route path="requests" element={<RequestsPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
+        <Route path="camps" element={<CampsPage />} />
+        <Route path="schemes" element={<SchemesPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
