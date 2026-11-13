@@ -36,14 +36,21 @@ interface Message {
 interface AIAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string;
 }
 
-export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose }) => {
+export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose, initialQuery }) => {
   const { language } = useTranslation();
   const { user, patient } = useAuth();
   const navigate = useNavigate();
 
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(initialQuery || '');
+
+  useEffect(() => {
+    if (initialQuery) {
+      setInput(initialQuery);
+    }
+  }, [initialQuery]);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [conversationId, setConversationId] = useState<string>('');

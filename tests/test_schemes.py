@@ -341,3 +341,82 @@ async def test_ai_agent_answers_government_scheme_queries_in_tamil_and_english(
     assert resp_ta.intent == "GOVERNMENT_SCHEMES_DISCOVERY"
     assert resp_ta.language == "ta"
     assert len(resp_ta.cards) > 0
+
+
+@pytest.mark.asyncio
+async def test_scheme_service_health_endpoint(client: AsyncClient):
+    """Verifies the /api/v1/schemes/health and /api/schemes/health endpoint reports service health."""
+    resp = await client.get("/api/v1/schemes/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["total_schemes"] >= 10
+    assert "myscheme.gov.in" in " ".join(data["sources"])
+    assert "cmchistn.com" in " ".join(data["sources"])
+
+
+@pytest.mark.asyncio
+async def test_questionnaire_match_endpoint_for_guest_user(client: AsyncClient):
+    """Verifies that an unauthenticated user can evaluate questionnaire answers without 401."""
+    payload = {
+        "state": "Tamil Nadu",
+        "district": "Namakkal",
+        "pincode": "637211",
+        "gender": "FEMALE",
+        "residence": "RURAL",
+        "annual_income": 60000,
+        "income_range": "BELOW_72K",
+        "family_size": 4,
+        "is_woman_head_of_household": True,
+        "ration_card_type": "PHH",
+        "pregnancy_status": "PREGNANT",
+        "desired_assistance": ["HEALTHCARE", "MATERNITY"],
+        "language": "ta",
+    }
+    resp = await client.post("/api/v1/schemes/match", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_evaluated"] >= 10
+    assert data["likely_matches_count"] >= 1
+    assert "disclaimer_ta" in data
+
+    # Verify CMCHIS or MRMBS appears in likely or more_info
+    all_slugs = [item["scheme"]["slug"] for item in data["all_results"]]
+    assert "cmchis-tamil-nadu" in all_slugs
+    assert "mrmbs-muthulakshmi-reddy-tn" in all_slugs
+
+
+@pytest.mark.asyncio
+async def test_questionnaire_match_hard_fail_criteria(client: AsyncClient):
+    """Verifies deterministic exclusions (e.g. male cannot match maternal scheme or Pudhumai Penn)."""
+    payload = {
+        "state": "Tamil Nadu",
+        "gender": "MALE",
+        "annual_income": 400000,
+        "income_range": "250K_TO_500K",
+        "student_status": "NOT_STUDYING",
+        "is_farmer": False,
+        "pregnancy_status": "NONE",
+        "language": "en",
+    }
+    resp = await client.post("/api/v1/schemes/match", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+
+    not_matching_slugs = [item["scheme"]["slug"] for item in data["not_matching"]]
+    # CMCHIS income cap is 120,000 -> hard fail for 400,000
+    assert "cmchis-tamil-nadu" in not_matching_slugs
+    # Pudhumai Penn is for female students -> hard fail for male non-student
+    assert "pudhumai-penn-tamil-nadu" in not_matching_slugs
+
+
+@pytest.mark.asyncio
+async def test_scheme_detail_by_slug_string(client: AsyncClient):
+    """Verifies scheme details can be fetched directly by slug string."""
+    resp = await client.get("/api/v1/schemes/cmchis-tamil-nadu")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["slug"] == "cmchis-tamil-nadu"
+    assert "Health and Family Welfare" in data["department"]
+    assert len(data["required_documents"]) > 0
+

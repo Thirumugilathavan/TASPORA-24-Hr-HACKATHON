@@ -46,6 +46,16 @@ export const App: React.FC = () => {
       {/* Public Zero-Cost Telephone IVR Helpline Simulation Route */}
       <Route path="/ivr" element={<IVRPage />} />
 
+      {/* Public Scheme Finder Direct Access (Accessible without mandatory login) */}
+      <Route
+        path="/schemes"
+        element={
+          <AppLayout />
+        }
+      >
+        <Route index element={<SchemesPage />} />
+      </Route>
+
       {/* Protected Portal Routes wrapped in AppLayout */}
       <Route
         path="/"

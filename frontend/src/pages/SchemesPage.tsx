@@ -14,75 +14,143 @@ import {
   Award,
   ShieldCheck,
   ChevronRight,
+  ExternalLink,
+  Edit2,
+  RotateCcw,
+  WifiOff,
+  XCircle,
+  Layers,
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { schemeService } from '../services/schemeService';
 import {
   GovernmentScheme,
-  EligibilityEvaluation,
-  SchemeRecommendationResponse,
-  UserSchemeProfile,
+  SchemeMatchResponse,
+  SchemeMatchItemOut,
   DocumentChecklistResponse,
 } from '../types';
 import { SchemeCard } from '../components/schemes/SchemeCard';
 import { SchemeDetailModal } from '../components/schemes/SchemeDetailModal';
-import { SchemeQuestionnaireModal } from '../components/schemes/SchemeQuestionnaireModal';
 import { SchemeCompareModal } from '../components/schemes/SchemeCompareModal';
 import { DocumentChecklistModal } from '../components/schemes/DocumentChecklistModal';
-import { LoadingState } from '../components/common/LoadingState';
-import { ErrorState } from '../components/common/ErrorState';
+import { SchemeQuestionnaireWizard } from '../components/schemes/SchemeQuestionnaireWizard';
+import { AIAssistantModal } from '../components/assistant/AIAssistantModal';
+import { QuestionnaireFormAnswers } from '../services/localSchemeMatcher';
 
 export const SchemesPage: React.FC = () => {
   const { language, t } = useTranslation();
   const isTa = language === 'ta';
 
-  // State
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [recommendationsData, setRecommendationsData] = useState<SchemeRecommendationResponse | null>(null);
-  const [userProfile, setUserProfile] = useState<UserSchemeProfile | null>(null);
+  // View Mode: 'wizard' | 'results' | 'catalog'
+  const [viewMode, setViewMode] = useState<'wizard' | 'results' | 'catalog'>('wizard');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  const [matchResults, setMatchResults] = useState<SchemeMatchResponse | null>(null);
+  const [allSchemes, setAllSchemes] = useState<GovernmentScheme[]>([]);
   const [savedSchemeIds, setSavedSchemeIds] = useState<string[]>([]);
   const [comparedSchemeIds, setComparedSchemeIds] = useState<string[]>([]);
+
+  // Stored Questionnaire Answers
+  const [answers, setAnswers] = useState<QuestionnaireFormAnswers>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nalam_scheme_form_answers');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return {
+      state: 'Tamil Nadu',
+      district: 'Namakkal',
+      pincode: '',
+      gender: 'FEMALE',
+      residence: 'RURAL',
+      income_range: 'BELOW_72K',
+      family_size: 4,
+      is_woman_head_of_household: true,
+      ration_card_type: 'PHH',
+      employment_status: 'DAILY_WAGE',
+      desired_assistance: ['HEALTHCARE', 'FINANCIAL'],
+    };
+  });
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLevel, setSelectedLevel] = useState<string>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedMatchStatus, setSelectedMatchStatus] = useState<string>('ALL'); // ALL, LIKELY_MATCH, MORE_INFO_NEEDED, NOT_MATCHING
   const [viewOnlySaved, setViewOnlySaved] = useState<boolean>(false);
 
   // Modals
   const [selectedSchemeForModal, setSelectedSchemeForModal] = useState<GovernmentScheme | null>(null);
-  const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState<boolean>(false);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState<boolean>(false);
   const [checklistData, setChecklistData] = useState<DocumentChecklistResponse | null>(null);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState<boolean>(false);
+  const [initialAIQuery, setInitialAIQuery] = useState<string>('');
 
-  // Initial Load
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [recs, profile, saved] = await Promise.all([
-        schemeService.getRecommendations({ language }),
-        schemeService.getUserProfile().catch(() => null),
-        schemeService.getSavedSchemes().catch(() => []),
-      ]);
-
-      setRecommendationsData(recs);
-      setUserProfile(profile);
+  // Initial Load of Saved Schemes
+  useEffect(() => {
+    schemeService.getSavedSchemes().then((saved) => {
       setSavedSchemeIds(saved.map((s) => s.scheme_id));
-    } catch (err: any) {
-      console.error('Failed to load schemes:', err);
-      setError(err.message || 'Failed to load government scheme recommendations.');
+    });
+
+    // Check if user already completed the questionnaire previously
+    if (typeof window !== 'undefined') {
+      const completed = localStorage.getItem('nalam_scheme_completed');
+      if (completed === 'true') {
+        handleRunMatching(answers);
+      }
+    }
+  }, [language]);
+
+  // Execute Scheme Matching
+  const handleRunMatching = async (formAnswers: QuestionnaireFormAnswers) => {
+    setLoading(true);
+    setAnswers(formAnswers);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nalam_scheme_form_answers', JSON.stringify(formAnswers));
+      localStorage.setItem('nalam_scheme_completed', 'true');
+    }
+
+    try {
+      const res = await schemeService.matchSchemes(formAnswers, language);
+      setMatchResults(res.data);
+      setIsOfflineMode(res.isOffline);
+      setViewMode('results');
+    } catch (err) {
+      console.error('Error evaluating matches:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [language]);
+  // Browse Full Catalog Directly
+  const handleBrowseCatalog = async () => {
+    setLoading(true);
+    try {
+      const res = await schemeService.getSchemes({ limit: 50 });
+      setAllSchemes(res.data);
+      setIsOfflineMode(res.isOffline);
+      setViewMode('catalog');
+    } catch (err) {
+      console.error('Error fetching catalog:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset Search / Questionnaire
+  const handleStartNewSearch = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nalam_scheme_completed');
+    }
+    setViewMode('wizard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Toggle Save Scheme
   const handleToggleSave = async (schemeId: string) => {
@@ -100,7 +168,7 @@ export const SchemesPage: React.FC = () => {
     }
   };
 
-  // Toggle Compare Scheme
+  // Toggle Comparison
   const handleToggleCompare = (schemeId: string) => {
     setComparedSchemeIds((prev) => {
       if (prev.includes(schemeId)) {
@@ -114,361 +182,548 @@ export const SchemesPage: React.FC = () => {
     });
   };
 
-  // Open Document Checklist
+  // Open Document Checklist Modal
   const handleOpenChecklist = async () => {
     try {
-      const data = await schemeService.getDocumentChecklist(
-        savedSchemeIds.length > 0 ? savedSchemeIds : undefined
-      );
+      const data = await schemeService.getDocumentChecklist();
       setChecklistData(data);
       setIsChecklistOpen(true);
     } catch (err) {
-      console.error('Failed to fetch document checklist:', err);
+      console.error('Error loading checklist:', err);
     }
   };
 
-  // Save Questionnaire Profile
-  const handleSaveProfile = async (profileData: Record<string, any>) => {
-    try {
-      await schemeService.saveUserProfile({
-        consent_given: true,
-        step_progress: 8,
-        profile_data: profileData,
-      });
-      await loadData();
-    } catch (err) {
-      console.error('Failed to save profile:', err);
-    }
-  };
-
-  // Open AI Assistant with query
+  // Open AI Assistant with Scheme Query
   const handleAskAI = (schemeName: string) => {
-    const prompt = isTa
-      ? `${schemeName} திட்டத்தைப் பற்றி விரிவாக விளக்குங்கள். தகுதி மற்றும் தேவையான ஆவணங்கள் என்ன?`
-      : `Please explain ${schemeName} in detail. What are the eligibility criteria and documents required?`;
-    window.dispatchEvent(new CustomEvent('open_ai_assistant', { detail: { prompt } }));
+    const query = isTa
+      ? `${schemeName} திட்டத்திற்கான தகுதி, விண்ணப்பிக்கும் முறை மற்றும் தேவையான ஆவணங்கள் என்னென்ன?`
+      : `What are the eligibility criteria, application process, and documents required for ${schemeName}?`;
+    setInitialAIQuery(query);
+    setIsAIAssistantOpen(true);
   };
 
-  // Filtered List
-  const filteredRecommendations = useMemo(() => {
-    if (!recommendationsData) return [];
+  // Filtered Results for Results View
+  const filteredMatchItems = useMemo(() => {
+    if (!matchResults) return [];
+    let items: SchemeMatchItemOut[] = [];
 
-    return recommendationsData.recommendations.filter((item) => {
-      const s = item.scheme;
-      // Search
+    if (selectedMatchStatus === 'ALL') {
+      items = matchResults.all_results;
+    } else if (selectedMatchStatus === 'LIKELY_MATCH') {
+      items = matchResults.likely_matches;
+    } else if (selectedMatchStatus === 'MORE_INFO_NEEDED') {
+      items = matchResults.more_info_needed;
+    } else if (selectedMatchStatus === 'NOT_MATCHING') {
+      items = matchResults.not_matching;
+    }
+
+    return items.filter((item) => {
+      // Category filter
+      if (selectedCategory !== 'ALL' && item.scheme.category !== selectedCategory) return false;
+      // Level filter
+      if (selectedLevel !== 'ALL' && item.scheme.level !== selectedLevel) return false;
+      // Saved filter
+      if (viewOnlySaved && !savedSchemeIds.includes(item.scheme.id)) return false;
+      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchesName = s.name.toLowerCase().includes(q) || s.name_ta.toLowerCase().includes(q);
-        const matchesDept = s.department.toLowerCase().includes(q) || s.department_ta.toLowerCase().includes(q);
-        const matchesDesc = s.short_description.toLowerCase().includes(q) || s.short_description_ta.toLowerCase().includes(q);
-        if (!matchesName && !matchesDept && !matchesDesc) return false;
+        const name = (item.scheme.name || '').toLowerCase();
+        const nameTa = (item.scheme.name_ta || '').toLowerCase();
+        const dept = (item.scheme.department || '').toLowerCase();
+        const desc = (item.scheme.short_description || '').toLowerCase();
+        return name.includes(q) || nameTa.includes(q) || dept.includes(q) || desc.includes(q);
       }
-
-      // Category
-      if (selectedCategory !== 'ALL' && s.category !== selectedCategory) return false;
-
-      // Level
-      if (selectedLevel !== 'ALL' && s.level !== selectedLevel) return false;
-
-      // Status
-      if (selectedStatus !== 'ALL' && item.eligibility_status !== selectedStatus) return false;
-
-      // Saved only
-      if (viewOnlySaved && !savedSchemeIds.includes(s.id)) return false;
-
       return true;
     });
-  }, [recommendationsData, searchQuery, selectedCategory, selectedLevel, selectedStatus, viewOnlySaved, savedSchemeIds]);
+  }, [matchResults, selectedMatchStatus, selectedCategory, selectedLevel, viewOnlySaved, searchQuery, savedSchemeIds]);
 
-  // Compared Schemes Array
+  // Schemes selected for comparison
   const comparedSchemes = useMemo(() => {
-    if (!recommendationsData) return [];
-    return recommendationsData.recommendations
-      .filter((r) => comparedSchemeIds.includes(r.scheme.id))
-      .map((r) => r.scheme);
-  }, [recommendationsData, comparedSchemeIds]);
+    if (matchResults) {
+      return matchResults.all_results
+        .filter((item) => comparedSchemeIds.includes(item.scheme.id))
+        .map((item) => item.scheme);
+    }
+    return allSchemes.filter((s) => comparedSchemeIds.includes(s.id));
+  }, [matchResults, allSchemes, comparedSchemeIds]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <LoadingState message={isTa ? 'அரசு நலத்திட்டங்கள் கணக்கிடப்படுகின்றன...' : 'Evaluating government schemes and subsidies...'} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <ErrorState message={error} onRetry={loadData} />
-      </div>
-    );
-  }
+  // Categories list
+  const categories = [
+    { key: 'ALL', label_en: 'All Schemes', label_ta: 'அனைத்து திட்டங்கள்' },
+    { key: 'HEALTHCARE', label_en: 'Healthcare & Insurance', label_ta: 'மருத்துவம் & காப்பீடு' },
+    { key: 'MATERNITY', label_en: 'Maternity & Child', label_ta: 'மகப்பேறு & குழந்தை நலம்' },
+    { key: 'EDUCATION', label_en: 'Education & Scholarships', label_ta: 'கல்வி உதவித்தொகை' },
+    { key: 'AGRICULTURE', label_en: 'Agriculture & Farmers', label_ta: 'விவசாயம் & உழவர் நலன்' },
+    { key: 'FINANCIAL', label_en: 'Small Business & Credit', label_ta: 'சிறு தொழில் & கடன்' },
+    { key: 'PENSION', label_en: 'Social Security Pension', label_ta: 'முதியோர் ஓய்வூதியம்' },
+    { key: 'HOUSING', label_en: 'Rural Housing Subsidy', label_ta: 'வீட்டு வசதி மானியம்' },
+    { key: 'DISABILITY', label_en: 'Disability Welfare', label_ta: 'மாற்றுத்திறனாளி நலன்' },
+  ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-br from-healthcare-800 via-navy-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/5 blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 backdrop-blur-md border border-white/15 text-healthcare-200">
-              <Landmark className="w-3.5 h-3.5" />
-              <span>{isTa ? 'அரசு நலத்திட்ட உதவிகள்' : 'Government Benefits & Subsidies'}</span>
+    <div className="min-h-screen bg-slate-50/60 pb-16">
+      {/* Offline Mode Banner */}
+      {isOfflineMode && (
+        <div className="bg-amber-500/10 border-b border-amber-300 text-amber-900 px-4 py-2.5 text-xs">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4 text-amber-700 flex-shrink-0" />
+              <span>
+                {isTa
+                  ? 'கவனிக்க: நேரடி சேவையகம் தற்காலிகமாக இணைக்கப்படவில்லை. சரிபார்க்கப்பட்ட அரசு நலத்திட்ட பதிவுகளின் அடிப்படையில் மதிப்பீடுகள் காட்டப்படுகின்றன (சரிபார்க்கப்பட்டது: நவம்பர் 2026).'
+                  : 'Notice: Live backend is currently offline. Recommendations are evaluated against verified official government scheme records (Last verified: November 2026).'}
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {isTa ? 'நலம் அரசு நலத்திட்ட வழிகாட்டி' : 'NALAM Scheme Finder'}
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              {isTa
-                ? 'உங்கள் குடும்ப வருமானம், தொழில், கல்வி மற்றும் மருத்துவத் தேவைகளுக்கான மத்திய மற்றும் தமிழ்நாடு அரசு மானியங்கள், உதவித்தொகைகள் மற்றும் மருத்துவக் காப்பீடுகளை உடனடியாக கண்டறியுங்கள்.'
-                : 'Discover verified Central and Tamil Nadu government welfare, subsidies, scholarships, and healthcare assistance matching your personal circumstances.'}
-            </p>
-          </div>
-
-          {/* Call-to-action button */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
-              onClick={() => setIsQuestionnaireOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm bg-healthcare-500 hover:bg-healthcare-600 text-white shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={() => handleRunMatching(answers)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition-colors"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>{isTa ? 'எனக்கான திட்டங்களை கணக்கிடுக' : 'Find Schemes for Me'}</span>
-            </button>
-            <button
-              onClick={handleOpenChecklist}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-xs sm:text-sm bg-white/10 hover:bg-white/15 text-white border border-white/15 backdrop-blur-sm transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              <span>{isTa ? 'ஆவணங்கள் பட்டியல்' : 'Checklist'}</span>
+              <RefreshCw className="w-3 h-3" />
+              <span>{isTa ? 'மீண்டும் முயற்சிக்க' : 'Retry'}</span>
             </button>
           </div>
         </div>
+      )}
 
-        {/* Quick Stats Pill Row */}
-        {recommendationsData && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10 text-xs">
-            <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/5">
-              <span className="text-slate-300 block text-[11px] mb-0.5">
-                {isTa ? 'மதிப்பிடப்பட்ட திட்டங்கள்' : 'Total Evaluated'}
-              </span>
-              <span className="text-lg font-bold text-white">{recommendationsData.total_evaluated}</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {/* ========================================================================= */}
+        {/* VIEW 1: QUESTIONNAIRE WIZARD */}
+        {/* ========================================================================= */}
+        {viewMode === 'wizard' && (
+          <div className="max-w-4xl mx-auto">
+            <SchemeQuestionnaireWizard
+              initialAnswers={answers}
+              onComplete={handleRunMatching}
+              onBrowseDirectly={handleBrowseCatalog}
+              isSubmitting={loading}
+            />
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 2: RESULTS SCREEN */}
+        {/* ========================================================================= */}
+        {viewMode === 'results' && matchResults && (
+          <div className="space-y-6">
+            {/* Top Bar with Profile Summary & Actions */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-healthcare-50 text-healthcare-800 border border-healthcare-200 mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{isTa ? 'தனிப்பயனாக்கப்பட்ட அரசு நலத்திட்ட முடிவுகள்' : 'Personalized Scheme Discovery Results'}</span>
+                  </div>
+                  <h1 className="text-xl md:text-2xl font-bold text-navy-900 tracking-tight">
+                    {isTa ? 'உங்களுக்குப் பொருந்தக்கூடிய அரசு நலத்திட்டங்கள்' : 'Government Welfare Schemes Recommended for You'}
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isTa
+                      ? `வசிப்பிடம்: ${answers.district || 'தமிழ்நாடு'} • பாலினம்: ${answers.gender} • வருமான வரம்பு: ${answers.income_range}`
+                      : `Location: ${answers.district || 'Tamil Nadu'} • Gender: ${answers.gender} • Income Range: ${answers.income_range}`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Edit Answers Button */}
+                  <button
+                    onClick={() => setViewMode('wizard')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-healthcare-600" />
+                    <span>{isTa ? 'விடைகளைத் திருத்து' : 'Edit Answers'}</span>
+                  </button>
+
+                  {/* New Search Button */}
+                  <button
+                    onClick={handleStartNewSearch}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{isTa ? 'புதிய தேடல்' : 'New Search'}</span>
+                  </button>
+
+                  {/* Document Checklist Modal Trigger */}
+                  <button
+                    onClick={handleOpenChecklist}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-healthcare-600 text-white hover:bg-healthcare-700 transition-colors shadow-xs"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{isTa ? 'ஆவண சரிபார்ப்பு பட்டியல்' : 'Document Checklist'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Metric Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6">
+                <button
+                  onClick={() => setSelectedMatchStatus('LIKELY_MATCH')}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    selectedMatchStatus === 'LIKELY_MATCH'
+                      ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      {isTa ? 'பொருத்தமானது' : 'Likely Matches'}
+                    </span>
+                    <span className="text-lg font-bold text-emerald-900">{matchResults.likely_matches_count}</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700/80">
+                    {isTa ? 'நிபந்தனைகள் முழுமையாக பொருந்துகின்றன' : 'Satisfies statutory rules'}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setSelectedMatchStatus('MORE_INFO_NEEDED')}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    selectedMatchStatus === 'MORE_INFO_NEEDED'
+                      ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      {isTa ? 'கூடுதல் தகவல் தேவை' : 'More Info Needed'}
+                    </span>
+                    <span className="text-lg font-bold text-amber-900">{matchResults.more_info_needed_count}</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700/80">
+                    {isTa ? 'ஆவண சரிபார்ப்பு தேவைப்படலாம்' : 'Verification or answers needed'}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setSelectedMatchStatus('NOT_MATCHING')}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    selectedMatchStatus === 'NOT_MATCHING'
+                      ? 'bg-rose-50 border-rose-500 ring-2 ring-rose-500/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-rose-800 flex items-center gap-1.5">
+                      <XCircle className="w-4 h-4 text-rose-600" />
+                      {isTa ? 'தகுதி பொருந்தவில்லை' : 'Not Matching'}
+                    </span>
+                    <span className="text-lg font-bold text-rose-900">{matchResults.not_matching_count}</span>
+                  </div>
+                  <p className="text-[11px] text-rose-700/80">
+                    {isTa ? 'கட்டாய நிபந்தனை பூர்த்தியாகவில்லை' : 'Mandatory criteria unmet'}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setSelectedMatchStatus('ALL')}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    selectedMatchStatus === 'ALL'
+                      ? 'bg-slate-100 border-slate-400 ring-2 ring-slate-400/20'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-slate-600" />
+                      {isTa ? 'அனைத்து திட்டங்கள்' : 'All Evaluated'}
+                    </span>
+                    <span className="text-lg font-bold text-slate-900">{matchResults.total_evaluated}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {isTa ? 'மதிப்பிடப்பட்ட அனைத்து திட்டங்கள்' : 'Total verified catalog'}
+                  </p>
+                </button>
+              </div>
             </div>
-            <div className="bg-emerald-500/10 backdrop-blur-xs rounded-xl p-3 border border-emerald-500/20">
-              <span className="text-emerald-300 block text-[11px] mb-0.5">
-                {isTa ? 'அதிக தகுதி வாய்ப்பு' : 'Likely Eligible'}
-              </span>
-              <span className="text-lg font-bold text-emerald-400">{recommendationsData.likely_eligible_count}</span>
+
+            {/* Filter and Search Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                {/* Search Input */}
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder={isTa ? 'திட்டத்தின் பெயர் அல்லது துறையைத் தேடுக...' : 'Search by scheme name or department...'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-healthcare-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                  {/* Level Filter */}
+                  <select
+                    value={selectedLevel}
+                    onChange={(e) => setSelectedLevel(e.target.value)}
+                    className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700"
+                  >
+                    <option value="ALL">{isTa ? 'மத்திய & மாநில அரசு' : 'All Governments'}</option>
+                    <option value="STATE">{isTa ? 'தமிழ்நாடு அரசு' : 'Tamil Nadu State'}</option>
+                    <option value="CENTRAL">{isTa ? 'மத்திய அரசு' : 'Central Government'}</option>
+                  </select>
+
+                  {/* Saved Filter */}
+                  <button
+                    onClick={() => setViewOnlySaved(!viewOnlySaved)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                      viewOnlySaved
+                        ? 'bg-healthcare-50 border-healthcare-500 text-healthcare-800'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Bookmark className={`w-3.5 h-3.5 ${viewOnlySaved ? 'fill-current text-healthcare-700' : ''}`} />
+                    <span>{isTa ? 'சேமிக்கப்பட்டவை' : 'Saved Only'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Horizontal Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                {categories.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setSelectedCategory(c.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      selectedCategory === c.key
+                        ? 'bg-navy-900 text-white font-semibold'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {isTa ? c.label_ta : c.label_en}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="bg-amber-500/10 backdrop-blur-xs rounded-xl p-3 border border-amber-500/20">
-              <span className="text-amber-300 block text-[11px] mb-0.5">
-                {isTa ? 'சாத்தியமான தகுதி' : 'Possibly Eligible'}
-              </span>
-              <span className="text-lg font-bold text-amber-400">{recommendationsData.possibly_eligible_count}</span>
+
+            {/* Scheme Cards Grid */}
+            {filteredMatchItems.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredMatchItems.map((item) => (
+                  <SchemeCard
+                    key={item.scheme.id}
+                    evaluation={item}
+                    onViewDetails={(s) => setSelectedSchemeForModal(s)}
+                    onToggleSave={handleToggleSave}
+                    onToggleCompare={handleToggleCompare}
+                    onAskAI={handleAskAI}
+                    isSaved={savedSchemeIds.includes(item.scheme.id)}
+                    isCompared={comparedSchemeIds.includes(item.scheme.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Helpful Empty Results State with Directory Links */
+              <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center max-w-xl mx-auto space-y-4">
+                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <Search className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-navy-900">
+                  {isTa ? 'பொருத்தமான திட்டங்கள் எதுவும் காணப்படவில்லை' : 'No Matching Schemes Found for Current Filters'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {isTa
+                    ? 'தேர்ந்தெடுக்கப்பட்ட வடிகட்டிகளில் திட்டங்கள் இல்லை. பிற பிரிவுகளைத் தேர்ந்தெடுக்கவும் அல்லது அதிகாரப்பூர்வ அரசு தளங்களை பார்வையிடவும்.'
+                    : 'No verified schemes matched your exact active filter selection. Try adjusting your filters or browse official government welfare portals directly.'}
+                </p>
+
+                {/* Official Directory Links */}
+                <div className="pt-2 text-left bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
+                  <span className="text-xs font-bold text-slate-700 block mb-2">
+                    {isTa ? 'அதிகாரப்பூர்வ அரசு நலத்திட்ட இணையதளங்கள்:' : 'Official Government Scheme Portals:'}
+                  </span>
+                  <ul className="space-y-1.5 text-xs">
+                    <li>
+                      <a
+                        href="https://www.myscheme.gov.in/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>myScheme Government of India (myscheme.gov.in)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://services.india.gov.in/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>National Government Services Portal (services.india.gov.in)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://www.tnega.tn.gov.in/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Tamil Nadu e-Governance Agency (tnega.tn.gov.in)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://www.cmchistn.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>CMCHIS Health Insurance Tamil Nadu (cmchistn.com)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedCategory('ALL');
+                    setSelectedLevel('ALL');
+                    setSelectedMatchStatus('ALL');
+                    setSearchQuery('');
+                    setViewOnlySaved(false);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-healthcare-600 text-white text-xs font-semibold hover:bg-healthcare-700 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{isTa ? 'வடிகட்டிகளை மீட்டமைக்க' : 'Reset All Filters'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 3: CATALOG BROWSER (NO QUESTIONNAIRE) */}
+        {/* ========================================================================= */}
+        {viewMode === 'catalog' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-semibold text-healthcare-700 block mb-1">
+                  {isTa ? 'அரசு நலத்திட்டங்கள் நேரடிப் பட்டியல்' : 'Official Scheme Catalog'}
+                </span>
+                <h1 className="text-xl md:text-2xl font-bold text-navy-900 tracking-tight">
+                  {isTa ? 'அனைத்து அரசு நலத்திட்டங்களின் பட்டியல் (11 திட்டங்கள்)' : 'All Verified Government Schemes (11 Schemes)'}
+                </h1>
+                <p className="text-xs text-slate-500 mt-1">
+                  {isTa
+                    ? 'மத்திய மற்றும் தமிழ்நாடு அரசின் அதிகாரப்பூர்வ தகவல்கள், விதிகள் மற்றும் விண்ணப்ப இணைப்புகள்.'
+                    : 'Traceable official information from myscheme.gov.in, cmchistn.com, and tnega.tn.gov.in.'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setViewMode('wizard')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-xs"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>{isTa ? 'என் தகுதியை அறிய வினாடி வினா' : 'Find Schemes for My Profile'}</span>
+              </button>
             </div>
-            <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/5">
-              <span className="text-slate-300 block text-[11px] mb-0.5">
-                {isTa ? 'சேமிக்கப்பட்டவை' : 'Bookmarked'}
-              </span>
-              <span className="text-lg font-bold text-white">{savedSchemeIds.length}</span>
+
+            {/* Catalog Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allSchemes.map((scheme) => (
+                <SchemeCard
+                  key={scheme.id}
+                  evaluation={{
+                    scheme,
+                    match_status: 'MORE_INFO_NEEDED',
+                    match_status_label_en: 'General Catalog',
+                    match_status_label_ta: 'பொதுப் பட்டியல்',
+                    match_score: 80,
+                    reasons: [isTa ? 'அங்கீகரிக்கப்பட்ட அரசு நலத்திட்டம்' : 'Officially verified government scheme'],
+                    missing_information: [isTa ? 'தனிநபர் தகுதியை அறிய வினாடி வினாவுக்கு பதிலளிக்கவும்' : 'Answer questionnaire to check your personalized eligibility'],
+                    unmet_criteria: [],
+                    required_documents: scheme.required_documents || [],
+                    official_source_url: scheme.official_source_url,
+                    official_portal_url: scheme.official_portal_url,
+                    last_verified_date: 'November 2026',
+                    application_status: scheme.application_status || 'OPEN',
+                    is_saved: savedSchemeIds.includes(scheme.id),
+                  }}
+                  onViewDetails={(s) => setSelectedSchemeForModal(s)}
+                  onToggleSave={handleToggleSave}
+                  onToggleCompare={handleToggleCompare}
+                  onAskAI={handleAskAI}
+                  isSaved={savedSchemeIds.includes(scheme.id)}
+                  isCompared={comparedSchemeIds.includes(scheme.id)}
+                />
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Comparison Floating Tray Banner if schemes selected */}
+      {/* Floating Comparison Drawer */}
       {comparedSchemeIds.length > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-indigo-700 flex-shrink-0" />
-            <span className="text-xs sm:text-sm font-semibold text-indigo-950">
-              {isTa
-                ? `${comparedSchemeIds.length} திட்டங்கள் ஒப்பிடுவதற்கு தேர்ந்தெடுக்கப்பட்டுள்ளன.`
-                : `${comparedSchemeIds.length} schemes selected for side-by-side comparison.`}
-            </span>
+        <div className="fixed bottom-4 right-4 z-40 bg-navy-900 text-white rounded-2xl shadow-xl border border-white/10 px-5 py-3 flex items-center gap-4">
+          <div className="text-xs">
+            <span className="font-bold text-amber-300">{comparedSchemeIds.length} / 3</span>{' '}
+            <span>{isTa ? 'திட்டங்கள் ஒப்பிட தேர்ந்தெடுக்கப்பட்டுள்ளன' : 'schemes in compare'}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setIsCompareOpen(true)}
+              className="px-3 py-1.5 bg-healthcare-600 hover:bg-healthcare-500 rounded-lg text-xs font-bold text-white transition-colors"
+            >
+              {isTa ? 'ஒப்பிடுக' : 'Compare Now'}
+            </button>
+            <button
               onClick={() => setComparedSchemeIds([])}
-              className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+              className="text-xs text-slate-400 hover:text-white"
             >
               {isTa ? 'நீக்கு' : 'Clear'}
             </button>
-            <button
-              onClick={() => setIsCompareOpen(true)}
-              className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg shadow-xs"
-            >
-              {isTa ? 'இப்போது ஒப்பிடுக' : 'Compare Now'}
-            </button>
           </div>
         </div>
       )}
-
-      {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
-        {/* Top search & level toggles */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={
-                isTa
-                  ? 'திட்டத்தின் பெயர் அல்லது துறையைத் தேடவும் (எ.கா: காப்பீடு, உதவித்தொகை, உழவர்)...'
-                  : 'Search by scheme name or keywords (e.g. CMCHIS, scholarship, farmer)...'
-              }
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-            />
-          </div>
-
-          {/* Level Filter Buttons */}
-          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-            {[
-              { id: 'ALL', label_en: 'All Levels', label_ta: 'அனைத்து நிலைகளும்' },
-              { id: 'STATE', label_en: 'Tamil Nadu', label_ta: 'தமிழ்நாடு அரசு' },
-              { id: 'CENTRAL', label_en: 'Central Govt', label_ta: 'மத்திய அரசு' },
-            ].map((lvl) => (
-              <button
-                key={lvl.id}
-                onClick={() => setSelectedLevel(lvl.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  selectedLevel === lvl.id
-                    ? 'bg-navy-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {isTa ? lvl.label_ta : lvl.label_en}
-              </button>
-            ))}
-
-            {/* Saved Schemes Toggle */}
-            <button
-              onClick={() => setViewOnlySaved(!viewOnlySaved)}
-              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                viewOnlySaved
-                  ? 'bg-healthcare-50 text-healthcare-800 border-healthcare-300'
-                  : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <Bookmark className={`w-3.5 h-3.5 ${viewOnlySaved ? 'fill-current' : ''}`} />
-              <span>{isTa ? `சேமிக்கப்பட்டவை (${savedSchemeIds.length})` : `Saved (${savedSchemeIds.length})`}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          {[
-            { id: 'ALL', label_en: 'All Categories', label_ta: 'அனைத்தும்' },
-            { id: 'HEALTHCARE', label_en: 'Healthcare', label_ta: 'மருத்துவக் காப்பீடு' },
-            { id: 'WOMEN_CHILD', label_en: 'Women & Child', label_ta: 'மகளிர் & தாய்மை' },
-            { id: 'EDUCATION', label_en: 'Scholarships', label_ta: 'கல்வி உதவித்தொகை' },
-            { id: 'AGRICULTURE', label_en: 'Farmers & Agri', label_ta: 'விவசாய மானியங்கள்' },
-            { id: 'PENSION', label_en: 'Pensions', label_ta: 'ஓய்வூதியங்கள்' },
-            { id: 'DISABILITY', label_en: 'Differently Abled', label_ta: 'மாற்றுத்திறனாளி' },
-            { id: 'HOUSING', label_en: 'Housing Grants', label_ta: 'வீடு கட்டும் திட்டம்' },
-            { id: 'EMPLOYMENT', label_en: 'Business Loans', label_ta: 'சிறு தொழில் கடன்' },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-                selectedCategory === cat.id
-                  ? 'bg-healthcare-600 text-white font-semibold'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {isTa ? cat.label_ta : cat.label_en}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Schemes Grid */}
-      {filteredRecommendations.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
-          <Landmark className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-navy-900 mb-1">
-            {isTa ? 'பொருத்தமான திட்டங்கள் எதுவும் காணப்படவில்லை' : 'No matching schemes found'}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-            {isTa
-              ? 'உங்கள் வடிகட்டிகளை மாற்றிப் பார்க்கவும் அல்லது புதிய தகவல்களுடன் சுயவிவரத்தை புதுப்பிக்கவும்.'
-              : 'Try clearing your search query, adjusting your category filters, or updating your questionnaire profile.'}
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory('ALL');
-              setSelectedLevel('ALL');
-              setViewOnlySaved(false);
-            }}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
-          >
-            {isTa ? 'அனைத்து வடிகட்டிகளையும் நீக்குக' : 'Reset All Filters'}
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredRecommendations.map((evalItem) => (
-            <SchemeCard
-              key={evalItem.scheme.id}
-              evaluation={evalItem}
-              onViewDetails={(s) => setSelectedSchemeForModal(s)}
-              onToggleSave={handleToggleSave}
-              onToggleCompare={handleToggleCompare}
-              onAskAI={handleAskAI}
-              isSaved={savedSchemeIds.includes(evalItem.scheme.id)}
-              isCompared={comparedSchemeIds.includes(evalItem.scheme.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Mandatory Official Disclaimer Footer */}
-      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500 flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-healthcare-700 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold text-slate-700 block mb-0.5">
-            {isTa ? 'அரசு தகுதி அறிவிப்பு & பொறுப்புத் துறப்பு' : 'Government Verification Notice & Disclaimer'}
-          </span>
-          <p className="leading-relaxed">
-            {isTa ? recommendationsData?.disclaimer_ta : recommendationsData?.disclaimer}
-          </p>
-        </div>
-      </div>
 
       {/* Modals */}
-      <SchemeDetailModal
-        scheme={selectedSchemeForModal}
-        isOpen={!!selectedSchemeForModal}
-        onClose={() => setSelectedSchemeForModal(null)}
-        onToggleSave={handleToggleSave}
-        isSaved={selectedSchemeForModal ? savedSchemeIds.includes(selectedSchemeForModal.id) : false}
-      />
+      {selectedSchemeForModal && (
+        <SchemeDetailModal
+          scheme={selectedSchemeForModal}
+          isOpen={true}
+          onClose={() => setSelectedSchemeForModal(null)}
+          onToggleSave={handleToggleSave}
+          isSaved={savedSchemeIds.includes(selectedSchemeForModal.id)}
+        />
+      )}
 
-      <SchemeQuestionnaireModal
-        isOpen={isQuestionnaireOpen}
-        onClose={() => setIsQuestionnaireOpen(false)}
-        onSaveProfile={handleSaveProfile}
-        initialProfile={userProfile}
-      />
+      {isCompareOpen && (
+        <SchemeCompareModal
+          schemes={comparedSchemes}
+          isOpen={true}
+          onClose={() => setIsCompareOpen(false)}
+          onRemoveScheme={(id) => setComparedSchemeIds((prev) => prev.filter((x) => x !== id))}
+          onClearAll={() => setComparedSchemeIds([])}
+        />
+      )}
 
-      <SchemeCompareModal
-        isOpen={isCompareOpen}
-        onClose={() => setIsCompareOpen(false)}
-        schemes={comparedSchemes}
-        onRemoveScheme={(id) => setComparedSchemeIds((prev) => prev.filter((sId) => sId !== id))}
-        onClearAll={() => setComparedSchemeIds([])}
-      />
+      {isChecklistOpen && checklistData && (
+        <DocumentChecklistModal
+          checklist={checklistData}
+          isOpen={true}
+          onClose={() => setIsChecklistOpen(false)}
+        />
+      )}
 
-      <DocumentChecklistModal
-        isOpen={isChecklistOpen}
-        onClose={() => setIsChecklistOpen(false)}
-        checklist={checklistData}
-      />
+      {isAIAssistantOpen && (
+        <AIAssistantModal
+          isOpen={isAIAssistantOpen}
+          onClose={() => setIsAIAssistantOpen(false)}
+          initialQuery={initialAIQuery}
+        />
+      )}
     </div>
   );
 };
+
+export default SchemesPage;

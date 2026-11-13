@@ -378,4 +378,36 @@ export interface DocumentChecklistResponse {
   schemes_covered: { id: string; name: string; name_ta: string }[];
 }
 
+export interface SchemeMatchItemOut {
+  scheme: GovernmentScheme;
+  match_status: 'LIKELY_MATCH' | 'MORE_INFO_NEEDED' | 'NOT_MATCHING';
+  match_status_label_en: string;
+  match_status_label_ta: string;
+  match_score: number;
+  reasons: string[];
+  missing_information: string[];
+  unmet_criteria: string[];
+  required_documents: RequiredDocument[];
+  official_source_url: string;
+  official_portal_url: string;
+  last_verified_date: string;
+  application_status: string;
+  is_saved: boolean;
+}
+
+export interface SchemeMatchResponse {
+  total_evaluated: number;
+  likely_matches_count: number;
+  more_info_needed_count: number;
+  not_matching_count: number;
+  likely_matches: SchemeMatchItemOut[];
+  more_info_needed: SchemeMatchItemOut[];
+  not_matching: SchemeMatchItemOut[];
+  all_results: SchemeMatchItemOut[];
+  disclaimer_en: string;
+  disclaimer_ta: string;
+  evaluated_at: string;
+}
+
+
 

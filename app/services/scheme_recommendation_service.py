@@ -21,6 +21,9 @@ from app.schemas.scheme import (
     GovernmentSchemeDetailOut,
     RequiredDocumentOut,
     SchemeRecommendationResponse,
+    QuestionnaireAnswersIn,
+    SchemeMatchItemOut,
+    SchemeMatchResponse,
 )
 from app.services.scheme_data import VERIFIED_SCHEMES
 
@@ -575,4 +578,269 @@ class SchemeRecommendationEngine:
             recommendations=evaluated,
             disclaimer=disclaimer_en,
             disclaimer_ta=disclaimer_ta,
+        )
+
+    @classmethod
+    def get_static_verified_schemes(cls) -> List[GovernmentScheme]:
+        """
+        Returns static GovernmentScheme objects from verified data.
+        Guarantees zero-downtime availability even if database is down.
+        """
+        import uuid
+        schemes = []
+        for d in VERIFIED_SCHEMES:
+            s = GovernmentScheme(
+                id=uuid.uuid5(uuid.NAMESPACE_DNS, f"scheme.{d['slug']}"),
+                slug=d["slug"],
+                name=d["name"],
+                name_ta=d["name_ta"],
+                short_description=d["short_description"],
+                short_description_ta=d["short_description_ta"],
+                detailed_description=d["detailed_description"],
+                detailed_description_ta=d["detailed_description_ta"],
+                department=d["department"],
+                department_ta=d["department_ta"],
+                level=d["level"],
+                state=d["state"],
+                districts=d["districts"],
+                category=d["category"],
+                target_beneficiaries=d["target_beneficiaries"],
+                target_beneficiaries_ta=d["target_beneficiaries_ta"],
+                benefit_type=d["benefit_type"],
+                benefit_amount_desc=d["benefit_amount_desc"],
+                benefit_amount_desc_ta=d["benefit_amount_desc_ta"],
+                benefit_frequency=d["benefit_frequency"],
+                eligibility_rules=d["eligibility_rules"],
+                required_documents=d["required_documents"],
+                application_mode=d["application_mode"],
+                application_process=d["application_process"],
+                application_process_ta=d["application_process_ta"],
+                official_portal_url=d["official_portal_url"],
+                official_source_url=d["official_source_url"],
+                is_active=True,
+                application_status=d.get("application_status", "OPEN"),
+                verification_status=d.get("verification_status", "OFFICIALLY_VERIFIED"),
+                is_synthetic=False,
+                last_verified_at=datetime(2026, 11, 1, 0, 0, tzinfo=timezone.utc),
+            )
+            schemes.append(s)
+        return schemes
+
+    @classmethod
+    async def evaluate_questionnaire_matches(
+        cls,
+        payload: QuestionnaireAnswersIn,
+        db: Optional[AsyncSession] = None,
+        current_user_id: Optional[UUID] = None,
+    ) -> SchemeMatchResponse:
+        """
+        Evaluates questionnaire answers against verified government schemes.
+        Works seamlessly with database or in offline/fallback mode.
+        """
+        language = payload.language or "ta"
+
+        # 1. Fetch schemes from DB or static catalog
+        schemes: List[GovernmentScheme] = []
+        saved_ids = set()
+        if db is not None:
+            try:
+                await cls.seed_verified_schemes_if_empty(db)
+                stmt = select(GovernmentScheme).where(GovernmentScheme.is_active == True)
+                schemes = list((await db.execute(stmt)).scalars().all())
+                if current_user_id:
+                    s_stmt = select(SavedUserScheme.scheme_id).where(SavedUserScheme.user_id == current_user_id)
+                    saved_ids = set((await db.execute(s_stmt)).scalars().all())
+            except Exception:
+                schemes = []
+
+        if not schemes:
+            schemes = cls.get_static_verified_schemes()
+
+        # 2. Map questionnaire answers into standard user_data structure
+        user_data: Dict[str, Any] = {
+            "basic": {
+                "age": payload.age,
+                "state": payload.state or "Tamil Nadu",
+                "district": payload.district,
+                "village_or_town": payload.town_or_village,
+                "residence_type": payload.residence or "RURAL",
+                "gender": payload.gender,
+                "is_indian_citizen": True,
+            },
+            "household": {
+                "family_size": payload.family_size,
+                "is_female_headed": bool(payload.is_woman_head_of_household),
+                "is_head_of_household": bool(payload.is_head_of_household or payload.is_woman_head_of_household),
+                "has_disabled_member": bool(payload.is_differently_abled),
+            },
+            "financial": {
+                "annual_income": payload.annual_income,
+                "income_range": payload.income_range or "BELOW_72K",
+                "has_ration_card": payload.ration_card_type != "NONE",
+                "ration_card_type": payload.ration_card_type or "PHH",
+                "existing_benefits": payload.existing_benefits or [],
+            },
+            "social": {
+                "community_category": payload.caste_category,
+                "has_disability_certificate": bool(payload.is_differently_abled),
+                "disability_percentage": payload.disability_percentage,
+                "is_widow": "widow" in (payload.special_circumstances or []),
+                "is_senior_citizen": bool(payload.is_senior_citizen or (payload.age and payload.age >= 60)),
+                "is_farmer": bool(payload.is_farmer or (payload.landholding_acres and payload.landholding_acres > 0)),
+                "is_student": bool(
+                    payload.student_status in ["SCHOOL", "HIGHER_SECONDARY", "GOVT_COLLEGE", "PRIVATE_COLLEGE", "ITI_DIPLOMA"]
+                    or payload.employment_status == "STUDENT"
+                ),
+            },
+            "education_employment": {
+                "current_education_status": payload.student_status,
+                "studied_in_govt_school": bool(payload.studied_in_govt_school),
+                "employment_status": payload.employment_status,
+                "highest_qualification": payload.education_level,
+                "seeking_scholarships": "education" in (payload.desired_assistance or []),
+                "interested_in_business": "loan" in (payload.desired_assistance or []),
+            },
+            "agriculture_business": {
+                "owns_agricultural_land": bool(payload.is_farmer or (payload.landholding_acres and payload.landholding_acres > 0)),
+                "land_acres": payload.landholding_acres,
+                "farmer_category": "SMALL_MARGINAL" if (payload.landholding_acres or 0) <= 5.0 else "LARGE",
+                "has_business": payload.employment_status == "SELF_EMPLOYED" or ("loan" in (payload.desired_assistance or [])),
+            },
+            "healthcare_needs": {
+                "needs_maternity_benefits": payload.pregnancy_status in ["PREGNANT", "LACTATING", "CHILD_UNDER_2"],
+                "needs_maternal_child_care": payload.pregnancy_status in ["PREGNANT", "LACTATING", "CHILD_UNDER_2"],
+                "needs_hospital_treatment_aid": "tertiary_care" in (payload.healthcare_needs or []) or "healthcare" in (payload.desired_assistance or []),
+                "needs_health_insurance": True,
+                "needs_disability_support": bool(payload.is_differently_abled),
+            },
+            "financial_needs": payload.desired_assistance or ["ALL"],
+        }
+
+        # Override with freeform profile_data if provided
+        if payload.profile_data:
+            for k, v in payload.profile_data.items():
+                if isinstance(v, dict) and k in user_data and isinstance(user_data[k], dict):
+                    user_data[k].update(v)
+                else:
+                    user_data[k] = v
+
+        likely_matches: List[SchemeMatchItemOut] = []
+        more_info_needed: List[SchemeMatchItemOut] = []
+        not_matching: List[SchemeMatchItemOut] = []
+        all_results: List[SchemeMatchItemOut] = []
+
+        now = datetime.now(timezone.utc)
+
+        for s in schemes:
+            eval_res = cls.evaluate_scheme_eligibility(user_data, s, language=language)
+            is_saved = s.id in saved_ids
+
+            docs = [
+                RequiredDocumentOut(
+                    name_en=d["name_en"],
+                    name_ta=d["name_ta"],
+                    is_mandatory=d.get("is_mandatory", True),
+                    description_en=d.get("description_en"),
+                    description_ta=d.get("description_ta"),
+                )
+                for d in (s.required_documents or [])
+            ]
+
+            scheme_detail = GovernmentSchemeDetailOut(
+                id=s.id,
+                slug=s.slug,
+                name=s.name,
+                name_ta=s.name_ta,
+                short_description=s.short_description,
+                short_description_ta=s.short_description_ta,
+                detailed_description=s.detailed_description,
+                detailed_description_ta=s.detailed_description_ta,
+                department=s.department,
+                department_ta=s.department_ta,
+                level=s.level,
+                state=s.state,
+                districts=s.districts,
+                category=s.category,
+                target_beneficiaries=s.target_beneficiaries,
+                target_beneficiaries_ta=s.target_beneficiaries_ta,
+                benefit_type=s.benefit_type,
+                benefit_amount_desc=s.benefit_amount_desc,
+                benefit_amount_desc_ta=s.benefit_amount_desc_ta,
+                benefit_frequency=s.benefit_frequency,
+                eligibility_rules=s.eligibility_rules or {},
+                required_documents=docs,
+                application_mode=s.application_mode,
+                application_process=s.application_process,
+                application_process_ta=s.application_process_ta,
+                official_portal_url=s.official_portal_url,
+                official_source_url=s.official_source_url,
+                is_active=s.is_active,
+                application_status=s.application_status or "OPEN",
+                last_verified_at=s.last_verified_at or now,
+                verification_status=s.verification_status or "OFFICIALLY_VERIFIED",
+                is_saved=is_saved,
+            )
+
+            if eval_res.eligibility_status == "LIKELY_ELIGIBLE":
+                status_code = "LIKELY_MATCH"
+                label_en = "Likely match"
+                label_ta = "பொருத்தமானது"
+            elif eval_res.eligibility_status in ["POSSIBLY_ELIGIBLE", "MORE_INFO_REQUIRED"]:
+                status_code = "MORE_INFO_NEEDED"
+                label_en = "More information needed"
+                label_ta = "கூடுதல் தகவல் தேவை"
+            else:
+                status_code = "NOT_MATCHING"
+                label_en = "Not currently matching"
+                label_ta = "தகுதி பொருந்தவில்லை"
+
+            item = SchemeMatchItemOut(
+                scheme=scheme_detail,
+                match_status=status_code,
+                match_status_label_en=label_en,
+                match_status_label_ta=label_ta,
+                match_score=eval_res.match_score,
+                reasons=eval_res.matched_reasons,
+                missing_information=eval_res.missing_fields + eval_res.unverified_conditions,
+                unmet_criteria=[
+                    c for c in eval_res.unverified_conditions if "fail" in c.lower() or "not" in c.lower()
+                ],
+                required_documents=docs,
+                official_source_url=s.official_source_url,
+                official_portal_url=s.official_portal_url,
+                last_verified_date=s.last_verified_at.strftime("%B %Y") if s.last_verified_at else "November 2026",
+                application_status=s.application_status or "OPEN",
+                is_saved=is_saved,
+            )
+
+            all_results.append(item)
+            if status_code == "LIKELY_MATCH":
+                likely_matches.append(item)
+            elif status_code == "MORE_INFO_NEEDED":
+                more_info_needed.append(item)
+            else:
+                not_matching.append(item)
+
+        # Sort each list by match_score descending, then state level
+        for lst in (likely_matches, more_info_needed, not_matching, all_results):
+            lst.sort(key=lambda x: (x.match_score, 1 if x.scheme.level == "STATE" else 0), reverse=True)
+
+        return SchemeMatchResponse(
+            total_evaluated=len(schemes),
+            likely_matches_count=len(likely_matches),
+            more_info_needed_count=len(more_info_needed),
+            not_matching_count=len(not_matching),
+            likely_matches=likely_matches,
+            more_info_needed=more_info_needed,
+            not_matching=not_matching,
+            all_results=all_results,
+            disclaimer_en=(
+                "These evaluations are based on officially published eligibility rules and the information you provided. "
+                "Formal verification by the respective government department is required. NALAM AI does not guarantee benefit approval."
+            ),
+            disclaimer_ta=(
+                "இந்த மதிப்பீடுகள் அதிகாரப்பூர்வ தகுதி விதிகளின் அடிப்படையில் கணக்கிடப்பட்டுள்ளன. "
+                "இறுதி அங்கீகாரம் சம்பந்தப்பட்ட அரசுத் துறையினரால் வழங்கப்படும். நலம் ஏஐ திட்ட அனுமதியை உறுதிப்படுத்தாது."
+            ),
+            evaluated_at=now,
         )

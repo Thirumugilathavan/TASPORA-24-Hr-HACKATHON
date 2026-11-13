@@ -235,3 +235,99 @@ class DocumentChecklistOut(BaseModel):
     mandatory_documents: List[Dict[str, Any]]
     optional_documents: List[Dict[str, Any]]
     schemes_covered: List[Dict[str, str]]
+
+
+# -------------------------------------------------------------------------
+# Dynamic Questionnaire Matching & Service Health Schemas
+# -------------------------------------------------------------------------
+
+class QuestionnaireAnswersIn(BaseModel):
+    # Step 1: Location
+    state: Optional[str] = "Tamil Nadu"
+    district: Optional[str] = None
+    pincode: Optional[str] = None
+    town_or_village: Optional[str] = None
+
+    # Step 2: Personal profile
+    age: Optional[int] = Field(None, ge=0, le=120)
+    age_range: Optional[str] = None
+    gender: Optional[str] = None  # FEMALE, MALE, TRANSGENDER, PREFER_NOT_TO_SAY
+    residence: Optional[str] = "RURAL"  # RURAL, URBAN
+
+    # Step 3: Household & income
+    annual_income: Optional[int] = Field(None, ge=0)
+    income_range: Optional[str] = "BELOW_72K"  # BELOW_72K, 72K_TO_120K, 120K_TO_250K, 250K_TO_500K, ABOVE_500K
+    family_size: Optional[int] = Field(None, ge=1, le=30)
+    is_woman_head_of_household: Optional[bool] = False
+    is_head_of_household: Optional[bool] = False
+    ration_card_type: Optional[str] = "PHH"  # PHH, PHH_AAY, NPHH, NPHH_S, NONE, UNKNOWN
+
+    # Step 4: Social eligibility
+    caste_category: Optional[str] = None  # SC, ST, MBC, BC, GENERAL, PREFER_NOT_TO_SAY
+    is_differently_abled: Optional[bool] = False
+    disability_percentage: Optional[int] = Field(None, ge=0, le=100)
+    special_circumstances: Optional[List[str]] = Field(default_factory=list)
+
+    # Step 5: Employment & education
+    employment_status: Optional[str] = None  # EMPLOYED, UNEMPLOYED, SELF_EMPLOYED, DAILY_WAGE, STUDENT, RETIRED
+    student_status: Optional[str] = None  # SCHOOL, HIGHER_SECONDARY, GOVT_COLLEGE, PRIVATE_COLLEGE, ITI_DIPLOMA, NOT_STUDYING
+    studied_in_govt_school: Optional[bool] = False  # Tamil Nadu Govt school (6th to 12th)
+    occupation: Optional[str] = None
+    education_level: Optional[str] = None
+
+    # Step 6: Health & family circumstances
+    pregnancy_status: Optional[str] = "NONE"  # PREGNANT, LACTATING, CHILD_UNDER_2, NONE
+    is_senior_citizen: Optional[bool] = False
+    healthcare_needs: Optional[List[str]] = Field(default_factory=list)  # tertiary_care, chronic_disease, assistive_devices
+    is_farmer: Optional[bool] = False
+    landholding_acres: Optional[float] = Field(None, ge=0.0)
+
+    # Step 7: Existing benefits & desired welfare
+    existing_benefits: Optional[List[str]] = Field(default_factory=list)
+    desired_assistance: Optional[List[str]] = Field(default_factory=list)
+
+    # Freeform / raw answers map
+    profile_data: Optional[Dict[str, Any]] = None
+    language: Optional[str] = "ta"
+
+
+class SchemeMatchItemOut(BaseModel):
+    scheme: GovernmentSchemeDetailOut
+    match_status: str  # LIKELY_MATCH, MORE_INFO_NEEDED, NOT_MATCHING
+    match_status_label_en: str
+    match_status_label_ta: str
+    match_score: float
+    reasons: List[str]
+    missing_information: List[str]
+    unmet_criteria: List[str]
+    required_documents: List[RequiredDocumentOut]
+    official_source_url: str
+    official_portal_url: str
+    last_verified_date: str
+    application_status: str
+    is_saved: bool = False
+
+
+class SchemeMatchResponse(BaseModel):
+    total_evaluated: int
+    likely_matches_count: int
+    more_info_needed_count: int
+    not_matching_count: int
+    likely_matches: List[SchemeMatchItemOut]
+    more_info_needed: List[SchemeMatchItemOut]
+    not_matching: List[SchemeMatchItemOut]
+    all_results: List[SchemeMatchItemOut]
+    disclaimer_en: str
+    disclaimer_ta: str
+    evaluated_at: datetime
+
+
+class SchemeHealthResponse(BaseModel):
+    status: str
+    service: str
+    database: str
+    total_schemes: int
+    sources: List[str]
+    last_catalog_verification: str
+    timestamp: datetime
+

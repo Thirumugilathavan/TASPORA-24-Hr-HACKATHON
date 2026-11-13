@@ -9,13 +9,16 @@ import {
   FileText,
   Sparkles,
   HelpCircle,
+  XCircle,
+  Calendar,
+  ShieldCheck,
 } from 'lucide-react';
-import { EligibilityEvaluation } from '../../types';
+import { EligibilityEvaluation, SchemeMatchItemOut } from '../../types';
 import { useTranslation } from '../../context/LanguageContext';
 
 interface SchemeCardProps {
-  evaluation: EligibilityEvaluation;
-  onViewDetails: (scheme: EligibilityEvaluation['scheme']) => void;
+  evaluation: EligibilityEvaluation | SchemeMatchItemOut;
+  onViewDetails: (scheme: any) => void;
   onToggleSave: (schemeId: string) => void;
   onToggleCompare: (schemeId: string) => void;
   onAskAI: (schemeName: string) => void;
@@ -32,7 +35,7 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({
   isSaved,
   isCompared,
 }) => {
-  const { language, t } = useTranslation();
+  const { language } = useTranslation();
   const isTa = language === 'ta';
   const scheme = evaluation.scheme;
 
@@ -41,27 +44,36 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({
   const dept = isTa ? scheme.department_ta || scheme.department : scheme.department;
   const benefitDesc = isTa ? scheme.benefit_amount_desc_ta || scheme.benefit_amount_desc : scheme.benefit_amount_desc;
 
-  // Status Styling
+  // Normalize status and reasons across EligibilityEvaluation and SchemeMatchItemOut
+  const rawStatus = (evaluation as any).match_status || (evaluation as any).eligibility_status || 'MORE_INFO_NEEDED';
+  const reasons: string[] = (evaluation as any).reasons || (evaluation as any).matched_reasons || [];
+  const missingInfo: string[] = (evaluation as any).missing_information || (evaluation as any).unverified_conditions || [];
+  const unmetCriteria: string[] = (evaluation as any).unmet_criteria || [];
+
   const getStatusBadge = () => {
-    switch (evaluation.eligibility_status) {
+    switch (rawStatus) {
+      case 'LIKELY_MATCH':
       case 'LIKELY_ELIGIBLE':
         return {
-          label: isTa ? 'அதிக தகுதி வாய்ப்பு' : 'Likely Eligible',
+          label: isTa ? 'பொருத்தமானது (Likely Match)' : 'Likely Match',
           className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
           icon: CheckCircle2,
         };
+      case 'MORE_INFO_NEEDED':
       case 'POSSIBLY_ELIGIBLE':
+      case 'MORE_INFO_REQUIRED':
         return {
-          label: isTa ? 'சாத்தியமான தகுதி' : 'Possibly Eligible',
+          label: isTa ? 'கூடுதல் தகவல் தேவை' : 'More Information Needed',
           className: 'bg-amber-50 text-amber-800 border-amber-200',
           icon: AlertCircle,
         };
-      case 'MORE_INFO_REQUIRED':
+      case 'NOT_MATCHING':
+      case 'NOT_ELIGIBLE':
       default:
         return {
-          label: isTa ? 'கூடுதல் தகவல் தேவை' : 'More Info Required',
-          className: 'bg-blue-50 text-blue-800 border-blue-200',
-          icon: HelpCircle,
+          label: isTa ? 'தகுதி பொருந்தவில்லை' : 'Not Currently Matching',
+          className: 'bg-rose-50 text-rose-800 border-rose-200',
+          icon: XCircle,
         };
     }
   };
@@ -107,7 +119,7 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({
         </p>
 
         {/* Highlighted Benefit Pill */}
-        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4">
+        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-3">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-0.5">
             {isTa ? 'உதவித்தொகை / சலுகை' : 'Financial Benefit & Assistance'}
           </span>
@@ -120,35 +132,71 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({
           {shortDesc}
         </p>
 
-        {/* Why Matched Points */}
-        {evaluation.matched_reasons.length > 0 && (
-          <div className="mb-3 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-700 block">
-              {isTa ? 'நீங்கள் ஏன் தகுதியாகிறீர்கள்:' : 'Why you match:'}
-            </span>
-            {evaluation.matched_reasons.slice(0, 2).map((reason, idx) => (
-              <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-600">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                <span className="line-clamp-1">{reason}</span>
-              </div>
-            ))}
+        {/* NALAM AI Assessment Section */}
+        <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 mb-3 space-y-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+            <Sparkles className="w-3 h-3 text-healthcare-600" />
+            <span>{isTa ? 'நலம் AI தகுதி மதிப்பீடு:' : 'NALAM AI Assessment:'}</span>
           </div>
-        )}
 
-        {/* Requirements to verify */}
-        {evaluation.unverified_conditions.length > 0 && (
-          <div className="space-y-1">
-            <span className="text-[11px] font-semibold text-amber-800 block">
-              {isTa ? 'சரிபார்க்க வேண்டியவை:' : 'To verify officially:'}
-            </span>
-            {evaluation.unverified_conditions.slice(0, 1).map((cond, idx) => (
-              <div key={idx} className="flex items-start gap-1.5 text-xs text-amber-700">
-                <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <span className="line-clamp-1">{cond}</span>
-              </div>
-            ))}
-          </div>
-        )}
+          {/* Why Matched Points */}
+          {reasons.length > 0 && (
+            <div className="space-y-1">
+              {reasons.slice(0, 2).map((reason, idx) => (
+                <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-600">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-1">{reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Requirements to verify */}
+          {missingInfo.length > 0 && (
+            <div className="space-y-1 pt-1 border-t border-slate-200/50">
+              <span className="text-[10px] font-semibold text-amber-800 block">
+                {isTa ? 'சரிபார்க்க வேண்டிய நிபந்தனைகள்:' : 'To verify officially:'}
+              </span>
+              {missingInfo.slice(0, 1).map((cond, idx) => (
+                <div key={idx} className="flex items-start gap-1.5 text-xs text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-1">{cond}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Unmet Criteria */}
+          {unmetCriteria.length > 0 && (
+            <div className="space-y-1 pt-1 border-t border-slate-200/50">
+              {unmetCriteria.slice(0, 1).map((u, idx) => (
+                <div key={idx} className="flex items-start gap-1.5 text-xs text-rose-700">
+                  <XCircle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-1">{u}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Official Source & Verification Date */}
+        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            <span>{isTa ? 'சரிபார்க்கப்பட்டது: நவம்பர் 2026' : 'Verified: Nov 2026'}</span>
+          </span>
+          {scheme.official_portal_url && (
+            <a
+              href={scheme.official_portal_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+            >
+              <span>{isTa ? 'அரசு தளம்' : 'Official Portal'}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Action Footer */}
