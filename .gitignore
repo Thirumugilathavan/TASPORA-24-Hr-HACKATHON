@@ -29,3 +29,6 @@ htmlcov/
 *.swo
 
 .vercel
+.env.local
+.env.*.local
+
