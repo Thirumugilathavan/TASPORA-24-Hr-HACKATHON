@@ -9,6 +9,9 @@ import {
   User,
   HeartHandshake,
   X,
+  Tent,
+  Landmark,
+  Phone,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useTranslation } from '../../context/LanguageContext';
@@ -27,6 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { to: '/medicines', label: t('navMedicines', 'Medicine Availability'), icon: Pill },
     { to: '/requests', label: t('navRequests', 'My Requests'), icon: ClipboardList },
     { to: '/appointments', label: t('navAppointments', 'Appointments'), icon: CalendarCheck },
+    { to: '/camps', label: t('navCamps', 'Health Camps'), icon: Tent },
+    { to: '/schemes', label: t('navSchemes', 'Govt. Schemes'), icon: Landmark },
     { to: '/profile', label: t('navProfile', 'Profile'), icon: User },
   ];
 
@@ -99,6 +104,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <p className="mt-0.5 text-[11px] leading-relaxed">
             Contact your local ASHA worker or village health representative for in-person support.
           </p>
+          <a
+            href="/ivr"
+            className="mt-2 flex items-center gap-1.5 text-healthcare-700 font-semibold hover:text-healthcare-900 transition-colors"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {t('navIVR', 'Free Helpline (IVR)')}
+          </a>
         </div>
       </aside>
     </>
