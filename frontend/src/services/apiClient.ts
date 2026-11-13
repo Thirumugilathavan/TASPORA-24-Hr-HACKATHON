@@ -56,8 +56,9 @@ export async function apiRequest<T>(
       throw err;
     }
     const message = err instanceof Error ? err.message : 'Network error or backend server unavailable';
+    const targetDisplay = config.apiBaseUrl || (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api');
     throw new ApiConnectionError(
-      `Unable to connect to CareBridge API at ${config.apiBaseUrl}. Please verify the backend is running. (${message})`,
+      `Unable to connect to NALAM AI API at ${targetDisplay}. Please verify the backend is running. (${message})`,
       0,
       'NETWORK_ERROR'
     );
