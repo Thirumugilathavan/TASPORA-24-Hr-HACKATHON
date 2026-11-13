@@ -42,7 +42,7 @@ class IVRService:
         session = await self.session_service.get_or_create_session(
             call_sid=call_sid,
             caller_phone=caller_phone,
-            default_language=language,
+            default_language="ta",
         )
 
         # Pre-identify caller to link user/patient if known
@@ -51,17 +51,25 @@ class IVRService:
             session.user_id = user.id
             if patient:
                 session.patient_id = patient.id
-                if not language and patient.preferred_language in ("ta", "en"):
-                    session.language = patient.preferred_language
             await self.db.commit()
 
+        # Every new inbound call must begin with bilingual language selection
+        session.current_menu = "LANGUAGE_SELECT"
+        session.retry_count = 0
+        menu_state = dict(session.menu_state or {})
+        menu_state["language_confirmed"] = False
+        menu_state["is_fallback_language"] = False
+        menu_state["language_selection_timestamp"] = None
+        session.menu_state = menu_state
+        await self.db.commit()
+
         # Welcome prompt offering Tamil (1) or English (2)
-        welcome_text = self.prompt_service.get_welcome_prompt()
+        welcome_text = self.prompt_service.get_language_select_prompt()
         await self.session_service.record_interaction(
             session_id=session.id,
             menu_name="LANGUAGE_SELECT",
             prompt_played=welcome_text,
-            action_taken="CALL_INITIATED",
+            action_taken="CALL_INITIATED_LANGUAGE_SELECT",
         )
 
         return IVRResponse(
@@ -70,14 +78,24 @@ class IVRService:
             gather_dtmf=True,
             num_digits=1,
             timeout_seconds=6,
-            current_menu=session.current_menu,
-            language=session.language,
+            current_menu="LANGUAGE_SELECT",
+            language="ta",
             is_verified=session.is_verified,
         )
 
     async def process_dtmf(self, call_sid: str, digits: str) -> IVRResponse:
         """Route keypad DTMF digits through the menu state machine."""
+        return await self.process_input(call_sid=call_sid, digits=digits, speech_text=None)
+
+    async def process_input(
+        self,
+        call_sid: str,
+        digits: Optional[str] = None,
+        speech_text: Optional[str] = None,
+    ) -> IVRResponse:
+        """Route keypad DTMF digits or spoken speech input through menu state machine."""
         clean_digits = (digits or "").strip()
+        clean_speech = (speech_text or "").strip()
 
         # Retrieve active session
         stmt = select(IVRSession).where(IVRSession.call_sid == call_sid)
@@ -113,6 +131,17 @@ class IVRService:
                     language=lang,
                 )
 
+        # Check language change requests from speech or keypad
+        if clean_speech and any(kw in clean_speech.lower() for kw in [
+            "change language", "switch language", "change to english", "change to tamil",
+            "மொழியை மாற்ற", "மொழி மாற்றம்", "மொழியை மாற்ற வேண்டும்"
+        ]):
+            return await self._show_language_switch_menu(session)
+
+        # '*' from MAIN_MENU offers language change:
+        if clean_digits == "*" and menu == "MAIN_MENU":
+            return await self._show_language_switch_menu(session)
+
         # Universal Key Controls:
         # '9': Hangup safely
         if clean_digits == "9" and menu != "AUTH_PIN":
@@ -143,8 +172,11 @@ class IVRService:
 
         # Route by menu state
         if menu == "LANGUAGE_SELECT":
-            return await self._handle_language_select(session, clean_digits)
+            return await self._handle_language_select(session, clean_digits, clean_speech)
         elif menu == "MAIN_MENU":
+            # If conversational speech was provided, execute AI Assistant
+            if clean_speech and not clean_digits:
+                return await self._handle_conversational_ai(session, clean_speech, lang, state)
             return await self._handle_main_menu(session, clean_digits, lang)
         elif menu == "AUTH_PIN":
             return await self._handle_auth_pin(session, clean_digits, lang, state)
@@ -175,48 +207,177 @@ class IVRService:
     # State Handlers
     # -------------------------------------------------------------------------
 
-    async def _handle_language_select(self, session: IVRSession, digits: str) -> IVRResponse:
-        """Select Tamil (1) or English (2)."""
-        if digits == "1":
-            selected_lang = "ta"
-        elif digits == "2":
-            selected_lang = "en"
-        else:
-            # Invalid input
-            session.retry_count += 1
-            if session.retry_count >= 3:
-                goodbye = self.prompt_service.get_goodbye("ta")
-                await self.session_service.end_session(session, "FAILED")
-                return IVRResponse(call_sid=session.call_sid, speak_text=goodbye, hangup=True)
+    async def _show_language_switch_menu(self, session: IVRSession) -> IVRResponse:
+        """Prompts caller to change language while preserving conversation history."""
+        session.current_menu = "LANGUAGE_SELECT"
+        session.retry_count = 0
+        menu_state = dict(session.menu_state or {})
+        menu_state["previous_language"] = session.language
+        session.menu_state = menu_state
+        await self.db.commit()
 
-            retry_msg = "தவறான தேர்வு. தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."
-            await self.session_service.record_interaction(session.id, "LANGUAGE_SELECT", retry_msg, digits, "RETRY")
+        switch_prompt = self.prompt_service.get_language_switch_prompt()
+        await self.session_service.record_interaction(
+            session_id=session.id,
+            menu_name="LANGUAGE_SELECT",
+            prompt_played=switch_prompt,
+            action_taken="CHANGE_LANGUAGE_REQUESTED",
+        )
+
+        return IVRResponse(
+            call_sid=session.call_sid,
+            speak_text=switch_prompt,
+            gather_dtmf=True,
+            num_digits=1,
+            timeout_seconds=6,
+            current_menu="LANGUAGE_SELECT",
+            language=session.language or "ta",
+            is_verified=session.is_verified,
+        )
+
+    async def _handle_language_select(
+        self,
+        session: IVRSession,
+        digits: Optional[str] = None,
+        speech_text: Optional[str] = None,
+    ) -> IVRResponse:
+        """Select Tamil (1) or English (2) via DTMF or speech."""
+        clean_digits = (digits or "").strip()
+        clean_speech = (speech_text or "").strip().lower()
+
+        selected_lang = None
+        if clean_digits == "1" or any(w in clean_speech for w in ["tamil", "தமிழ்", "ஒன்று", "one"]):
+            selected_lang = "ta"
+        elif clean_digits == "2" or any(w in clean_speech for w in ["english", "ஆங்கிலம்", "இரண்டு", "two"]):
+            selected_lang = "en"
+
+        max_retries = getattr(settings, "IVR_LANGUAGE_MAX_RETRIES", 3)
+
+        if selected_lang:
+            session.language = selected_lang
+            session.current_menu = "MAIN_MENU"
+            session.retry_count = 0
+            menu_state = dict(session.menu_state or {})
+            menu_state["selected_language"] = selected_lang
+            menu_state["language_confirmed"] = True
+            menu_state["language_selection_timestamp"] = datetime.now(timezone.utc).isoformat()
+            menu_state["is_fallback_language"] = False
+            session.menu_state = menu_state
+            await self.db.commit()
+
+            # Record interaction
+            action = f"LANGUAGE_SELECTED_{selected_lang.upper()}"
+            await self.session_service.record_interaction(
+                session.id, "LANGUAGE_SELECT", f"Selected {selected_lang}", clean_digits or clean_speech, action
+            )
+
+            welcome_msg = self.prompt_service.get_language_welcome_message(selected_lang)
+            return await self._show_main_menu(session, selected_lang, prefix_welcome=welcome_msg)
+
+        # No input (empty digits and empty speech)
+        if not clean_digits and not clean_speech:
+            session.retry_count += 1
+            if session.retry_count < max_retries:
+                retry_msg = self.prompt_service.get_language_timeout_prompt()
+                await self.session_service.record_interaction(session.id, "LANGUAGE_SELECT", retry_msg, "", "RETRY_NO_INPUT")
+                await self.db.commit()
+                return IVRResponse(
+                    call_sid=session.call_sid,
+                    speak_text=retry_msg,
+                    gather_dtmf=True,
+                    num_digits=1,
+                    current_menu="LANGUAGE_SELECT",
+                    language=session.language or "ta",
+                )
+            else:
+                # Documented Fallback to Tamil
+                return await self._apply_language_fallback(session)
+
+        # Invalid input entered
+        session.retry_count += 1
+        if session.retry_count < max_retries:
+            retry_msg = self.prompt_service.get_language_invalid_prompt()
+            await self.session_service.record_interaction(session.id, "LANGUAGE_SELECT", retry_msg, clean_digits or clean_speech, "RETRY_INVALID_INPUT")
+            await self.db.commit()
             return IVRResponse(
                 call_sid=session.call_sid,
                 speak_text=retry_msg,
                 gather_dtmf=True,
                 num_digits=1,
+                current_menu="LANGUAGE_SELECT",
+                language=session.language or "ta",
             )
+        else:
+            # Documented Fallback to Tamil
+            return await self._apply_language_fallback(session)
 
-        session.language = selected_lang
+    async def _apply_language_fallback(self, session: IVRSession) -> IVRResponse:
+        """Apply documented fallback after retries exhausted without misclassifying caller."""
+        fallback_lang = getattr(settings, "IVR_LANGUAGE_FALLBACK", "ta")
+        session.language = fallback_lang
         session.current_menu = "MAIN_MENU"
         session.retry_count = 0
+        menu_state = dict(session.menu_state or {})
+        menu_state["selected_language"] = fallback_lang
+        menu_state["language_confirmed"] = False  # Caller did not explicitly select it
+        menu_state["is_fallback_language"] = True
+        menu_state["fallback_reason"] = "MAX_RETRIES_EXCEEDED"
+        menu_state["language_selection_timestamp"] = datetime.now(timezone.utc).isoformat()
+        session.menu_state = menu_state
         await self.db.commit()
 
-        return await self._show_main_menu(session, selected_lang)
+        fallback_announcement = self.prompt_service.get_language_fallback_announcement(fallback_lang)
+        await self.session_service.record_interaction(
+            session.id, "LANGUAGE_SELECT", fallback_announcement, None, "FALLBACK_DEFAULT_LANGUAGE"
+        )
+        return await self._show_main_menu(session, fallback_lang, prefix_welcome=fallback_announcement)
 
-    async def _show_main_menu(self, session: IVRSession, lang: str) -> IVRResponse:
+    async def _handle_conversational_ai(
+        self,
+        session: IVRSession,
+        speech_text: str,
+        lang: str,
+        state: Dict[str, Any],
+    ) -> IVRResponse:
+        """Executes closed-loop AI turn with caller's explicit language preference."""
+        from app.ai.agent import NalamAIAgent
+        from app.ai.schemas import AIChatRequest
+
+        agent = NalamAIAgent()
+        ai_req = AIChatRequest(
+            message=speech_text,
+            language=lang,  # Explicitly pass selected language
+            conversation_id=str(session.id),
+            location_context=state.get("resolved_location") or "Namakkal",
+        )
+        ai_resp = await agent.execute_turn(ai_req, self.db)
+        await self.session_service.record_interaction(
+            session.id, "MAIN_MENU", ai_resp.response_text, speech_text, "AI_CONVERSATION_TURN"
+        )
+        return IVRResponse(
+            call_sid=session.call_sid,
+            speak_text=ai_resp.response_text,
+            gather_dtmf=True,
+            num_digits=1,
+            timeout_seconds=8,
+            current_menu="MAIN_MENU",
+            language=lang,
+            is_verified=session.is_verified,
+        )
+
+    async def _show_main_menu(self, session: IVRSession, lang: str, prefix_welcome: Optional[str] = None) -> IVRResponse:
         """Display and read the top-level Main Menu."""
         session.current_menu = "MAIN_MENU"
         session.retry_count = 0
         await self.db.commit()
 
         menu_text = self.prompt_service.get_main_menu(lang)
-        await self.session_service.record_interaction(session.id, "MAIN_MENU", menu_text, None, "MENU_SHOWN")
+        full_text = f"{prefix_welcome} {menu_text}" if prefix_welcome else menu_text
+        await self.session_service.record_interaction(session.id, "MAIN_MENU", full_text, None, "MENU_SHOWN")
 
         return IVRResponse(
             call_sid=session.call_sid,
-            speak_text=menu_text,
+            speak_text=full_text,
             gather_dtmf=True,
             num_digits=1,
             timeout_seconds=8,

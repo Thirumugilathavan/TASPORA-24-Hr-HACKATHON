@@ -16,17 +16,20 @@ class MockTelephonyProvider(TelephonyProvider):
         call_sid = request_data.get("call_sid") or f"mock-call-{uuid.uuid4().hex[:8]}"
         caller_phone = request_data.get("caller_phone") or request_data.get("phone") or "9876500001"
         digits = request_data.get("digits")
+        speech_result = request_data.get("speech_result") or request_data.get("speech")
 
-        event_type_str = request_data.get("event_type", "call_start" if digits is None else "gather")
+        has_input = digits is not None or speech_result is not None
+        event_type_str = request_data.get("event_type", "gather" if has_input else "call_start")
         try:
             event_type = TelephonyEventType(event_type_str)
         except ValueError:
-            event_type = TelephonyEventType.GATHER if digits else TelephonyEventType.CALL_START
+            event_type = TelephonyEventType.GATHER if has_input else TelephonyEventType.CALL_START
 
         return TelephonyCallEvent(
             call_sid=call_sid,
             caller_phone=caller_phone,
             digits=digits,
+            speech_result=speech_result,
             event_type=event_type,
             provider="mock",
             raw_payload=request_data,

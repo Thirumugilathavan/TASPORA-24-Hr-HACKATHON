@@ -18,11 +18,6 @@ from app.core.config import settings
 class GnaniVoiceAdapter:
     """Adapter for Gnani.ai Indic Speech Services (STT & TTS) with resilient fallback."""
 
-    GNANI_STT_URL = os.getenv("GNANI_STT_URL", "https://api.gnani.ai/v1/speech-to-text")
-    GNANI_TTS_URL = os.getenv("GNANI_TTS_URL", "https://api.gnani.ai/v1/text-to-speech")
-    GNANI_API_KEY = os.getenv("GNANI_API_KEY", "")
-    GNANI_TOKEN = os.getenv("GNANI_TOKEN", "")
-
     # Language code mapping
     LANG_MAP = {
         "ta": "ta-IN",
@@ -31,7 +26,11 @@ class GnaniVoiceAdapter:
     }
 
     def __init__(self):
-        self.is_live = bool(self.GNANI_API_KEY and self.GNANI_TOKEN)
+        self.stt_url = getattr(settings, "GNANI_STT_URL", "https://api.gnani.ai/v1/speech-to-text")
+        self.tts_url = getattr(settings, "GNANI_TTS_URL", "https://api.gnani.ai/v1/text-to-speech")
+        self.api_key = getattr(settings, "GNANI_API_KEY", "") or os.getenv("GNANI_API_KEY", "")
+        self.token = getattr(settings, "GNANI_TOKEN", "") or os.getenv("GNANI_TOKEN", "")
+        self.is_live = bool(self.api_key and self.token)
 
     def get_status(self) -> Dict[str, Any]:
         return {
@@ -40,6 +39,8 @@ class GnaniVoiceAdapter:
             "supported_languages": ["ta-IN (Tamil)", "en-IN (English)"],
             "stt_active": True,
             "tts_active": True,
+            "tamil_voice": getattr(settings, "GNANI_VOICE_NAME", "Nalini"),
+            "english_voice": "en-IN-Standard-A",
         }
 
     async def transcribe(
@@ -48,17 +49,13 @@ class GnaniVoiceAdapter:
         audio_format: str = "wav",
         language: str = "ta",
     ) -> Dict[str, Any]:
-        """Transcribes incoming speech audio to text.
-        
-        If live Gnani credentials exist, calls Gnani REST endpoint.
-        Otherwise provides deterministic speech transcription fallback for demo evaluation.
-        """
+        """Transcribes incoming speech audio to text using Gnani STT or resilient local fallback."""
         indic_lang = self.LANG_MAP.get(language, "ta-IN")
 
         if self.is_live:
             headers = {
-                "Authorization": f"Bearer {self.GNANI_TOKEN}",
-                "x-api-key": self.GNANI_API_KEY,
+                "Authorization": f"Bearer {self.token}",
+                "x-api-key": self.api_key,
                 "Content-Type": "application/json",
             }
             payload = {
@@ -66,15 +63,17 @@ class GnaniVoiceAdapter:
                 "encoding": audio_format.upper(),
                 "language": indic_lang,
                 "sample_rate": 16000,
+                "model": getattr(settings, "GNANI_STT_MODEL", "prisma-v3.0"),
             }
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(self.GNANI_STT_URL, json=payload, headers=headers)
+                    resp = await client.post(self.stt_url, json=payload, headers=headers)
                     if resp.status_code == 200:
                         data = resp.json()
                         return {
                             "transcribed_text": data.get("transcript", ""),
                             "detected_language": language,
+                            "indic_language": indic_lang,
                             "confidence": data.get("confidence", 0.92),
                             "provider": "gnani_cloud",
                         }
@@ -83,7 +82,6 @@ class GnaniVoiceAdapter:
                 pass
 
         # Graceful fallback for local evaluation and testing
-        # Decode first few bytes to verify valid base64 payload
         try:
             raw_audio = base64.b64decode(audio_base64)
             audio_len = len(raw_audio)
@@ -91,7 +89,6 @@ class GnaniVoiceAdapter:
             raw_audio = b""
             audio_len = 0
 
-        # Heuristic sample transcripts for audio tests
         sample_transcript = (
             "திருச்செங்கோடு அருகே உள்ள ஆரம்ப சுகாதார நிலையத்தை கண்டுபிடி"
             if language == "ta"
@@ -101,6 +98,8 @@ class GnaniVoiceAdapter:
         return {
             "transcribed_text": sample_transcript,
             "detected_language": language,
+            "language": language,
+            "indic_language": indic_lang,
             "confidence": 0.88,
             "provider": "indic_voice_adapter_demo",
             "audio_bytes_received": audio_len,
@@ -111,28 +110,31 @@ class GnaniVoiceAdapter:
         text: str,
         language: str = "ta",
         voice_gender: str = "female",
+        voice_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Synthesizes text into spoken audio in Tamil or English.
-        
-        Returns Base64 encoded audio/wav payload.
-        """
+        """Synthesizes text into spoken audio in Tamil or English via Gnani TTS."""
         indic_lang = self.LANG_MAP.get(language, "ta-IN")
+        selected_voice = voice_name or (
+            getattr(settings, "GNANI_VOICE_NAME", "Nalini") if language == "ta" else "en-IN-Standard-A"
+        )
 
         if self.is_live:
             headers = {
-                "Authorization": f"Bearer {self.GNANI_TOKEN}",
-                "x-api-key": self.GNANI_API_KEY,
+                "Authorization": f"Bearer {self.token}",
+                "x-api-key": self.api_key,
                 "Content-Type": "application/json",
             }
             payload = {
                 "text": text,
                 "language": indic_lang,
                 "gender": voice_gender.upper(),
+                "voice_name": selected_voice,
                 "audio_format": "WAV",
+                "model": getattr(settings, "GNANI_VOICE_MODEL", "timbre-v2.5"),
             }
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(self.GNANI_TTS_URL, json=payload, headers=headers)
+                    resp = await client.post(self.tts_url, json=payload, headers=headers)
                     if resp.status_code == 200:
                         data = resp.json()
                         return {
@@ -141,15 +143,16 @@ class GnaniVoiceAdapter:
                             "duration_seconds": data.get("duration", 2.5),
                             "status": "success",
                             "provider": "gnani_cloud",
+                            "language": language,
+                            "indic_language": indic_lang,
+                            "voice": selected_voice,
                         }
             except Exception:
                 pass
 
         # Generate a lightweight valid synthetic 0.5s silent/gentle chime WAV in base64
-        # so frontend audio players never error on demo playback
         sample_rate = 8000
         num_samples = int(sample_rate * 0.5)
-        # Create WAV PCM header
         header = bytearray()
         header.extend(b"RIFF")
         header.extend(struct.pack("<I", 36 + num_samples * 2))
@@ -163,7 +166,6 @@ class GnaniVoiceAdapter:
         header.extend(struct.pack("<H", 16))  # Bits per sample
         header.extend(b"data")
         header.extend(struct.pack("<I", num_samples * 2))
-        # Silence/tone bytes
         audio_data = header + b"\x00\x00" * num_samples
         audio_b64 = base64.b64encode(audio_data).decode("ascii")
 
@@ -174,6 +176,9 @@ class GnaniVoiceAdapter:
             "status": "success",
             "provider": "indic_voice_adapter_demo",
             "text_length": len(text),
+            "language": language,
+            "indic_language": indic_lang,
+            "voice": selected_voice,
         }
 
 

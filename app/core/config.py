@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     IVR_MAX_AUTH_ATTEMPTS: int = 3
     IVR_AUTH_LOCKOUT_MINUTES: int = 15
     IVR_DEFAULT_LANGUAGE: str = "ta"
+    IVR_LANGUAGE_MAX_RETRIES: int = 3
+    IVR_LANGUAGE_FALLBACK: str = "ta"
     IVR_AUDIO_BASE_URL: str = ""
     IVR_EMERGENCY_NUMBER: str = "108"
     IVR_ALLOW_DEMO_PHONE_PIN: bool = True
@@ -52,6 +54,15 @@ class Settings(BaseSettings):
     IVR_ENABLE_CALL_TRANSFER: bool = False
     IVR_TRANSFER_PHONE_NUMBER: str = ""
     IVR_ENABLE_CALL_RECORDING: bool = False
+
+    # Gnani.ai Indic Voice Integration Settings
+    GNANI_API_KEY: str = ""
+    GNANI_TOKEN: str = ""
+    GNANI_STT_URL: str = "https://api.gnani.ai/v1/speech-to-text"
+    GNANI_TTS_URL: str = "https://api.gnani.ai/v1/text-to-speech"
+    GNANI_VOICE_NAME: str = "Nalini"
+    GNANI_VOICE_MODEL: str = "timbre-v2.5"
+    GNANI_STT_MODEL: str = "prisma-v3.0"
 
     # Telecom / Telephony Provider Integration Settings
     TELEPHONY_PROVIDER: str = "mock"

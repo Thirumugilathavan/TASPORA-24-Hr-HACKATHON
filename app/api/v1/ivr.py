@@ -121,10 +121,11 @@ async def telephony_webhook(
             session_status="COMPLETED",
         )
     else:
-        # GATHER event with DTMF digits
-        ivr_resp = await service.process_dtmf(
+        # GATHER event with DTMF digits or speech transcription
+        ivr_resp = await service.process_input(
             call_sid=event.call_sid,
-            digits=event.digits or "",
+            digits=event.digits,
+            speech_text=event.speech_result,
         )
 
     # Format response depending on provider (XML for Twilio, JSON for mock)
@@ -195,9 +196,10 @@ async def carrier_continue_webhook(
             session_status="COMPLETED",
         )
     else:
-        ivr_resp = await service.process_dtmf(
+        ivr_resp = await service.process_input(
             call_sid=event.call_sid,
-            digits=event.digits or "",
+            digits=event.digits,
+            speech_text=event.speech_result,
         )
     ivr_resp.action_url = "/api/ivr/webhooks/continue"
 
@@ -336,9 +338,10 @@ async def process_call_input(
 ):
     """Submit digits pressed on the keypad."""
     service = IVRService(db)
-    return await service.process_dtmf(
+    return await service.process_input(
         call_sid=payload.call_sid,
         digits=payload.digits,
+        speech_text=payload.speech_text,
     )
 
 
@@ -361,7 +364,23 @@ async def get_session_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "NOT_FOUND", "message": f"IVR session {session_id} not found"}},
         )
-    return session
+    state = dict(session.menu_state or {})
+    return IVRSessionStatusOut(
+        id=session.id,
+        call_sid=session.call_sid,
+        caller_phone=session.caller_phone,
+        language=session.language,
+        current_menu=session.current_menu,
+        is_verified=session.is_verified,
+        status=session.status,
+        retry_count=session.retry_count,
+        started_at=session.started_at,
+        last_interaction_at=session.last_interaction_at,
+        ended_at=session.ended_at,
+        selected_language=state.get("selected_language", session.language),
+        language_selection_timestamp=state.get("language_selection_timestamp"),
+        is_fallback_language=state.get("is_fallback_language", False),
+    )
 
 
 @router.post(

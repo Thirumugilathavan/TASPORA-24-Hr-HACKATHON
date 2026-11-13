@@ -80,11 +80,12 @@ class TwilioTelephonyProvider(TelephonyProvider):
         call_sid = request_data.get("CallSid") or request_data.get("call_sid") or "twilio-unknown"
         caller_phone = request_data.get("From") or request_data.get("caller_phone") or ""
         digits = request_data.get("Digits") or request_data.get("digits")
+        speech_result = request_data.get("SpeechResult") or request_data.get("speech_result")
 
         call_status = request_data.get("CallStatus", "").lower()
         if call_status in ("completed", "canceled", "failed", "busy", "no-answer"):
             event_type = TelephonyEventType.HANGUP
-        elif digits is not None:
+        elif digits is not None or speech_result is not None:
             event_type = TelephonyEventType.GATHER
         else:
             event_type = TelephonyEventType.CALL_START
@@ -93,6 +94,7 @@ class TwilioTelephonyProvider(TelephonyProvider):
             call_sid=call_sid,
             caller_phone=caller_phone,
             digits=digits,
+            speech_result=speech_result,
             event_type=event_type,
             provider="twilio",
             raw_payload=request_data,
@@ -128,7 +130,7 @@ class TwilioTelephonyProvider(TelephonyProvider):
                 f'</Response>'
             )
 
-        # Case 3: DTMF Digit Gather
+        # Case 3: DTMF Digit & Speech Gather
         if ivr_response.gather_dtmf:
             num_digits = ivr_response.num_digits
             timeout = ivr_response.timeout_seconds
@@ -136,11 +138,22 @@ class TwilioTelephonyProvider(TelephonyProvider):
             action_attr = f' action="{html.escape(ivr_response.action_url)}"' if ivr_response.action_url else ""
             method_attr = ' method="POST"' if ivr_response.action_url else ""
 
+            # Check if this is the bilingual opening greeting
+            if ivr_response.current_menu == "LANGUAGE_SELECT" and ("Welcome to NALAM" in ivr_response.speak_text or "வரவேற்கிறோம்" in ivr_response.speak_text):
+                ta_part = "வணக்கம்! நலம் மருத்துவ உதவி மையத்திற்கு உங்களை வரவேற்கிறோம். தமிழில் தொடர 1-ஐ அழுத்தவும். ஆங்கிலத்தில் தொடர 2-ஐ அழுத்தவும்."
+                en_part = "Welcome to NALAM AI Healthcare Assistance. Press 1 to continue in Tamil. Press 2 to continue in English."
+                say_tags = (
+                    f'    <Say language="ta-IN">{html.escape(ta_part)}</Say>\n'
+                    f'    <Say language="en-IN">{html.escape(en_part)}</Say>'
+                )
+            else:
+                say_tags = f'    {play_tag}<Say language="{lang_code}">{escaped_text}</Say>'
+
             return (
                 '<?xml version="1.0" encoding="UTF-8"?>\n'
                 f'<Response>\n'
-                f'  <Gather numDigits="{num_digits}" timeout="{timeout}" finishOnKey="{finish_key}"{action_attr}{method_attr}>\n'
-                f'    {play_tag}<Say language="{lang_code}">{escaped_text}</Say>\n'
+                f'  <Gather numDigits="{num_digits}" timeout="{timeout}" finishOnKey="{finish_key}" input="dtmf speech"{action_attr}{method_attr}>\n'
+                f'{say_tags}\n'
                 f'  </Gather>\n'
                 f'  <Say language="{lang_code}">No input detected.</Say>\n'
                 f'</Response>'

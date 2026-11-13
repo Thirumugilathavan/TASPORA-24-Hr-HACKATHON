@@ -6,12 +6,70 @@ class IVRPromptService:
     """Bilingual voice prompts manager supporting Tamil and English for button-phone users."""
 
     @staticmethod
-    def get_welcome_prompt() -> str:
+    def get_language_select_prompt() -> str:
+        """Opening bilingual greeting played before every new inbound call."""
         return (
-            "NALAM AI-க்கு வரவேற்கிறோம். உங்கள் சுகாதார சேவை உதவியாளர். "
-            "Welcome to NALAM AI healthcare assistant. "
-            "தமிழில் தொடர 1-ஐ அழுத்தவும். For English, press 2."
+            "வணக்கம்! நலம் மருத்துவ உதவி மையத்திற்கு உங்களை வரவேற்கிறோம். "
+            "தமிழில் தொடர 1-ஐ அழுத்தவும். ஆங்கிலத்தில் தொடர 2-ஐ அழுத்தவும். "
+            "Welcome to NALAM AI Healthcare Assistance. "
+            "Press 1 to continue in Tamil. Press 2 to continue in English."
         )
+
+    @staticmethod
+    def get_welcome_prompt() -> str:
+        """Alias for backward compatibility."""
+        return IVRPromptService.get_language_select_prompt()
+
+    @staticmethod
+    def get_language_welcome_message(lang: str = "ta") -> str:
+        """Plays after successful language selection."""
+        if lang == "ta":
+            return "வணக்கம்! நான் நலம் AI உதவியாளர். உங்களுக்கு என்ன மருத்துவ உதவி தேவை?"
+        return "Hello! I am your NALAM healthcare assistant. How can I help you today?"
+
+    @staticmethod
+    def get_language_invalid_prompt() -> str:
+        """Played when invalid DTMF digits are pressed during language selection."""
+        return (
+            "தவறான தேர்வு. தமிழில் தொடர 1-ஐ அழுத்தவும். ஆங்கிலத்தில் தொடர 2-ஐ அழுத்தவும். "
+            "Invalid selection. Press 1 to continue in Tamil. Press 2 to continue in English."
+        )
+
+    @staticmethod
+    def get_language_timeout_prompt() -> str:
+        """Played when no input is detected during language selection."""
+        return (
+            "எந்த உள்ளீடும் பெறப்படவில்லை. தமிழில் தொடர 1-ஐ அழுத்தவும். ஆங்கிலத்தில் தொடர 2-ஐ அழுத்தவும். "
+            "No input detected. Press 1 to continue in Tamil. Press 2 to continue in English."
+        )
+
+    @staticmethod
+    def get_language_fallback_announcement(fallback_lang: str = "ta") -> str:
+        """Announced when retry limit is exhausted without claiming caller explicitly selected it."""
+        if fallback_lang == "ta":
+            return (
+                "அதிகபட்ச முயற்சிகள் முடிவடைந்தன. நலம் உதவி மையம் தானாகவே தமிழில் தொடர்கிறது. "
+                "வணக்கம்! நான் நலம் AI உதவியாளர். உங்களுக்கு என்ன மருத்துவ உதவி தேவை? "
+            )
+        return (
+            "Attempts exceeded. NALAM assistance will proceed in English. "
+            "Hello! I am your NALAM healthcare assistant. How can I help you today? "
+        )
+
+    @staticmethod
+    def get_language_switch_prompt() -> str:
+        """Played when caller requests a language change during call."""
+        return (
+            "மொழியை மாற்ற, தமிழில் தொடர 1-ஐ அழுத்தவும். ஆங்கிலத்தில் தொடர 2-ஐ அழுத்தவும். "
+            "To change language, press 1 for Tamil. Press 2 for English."
+        )
+
+    @staticmethod
+    def get_language_switched_confirmation(new_lang: str = "ta") -> str:
+        """Confirmation spoken in the newly selected language."""
+        if new_lang == "ta":
+            return "மொழி தமிழாக மாற்றப்பட்டது. வணக்கம்! நான் நலம் AI உதவியாளர். உங்களுக்கு என்ன மருத்துவ உதவி தேவை? "
+        return "Language changed to English. Hello! I am your NALAM healthcare assistant. How can I help you today? "
 
     @staticmethod
     def get_main_menu(lang: str = "ta") -> str:

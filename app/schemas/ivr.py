@@ -22,6 +22,7 @@ class TelephonyCallEvent(BaseModel):
     call_sid: str
     caller_phone: str
     digits: Optional[str] = None
+    speech_result: Optional[str] = None
     event_type: TelephonyEventType = TelephonyEventType.CALL_START
     provider: str = "mock"
     raw_payload: Optional[Dict[str, Any]] = None
@@ -40,7 +41,7 @@ class IVRResponse(BaseModel):
     transfer_number: Optional[str] = None
     action_url: Optional[str] = None
     session_status: str = "IN_PROGRESS"
-    current_menu: str = "MAIN_MENU"
+    current_menu: str = "LANGUAGE_SELECT"
     language: str = "ta"
     is_verified: bool = False
     error: Optional[str] = None
@@ -50,13 +51,14 @@ class IVRStartCallIn(BaseModel):
     """Payload to initiate an IVR session (used by simulator or webhook)."""
     caller_phone: str
     call_sid: Optional[str] = None
-    language: Optional[str] = "ta"
+    language: Optional[str] = None
 
 
 class IVRInputIn(BaseModel):
-    """Payload when sending DTMF keypresses to an active call session."""
+    """Payload when sending DTMF keypresses or speech to an active call session."""
     call_sid: str
-    digits: str
+    digits: Optional[str] = None
+    speech_text: Optional[str] = None
 
 
 class IVRSessionStatusOut(BaseModel):
@@ -72,6 +74,9 @@ class IVRSessionStatusOut(BaseModel):
     started_at: datetime
     last_interaction_at: datetime
     ended_at: Optional[datetime] = None
+    selected_language: Optional[str] = None
+    language_selection_timestamp: Optional[datetime] = None
+    is_fallback_language: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
