@@ -2,28 +2,28 @@ import React, { useState } from 'react';
 import {
   MapPin,
   User,
-  Home,
-  ShieldCheck,
   Briefcase,
-  HeartPulse,
+  Home,
   Gift,
-  CheckCircle2,
+  ShieldCheck,
+  HeartPulse,
+  Sparkles,
   ChevronRight,
   ChevronLeft,
   AlertCircle,
   HelpCircle,
-  Info,
-  Sparkles,
-  Edit2,
+  Check,
   RotateCcw,
+  Info,
 } from 'lucide-react';
 import { useTranslation } from '../../context/LanguageContext';
 import { QuestionnaireFormAnswers } from '../../services/localSchemeMatcher';
 
-interface SchemeQuestionnaireWizardProps {
+export interface SchemeQuestionnaireWizardProps {
   initialAnswers?: QuestionnaireFormAnswers;
   onComplete: (answers: QuestionnaireFormAnswers) => void;
   onBrowseDirectly?: () => void;
+  onBackToIntro?: () => void;
   isSubmitting?: boolean;
 }
 
@@ -72,6 +72,7 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
   initialAnswers = {},
   onComplete,
   onBrowseDirectly,
+  onBackToIntro,
   isSubmitting = false,
 }) => {
   const { language } = useTranslation();
@@ -85,36 +86,67 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
     state: initialAnswers.state || 'Tamil Nadu',
     district: initialAnswers.district || 'Namakkal',
     pincode: initialAnswers.pincode || '',
-    town_or_village: initialAnswers.town_or_village || '',
-    age: initialAnswers.age || '',
-    gender: initialAnswers.gender || 'FEMALE',
+    age_range: initialAnswers.age_range || '',
+    employment_status: initialAnswers.employment_status || '',
+    income_range: initialAnswers.income_range || '',
+    has_existing_benefits: initialAnswers.has_existing_benefits || '',
+    ration_card_type: initialAnswers.ration_card_type || '',
+    healthcare_needs: initialAnswers.healthcare_needs || [],
     residence: initialAnswers.residence || 'RURAL',
-    annual_income: initialAnswers.annual_income || '',
-    income_range: initialAnswers.income_range || 'BELOW_72K',
-    family_size: initialAnswers.family_size || 4,
-    is_woman_head_of_household: initialAnswers.is_woman_head_of_household ?? true,
-    is_head_of_household: initialAnswers.is_head_of_household ?? true,
-    ration_card_type: initialAnswers.ration_card_type || 'PHH',
-    caste_category: initialAnswers.caste_category || 'MBC',
-    is_differently_abled: initialAnswers.is_differently_abled || false,
-    disability_percentage: initialAnswers.disability_percentage || '',
-    special_circumstances: initialAnswers.special_circumstances || [],
-    employment_status: initialAnswers.employment_status || 'DAILY_WAGE',
-    student_status: initialAnswers.student_status || 'NOT_STUDYING',
-    studied_in_govt_school: initialAnswers.studied_in_govt_school || false,
-    occupation: initialAnswers.occupation || 'Agricultural Laborer',
-    education_level: initialAnswers.education_level || '10TH_PASS',
-    pregnancy_status: initialAnswers.pregnancy_status || 'NONE',
-    is_senior_citizen: initialAnswers.is_senior_citizen || false,
-    healthcare_needs: initialAnswers.healthcare_needs || ['tertiary_care'],
-    is_farmer: initialAnswers.is_farmer || false,
-    landholding_acres: initialAnswers.landholding_acres || '',
-    existing_benefits: initialAnswers.existing_benefits || [],
-    desired_assistance: initialAnswers.desired_assistance || ['HEALTHCARE', 'FINANCIAL'],
+    gender: initialAnswers.gender || 'PREFER_NOT_TO_SAY',
+    is_woman_head_of_household: initialAnswers.is_woman_head_of_household ?? false,
+    is_farmer: initialAnswers.is_farmer ?? false,
+    is_senior_citizen: initialAnswers.is_senior_citizen ?? false,
   });
 
-  const updateAnswer = (field: keyof QuestionnaireFormAnswers, value: any) => {
-    setAnswers((prev) => ({ ...prev, [field]: value }));
+  const updateField = (field: keyof QuestionnaireFormAnswers, value: any) => {
+    setAnswers((prev) => {
+      const next = { ...prev, [field]: value };
+
+      // Synchronize age helper flags
+      if (field === 'age_range') {
+        if (value === '60_AND_ABOVE') {
+          next.is_senior_citizen = true;
+          next.age = 65;
+        } else if (value === 'UNDER_18') {
+          next.is_senior_citizen = false;
+          next.age = 16;
+        } else if (value === '18_TO_29') {
+          next.is_senior_citizen = false;
+          next.age = 24;
+        } else if (value === '30_TO_44') {
+          next.is_senior_citizen = false;
+          next.age = 37;
+        } else if (value === '45_TO_59') {
+          next.is_senior_citizen = false;
+          next.age = 52;
+        }
+      }
+
+      // Synchronize occupation helper flags
+      if (field === 'employment_status') {
+        if (value === 'FARMER') {
+          next.is_farmer = true;
+          next.landholding_acres = 2.0;
+        } else if (value === 'STUDENT') {
+          next.student_status = 'GOVT_COLLEGE';
+          next.studied_in_govt_school = true;
+        }
+      }
+
+      // Synchronize income helper flags
+      if (field === 'income_range') {
+        if (value === 'BELOW_72K') next.annual_income = 60000;
+        else if (value === '72K_TO_120K') next.annual_income = 100000;
+        else if (value === '120K_TO_250K') next.annual_income = 180000;
+        else if (value === '250K_TO_500K') next.annual_income = 350000;
+        else if (value === 'ABOVE_500K') next.annual_income = 600000;
+        else if (value === 'PREFER_NOT_TO_SAY') next.annual_income = undefined;
+      }
+
+      return next;
+    });
+
     if (validationErrors[field]) {
       setValidationErrors((prev) => {
         const next = { ...prev };
@@ -124,19 +156,37 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
     }
   };
 
-  const toggleArrayItem = (field: 'special_circumstances' | 'healthcare_needs' | 'existing_benefits' | 'desired_assistance', item: string) => {
+  const toggleHealthcareNeed = (need: string) => {
     setAnswers((prev) => {
-      const arr = prev[field] || [];
-      const updated = arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
-      return { ...prev, [field]: updated };
+      const current = prev.healthcare_needs || [];
+      const updated = current.includes(need) ? current.filter((x) => x !== need) : [...current, need];
+      const next = { ...prev, healthcare_needs: updated };
+
+      if (updated.includes('MATERNAL_CHILD')) {
+        next.pregnancy_status = 'PREGNANT';
+        next.gender = 'FEMALE';
+        next.is_woman_head_of_household = true;
+      }
+      return next;
     });
+
+    if (validationErrors.healthcare_needs) {
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        delete next.healthcare_needs;
+        return next;
+      });
+    }
   };
 
   // Step Validation
-  const validateCurrentStep = (): boolean => {
+  const validateStep = (step: number): boolean => {
     const errors: Record<string, string> = {};
 
-    if (currentStep === 1) {
+    if (step === 1) {
+      if (!answers.district || answers.district.trim() === '') {
+        errors.district = isTa ? 'மாவட்டத்தைத் தேர்ந்தெடுக்கவும்' : 'Please select your district';
+      }
       if (answers.pincode && !/^[1-9][0-9]{5}$/.test(answers.pincode.toString().trim())) {
         errors.pincode = isTa
           ? 'சரியான 6 இலக்க அஞ்சல் குறியீட்டை (PIN code) உள்ளிடவும்'
@@ -144,32 +194,41 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
       }
     }
 
-    if (currentStep === 2) {
-      if (answers.age !== undefined && answers.age !== '') {
-        const ageNum = Number(answers.age);
-        if (isNaN(ageNum) || ageNum < 1 || ageNum > 120) {
-          errors.age = isTa ? 'சரியான வயதை உள்ளிடவும் (1-120)' : 'Please enter a valid age between 1 and 120';
-        }
+    if (step === 2) {
+      if (!answers.age_range) {
+        errors.age_range = isTa ? 'உங்கள் வயது வரம்பைத் தேர்ந்தெடுக்கவும்' : 'Please select your age group';
       }
     }
 
-    if (currentStep === 4) {
-      if (answers.is_differently_abled && answers.disability_percentage) {
-        const pct = Number(answers.disability_percentage);
-        if (isNaN(pct) || pct < 1 || pct > 100) {
-          errors.disability_percentage = isTa
-            ? 'மாற்றுத்திறன் சதவீதம் 1 முதல் 100 வரை இருக்க வேண்டும்'
-            : 'Disability percentage must be between 1 and 100';
-        }
+    if (step === 3) {
+      if (!answers.employment_status) {
+        errors.employment_status = isTa ? 'உங்கள் தொழிலைத் தேர்ந்தெடுக்கவும்' : 'Please select your occupation or employment status';
       }
     }
 
-    if (currentStep === 6) {
-      if (answers.is_farmer && answers.landholding_acres) {
-        const acres = Number(answers.landholding_acres);
-        if (isNaN(acres) || acres < 0) {
-          errors.landholding_acres = isTa ? 'சரியான ஏக்கர் பரப்பளவை உள்ளிடவும்' : 'Please enter a valid land area in acres';
-        }
+    if (step === 4) {
+      if (!answers.income_range) {
+        errors.income_range = isTa ? 'வருமான வரம்பைத் தேர்ந்தெடுக்கவும்' : 'Please select your household income bracket';
+      }
+    }
+
+    if (step === 5) {
+      if (!answers.has_existing_benefits) {
+        errors.has_existing_benefits = isTa ? 'ஒரு விருப்பத்தைத் தேர்ந்தெடுக்கவும்' : 'Please indicate if you receive existing government benefits';
+      }
+    }
+
+    if (step === 6) {
+      if (!answers.ration_card_type) {
+        errors.ration_card_type = isTa ? 'ரேஷன் கார்டு வகையைத் தேர்ந்தெடுக்கவும்' : 'Please select your ration card or household category';
+      }
+    }
+
+    if (step === 7) {
+      if (!answers.healthcare_needs || answers.healthcare_needs.length === 0) {
+        errors.healthcare_needs = isTa
+          ? 'குறைந்தது ஒரு மருத்துவத் தேவையைத் தேர்ந்தெடுக்கவும்'
+          : 'Please select at least one healthcare requirement';
       }
     }
 
@@ -178,8 +237,8 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
   };
 
   const handleNext = () => {
-    if (validateCurrentStep()) {
-      if (currentStep < 8) {
+    if (validateStep(currentStep)) {
+      if (currentStep < 7) {
         setCurrentStep((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -192,116 +251,131 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (onBackToIntro) {
+      onBackToIntro();
     }
-  };
-
-  const handleSkipStep7 = () => {
-    setCurrentStep(8);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const stepsMeta = [
     { num: 1, title: isTa ? 'இருப்பிடம்' : 'Location', icon: MapPin },
-    { num: 2, title: isTa ? 'தனிநபர் விவரம்' : 'Profile', icon: User },
-    { num: 3, title: isTa ? 'குடும்பம் & வருமானம்' : 'Household & Income', icon: Home },
-    { num: 4, title: isTa ? 'சமூகத் தகுதி' : 'Social Eligibility', icon: ShieldCheck },
-    { num: 5, title: isTa ? 'வேலை & கல்வி' : 'Work & Education', icon: Briefcase },
-    { num: 6, title: isTa ? 'சுகாதாரம் & சூழ்நிலை' : 'Health & Circumstances', icon: HeartPulse },
-    { num: 7, title: isTa ? 'பயன்கள் & தேவைகள்' : 'Benefits & Needs', icon: Gift },
-    { num: 8, title: isTa ? 'சரிபார்த்து தேடல்' : 'Review & Find', icon: CheckCircle2 },
+    { num: 2, title: isTa ? 'வயது' : 'Age', icon: User },
+    { num: 3, title: isTa ? 'தொழில்' : 'Employment', icon: Briefcase },
+    { num: 4, title: isTa ? 'வருமானம்' : 'Income', icon: Home },
+    { num: 5, title: isTa ? 'முந்தைய பயன்கள்' : 'Benefits', icon: Gift },
+    { num: 6, title: isTa ? 'ரேஷன் கார்டு' : 'Ration Card', icon: ShieldCheck },
+    { num: 7, title: isTa ? 'சுகாதாரத் தேவை' : 'Healthcare', icon: HeartPulse },
   ];
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-      {/* Top Wizard Header with Hero Prompt */}
+      {/* Top Header with Progress */}
       <div className="bg-gradient-to-r from-healthcare-800 to-navy-900 text-white p-6 md:p-8">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold backdrop-blur-xs mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>{isTa ? 'அரசு நலத்திட்ட வழிகாட்டி' : 'NALAM Welfare Scheme Finder'}</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold backdrop-blur-xs">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>{isTa ? 'அரசு நலத்திட்ட வழிகாட்டி' : 'NALAM Welfare Scheme Finder'}</span>
+            </div>
+            {onBrowseDirectly && (
+              <button
+                type="button"
+                onClick={onBrowseDirectly}
+                className="text-xs text-slate-300 hover:text-white underline decoration-slate-400 underline-offset-4"
+              >
+                {isTa ? 'அனைத்து திட்டங்களையும் காண்க' : 'Browse All Schemes Directly'}
+              </button>
+            )}
           </div>
 
           <h1 className="text-xl md:text-2xl font-bold tracking-tight mb-2">
-            {isTa ? 'அரசு நலத்திட்ட உதவிகளைக் கண்டறிய சில கேள்விகளுக்குப் பதிலளிக்கவும்.' : 'Answer a few questions to discover government welfare schemes that may be relevant to you.'}
+            {isTa ? 'தகுதியான அரசு நலத்திட்டங்களைக் கண்டறிய கேள்விகளுக்குப் பதிலளிக்கவும்' : 'Identify Eligible Government Healthcare & Welfare Schemes'}
           </h1>
-
           <p className="text-slate-200 text-xs md:text-sm leading-relaxed">
             {isTa
-              ? 'உங்கள் வசிப்பிடம், வருமானம், குடும்ப நிலை மற்றும் தேவைகளின் அடிப்படையில் மத்திய மற்றும் தமிழ்நாடு அரசு வழங்கும் மானியங்கள், உதவித்தொகைகள் மற்றும் மருத்துவக் காப்பீடுகளை உடனடியாக அறியலாம்.'
-              : 'Discover Central and Tamil Nadu government subsidies, maternal benefits, scholarships, and healthcare assistance tailored to your personal and household circumstances.'}
+              ? 'உங்கள் பதில்களின் அடிப்படையில் முதலமைச்சரின் காப்பீடு (CMCHIS), கலைஞர் மகளிர் உரிமைத் திட்டம், PM-JAY மற்றும் தமிழ்நாடு அரசு திட்டங்களின் தகுதி சரிபார்க்கப்படும்.'
+              : 'Answer each question below. NALAM AI will evaluate your answers against statutory criteria for CMCHIS, PM-JAY, KMUT, and Tamil Nadu state welfare programs.'}
           </p>
-        </div>
 
-        {/* 8-Step Visual Progress Bar */}
-        <div className="mt-8 pt-6 border-t border-white/10">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-healthcare-100">
-              {isTa ? `படிநிலை ${currentStep} / 8: ${stepsMeta[currentStep - 1].title}` : `Step ${currentStep} of 8: ${stepsMeta[currentStep - 1].title}`}
-            </span>
-            <span className="text-xs font-bold text-amber-300">{Math.round((currentStep / 8) * 100)}% {isTa ? 'நிறைவு' : 'Completed'}</span>
-          </div>
+          {/* Progress Bar & Indicators */}
+          <div className="mt-6 pt-5 border-t border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-healthcare-100">
+                {isTa
+                  ? `கேள்வி ${currentStep} / 7: ${stepsMeta[currentStep - 1].title}`
+                  : `Question ${currentStep} of 7: ${stepsMeta[currentStep - 1].title}`}
+              </span>
+              <span className="text-xs font-bold text-amber-300">
+                {Math.round((currentStep / 7) * 100)}% {isTa ? 'நிறைவு' : 'Completed'}
+              </span>
+            </div>
 
-          <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-amber-400 h-full rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${(currentStep / 8) * 100}%` }}
-            />
-          </div>
+            <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-amber-400 h-full rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${(currentStep / 7) * 100}%` }}
+              />
+            </div>
 
-          {/* Step Pill Indicators for Desktop */}
-          <div className="hidden md:grid grid-cols-8 gap-1 mt-3">
-            {stepsMeta.map((s) => {
-              const isPassed = s.num < currentStep;
-              const isCurrent = s.num === currentStep;
-              return (
-                <button
-                  key={s.num}
-                  type="button"
-                  onClick={() => {
-                    if (s.num < currentStep) setCurrentStep(s.num);
-                  }}
-                  disabled={s.num > currentStep}
-                  className={`text-center py-1 px-1 rounded-md text-[11px] font-medium transition-colors ${
-                    isCurrent
-                      ? 'bg-white/20 text-white font-bold'
-                      : isPassed
-                      ? 'text-emerald-300 hover:bg-white/10 cursor-pointer'
-                      : 'text-slate-400 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  {s.num}. {s.title}
-                </button>
-              );
-            })}
+            {/* Step Pills for Quick Backward Navigation */}
+            <div className="hidden md:grid grid-cols-7 gap-1 mt-3">
+              {stepsMeta.map((s) => {
+                const isPassed = s.num < currentStep;
+                const isCurrent = s.num === currentStep;
+                return (
+                  <button
+                    key={s.num}
+                    type="button"
+                    onClick={() => {
+                      if (s.num < currentStep) setCurrentStep(s.num);
+                    }}
+                    disabled={s.num > currentStep}
+                    className={`text-center py-1 px-1 rounded-md text-[11px] font-medium transition-colors ${
+                      isCurrent
+                        ? 'bg-white/20 text-white font-bold'
+                        : isPassed
+                        ? 'text-emerald-300 hover:bg-white/10 cursor-pointer'
+                        : 'text-slate-400 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    {s.num}. {s.title}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Form Body */}
-      <div className="p-6 md:p-8 max-w-4xl mx-auto">
+      {/* Main Body: Questions 1 to 7 */}
+      <div className="p-6 md:p-8 max-w-3xl mx-auto">
         {/* ========================================================================= */}
-        {/* STEP 1: LOCATION */}
+        {/* QUESTION 1: LOCATION */}
         {/* ========================================================================= */}
         {currentStep === 1 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 1 / 7' : 'Question 1 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 1: உங்கள் இருப்பிட விவரங்கள்' : 'Step 1: Location & Residence'}</span>
+                <span>{isTa ? 'உங்கள் இருப்பிடம் எங்கே?' : 'Where do you live?'}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {isTa ? 'மாநில மற்றும் மாவட்ட அளவிலான அரசு நலத்திட்டங்களை கண்டறிய உதவுகிறது.' : 'Used to determine territory-specific Central and Tamil Nadu district welfare schemes.'}
+                {isTa
+                  ? 'தமிழ்நாடு மற்றும் மத்திய அரசுத் திட்டங்களின் பிராந்திய தகுதியைச் சரிபார்க்க உங்கள் மாநிலம் மற்றும் மாவட்ட விவரங்களை உள்ளிடவும்.'
+                  : 'State and district determine which Central and Tamil Nadu territorial schemes (such as CMCHIS and district welfare funds) apply to you.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'மாநிலம் / State' : 'State'}
+                  {isTa ? 'மாநிலம் / State' : 'State'} *
                 </label>
                 <select
                   value={answers.state}
-                  onChange={(e) => updateAnswer('state', e.target.value)}
+                  onChange={(e) => updateField('state', e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
                 >
                   <option value="Tamil Nadu">Tamil Nadu (தமிழ்நாடு)</option>
@@ -309,6 +383,7 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
                   <option value="Kerala">Kerala</option>
                   <option value="Karnataka">Karnataka</option>
                   <option value="Andhra Pradesh">Andhra Pradesh</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -318,28 +393,37 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
                 </label>
                 <select
                   value={answers.district}
-                  onChange={(e) => updateAnswer('district', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
+                  onChange={(e) => updateField('district', e.target.value)}
+                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500 ${
+                    validationErrors.district ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
+                  }`}
                 >
+                  <option value="">{isTa ? '-- மாவட்டத்தைத் தேர்ந்தெடுக்கவும் --' : '-- Select District --'}</option>
                   {TN_DISTRICTS.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
                   ))}
                 </select>
+                {validationErrors.district && (
+                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{validationErrors.district}</span>
+                  </p>
+                )}
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'அஞ்சல் குறியீடு (PIN Code)' : 'Postal PIN Code'}
+                  {isTa ? 'அஞ்சல் குறியீடு (Postal PIN Code) - விருப்பத்திற்குரியது' : 'Postal PIN Code (Optional)'}
                 </label>
                 <input
                   type="text"
                   maxLength={6}
                   placeholder="e.g. 637211"
                   value={answers.pincode}
-                  onChange={(e) => updateAnswer('pincode', e.target.value)}
-                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500 ${
+                  onChange={(e) => updateField('pincode', e.target.value)}
+                  className={`w-full max-w-sm bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500 ${
                     validationErrors.pincode ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
                   }`}
                 />
@@ -349,700 +433,692 @@ export const SchemeQuestionnaireWizard: React.FC<SchemeQuestionnaireWizardProps>
                     <span>{validationErrors.pincode}</span>
                   </p>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'கிராமம் அல்லது நகரம் (விருப்பம்)' : 'Town or Village (Optional)'}
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Tiruchengode / திருச்செங்கோடு"
-                  value={answers.town_or_village}
-                  onChange={(e) => updateAnswer('town_or_village', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {isTa
+                    ? 'உங்கள் கிராமம் அல்லது அஞ்சலகப் பகுதியில் உள்ள சிறப்பு மருத்துவ முகாம்களை இணைக்க உதவுகிறது.'
+                    : 'Helps pinpoint nearby Primary Health Centres and district welfare camps.'}
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 2: PERSONAL PROFILE */}
+        {/* QUESTION 2: AGE GROUP */}
         {/* ========================================================================= */}
         {currentStep === 2 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 2 / 7' : 'Question 2 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
                 <User className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 2: தனிநபர் சுயவிவரம்' : 'Step 2: Personal Profile'}</span>
+                <span>{isTa ? 'உங்கள் வயது வரம்பு எது?' : 'What is your age group?'}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {isTa ? 'வயது மற்றும் பாலினத்திற்குரிய சிறப்பு நலத்திட்டங்களை கண்டறிய உதவுகிறது.' : 'Determines age and gender-restricted schemes like scholarships, maternal aid, and senior pensions.'}
+                {isTa
+                  ? 'குழந்தைகள், இளைஞர்கள் மற்றும் முதியவர்களுக்கான பிரத்யேக மருத்துவ மற்றும் உதவித்தொகை திட்டங்களைத் தேர்ந்தெடுக்க உதவுகிறது.'
+                  : 'Different government schemes target distinct life stages, including pediatric care, youth scholarships, and geriatric pensions.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'வயது (Age)' : 'Age'}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  placeholder="e.g. 35"
-                  value={answers.age}
-                  onChange={(e) => updateAnswer('age', e.target.value)}
-                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500 ${
-                    validationErrors.age ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
-                  }`}
-                />
-                {validationErrors.age && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>{validationErrors.age}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'பாலினம் (Gender)' : 'Gender'}
-                </label>
-                <select
-                  value={answers.gender}
-                  onChange={(e) => updateAnswer('gender', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="FEMALE">{isTa ? 'பெண் (Female)' : 'Female'}</option>
-                  <option value="MALE">{isTa ? 'ஆண் (Male)' : 'Male'}</option>
-                  <option value="TRANSGENDER">{isTa ? 'திருநங்கை / திருநம்பி (Transgender)' : 'Transgender'}</option>
-                  <option value="PREFER_NOT_TO_SAY">{isTa ? 'கூற விரும்பவில்லை (Prefer not to say)' : 'Prefer not to say'}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'குடியிருப்பு வகை (Residence)' : 'Residence Type'}
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              {[
+                {
+                  id: 'UNDER_18',
+                  label_en: 'Under 18',
+                  label_ta: '18 வயதுக்குட்பட்டோர்',
+                  desc_en: 'Minor / School child healthcare, immunization, scholarships',
+                  desc_ta: 'பள்ளி மாணவர் நலம், தடுப்பூசி, கல்வி உதவித்தொகை',
+                },
+                {
+                  id: '18_TO_29',
+                  label_en: '18 – 29 years',
+                  label_ta: '18 முதல் 29 வயது வரை',
+                  desc_en: 'Higher education, youth skill development, career assistance',
+                  desc_ta: 'கல்லூரி உயர்கல்வி, திறன் மேம்பாட்டு மானியம்',
+                },
+                {
+                  id: '30_TO_44',
+                  label_en: '30 – 44 years',
+                  label_ta: '30 முதல் 44 வயது வரை',
+                  desc_en: 'Working age adults, family welfare, maternity assistance',
+                  desc_ta: 'குடும்ப நலம், மகப்பேறு உதவி, வாழ்வாதார திட்டங்கள்',
+                },
+                {
+                  id: '45_TO_59',
+                  label_en: '45 – 59 years',
+                  label_ta: '45 முதல் 59 வயது வரை',
+                  desc_en: 'Middle-aged individuals, chronic disease coverage, healthcare',
+                  desc_ta: 'நடுத்தர வயது, நீண்டகால நோய் சிகிச்சை காப்பீடு',
+                },
+                {
+                  id: '60_AND_ABOVE',
+                  label_en: '60 and above',
+                  label_ta: '60 வயது மற்றும் அதற்கு மேற்பட்டோர்',
+                  desc_en: 'Senior citizens, geriatric healthcare, old-age pensions',
+                  desc_ta: 'முதியோர் நலம், ஓய்வூதியம், சிறப்பு முதியோர் காப்பீடு',
+                },
+              ].map((opt) => {
+                const isSelected = answers.age_range === opt.id;
+                return (
                   <button
+                    key={opt.id}
                     type="button"
-                    onClick={() => updateAnswer('residence', 'RURAL')}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-semibold text-center transition-all ${
-                      answers.residence === 'RURAL'
-                        ? 'bg-healthcare-50 border-healthcare-500 text-healthcare-800 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    onClick={() => updateField('age_range', opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                     }`}
                   >
-                    🏡 {isTa ? 'கிராமப்புறம் (Rural)' : 'Rural Area'}
+                    <div
+                      className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{isTa ? opt.desc_ta : opt.desc_en}</div>
+                    </div>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => updateAnswer('residence', 'URBAN')}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-semibold text-center transition-all ${
-                      answers.residence === 'URBAN'
-                        ? 'bg-healthcare-50 border-healthcare-500 text-healthcare-800 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    🏢 {isTa ? 'நகர்ப்புறம் (Urban)' : 'Urban Area'}
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
+
+            {validationErrors.age_range && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.age_range}</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 3: HOUSEHOLD & INCOME */}
+        {/* QUESTION 3: EMPLOYMENT / OCCUPATION */}
         {/* ========================================================================= */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                <Home className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 3: குடும்பம் மற்றும் வருமான விவரங்கள்' : 'Step 3: Household & Income'}</span>
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 3 / 7' : 'Question 3 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-healthcare-600" />
+                <span>{isTa ? 'உங்கள் முதன்மை தொழில் அல்லது வேலை நிலை என்ன?' : 'What is your primary occupation or employment?'}</span>
               </h2>
               <p className="text-xs text-slate-500">
                 {isTa
-                  ? 'காப்பீடு, வீட்டு வசதி மற்றும் மகளிர் உரிமைத்தொகைக்கான வருமான உச்சவரம்பை சரிபார்க்கிறது.'
-                  : 'Checks statutory income ceilings for health insurance (CMCHIS), basic income transfers (KMUT), and housing.'}
+                  ? 'விவசாயிகள், தொழிலாளர்கள், மாணவர்கள் மற்றும் சுயதொழில் செய்பவர்களுக்கான பிரத்யேக நல வாரிய திட்டங்களை அறிய உதவுகிறது.'
+                  : 'Schemes like PM-KISAN, Pudhumai Penn, Tamil Pudhalvan, and unorganized workers welfare boards depend on occupation.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'குடும்ப ஆண்டு வருமான வரம்பு' : 'Annual Household Income Range'}
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {[
-                    { key: 'BELOW_72K', label_ta: 'ஆண்டுக்கு ₹72,000 வரை (வறுமைக்கோடு)', label_en: '≤ ₹72,000 / year (BPL)' },
-                    { key: '72K_TO_120K', label_ta: '₹72,001 - ₹1,20,000 (CMCHIS தகுதி)', label_en: '₹72,001 - ₹1,20,000 (CMCHIS)' },
-                    { key: '120K_TO_250K', label_ta: '₹1,20,001 - ₹2,50,000 (KMUT தகுதி)', label_en: '₹1,20,001 - ₹2,50,000 (KMUT)' },
-                    { key: '250K_TO_500K', label_ta: '₹2,50,001 - ₹5,00,000', label_en: '₹2,50,001 - ₹5,00,000' },
-                    { key: 'ABOVE_500K', label_ta: '₹5,00,000க்கு மேல்', label_en: '> ₹5,00,000' },
-                  ].map((range) => (
-                    <button
-                      key={range.key}
-                      type="button"
-                      onClick={() => updateAnswer('income_range', range.key)}
-                      className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
-                        answers.income_range === range.key
-                          ? 'bg-healthcare-50 border-healthcare-600 text-healthcare-900 font-bold shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              {[
+                {
+                  id: 'EMPLOYED',
+                  label_en: 'Employed',
+                  label_ta: 'மாதச் சம்பளப் பணியாளர்',
+                  desc_en: 'Salaried employee in government or private enterprise',
+                  desc_ta: 'அரசு அல்லது தனியார் நிறுவன மாதச் சம்பளப் பணி',
+                },
+                {
+                  id: 'SELF_EMPLOYED',
+                  label_en: 'Self-employed / Business',
+                  label_ta: 'சுயதொழில் / வியாபாரம்',
+                  desc_en: 'Small shop owner, artisan, micro-enterprise, trader',
+                  desc_ta: 'சிறு வணிகம், கடை, கைவினைஞர், சிறு தொழில்',
+                },
+                {
+                  id: 'UNEMPLOYED',
+                  label_en: 'Unemployed',
+                  label_ta: 'வேலை தேடுபவர் / வேலையின்றி',
+                  desc_en: 'Currently seeking livelihood, eligible for unemployment assistance',
+                  desc_ta: 'வேலை தேடும் இளைஞர்கள் மற்றும் உதவித்தொகை தேவைப்படுவோர்',
+                },
+                {
+                  id: 'STUDENT',
+                  label_en: 'Student',
+                  label_ta: 'மாணவர் / மாணவி',
+                  desc_en: 'Enrolled in school, higher secondary, college, or diploma',
+                  desc_ta: 'பள்ளி, கல்லூரி அல்லது பாலிடெக்னிக் பயிலும் மாணவர்கள்',
+                },
+                {
+                  id: 'DAILY_WAGE',
+                  label_en: 'Daily-wage worker',
+                  label_ta: 'தினக்கூலி / அமைப்புசாரா தொழிலாளர்',
+                  desc_en: 'Construction, domestic, transport, unorganized manual labor',
+                  desc_ta: 'கட்டுமானத் தொழில், சுமை தூக்குவோர், உடலுழைப்புத் தொழிலாளர்',
+                },
+                {
+                  id: 'FARMER',
+                  label_en: 'Farmer / Cultivator',
+                  label_ta: 'விவசாயி / நில உரிமையாளர்',
+                  desc_en: 'Cultivating crops, agricultural landholder (PM-KISAN eligible)',
+                  desc_ta: 'விவசாய சாகுபடி செய்வோர், விவசாய நலத்திட்ட தகுதி',
+                },
+                {
+                  id: 'OTHER',
+                  label_en: 'Other',
+                  label_ta: 'மற்றவை / குடும்பத் தலைவி / ஓய்வு',
+                  desc_en: 'Homemaker, caregiver, retired, or other circumstances',
+                  desc_ta: 'குடும்பத் தலைவி, இல்லத்தரசி அல்லது ஓய்வு பெற்றவர்',
+                },
+              ].map((opt) => {
+                const isSelected = answers.employment_status === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateField('employment_status', opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
                       }`}
                     >
-                      {isTa ? range.label_ta : range.label_en}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'குடும்ப உறுப்பினர்கள் எண்ணிக்கை' : 'Family Size (Members)'}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={answers.family_size}
-                  onChange={(e) => updateAnswer('family_size', Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'குடும்ப அட்டை வகை (Ration Card Type)' : 'Ration Card Type'}
-                </label>
-                <select
-                  value={answers.ration_card_type}
-                  onChange={(e) => updateAnswer('ration_card_type', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="PHH">{isTa ? 'முன்னுரிமை குடும்ப அட்டை (PHH - அரிசி)' : 'Priority Household (PHH - Rice)'}</option>
-                  <option value="PHH_AAY">{isTa ? 'அந்தியோதயா அன்ன யோஜனா (PHH-AAY)' : 'Antyodaya Anna Yojana (PHH-AAY)'}</option>
-                  <option value="NPHH">{isTa ? 'முன்னுரிமையற்ற அட்டை (NPHH - சர்க்கரை)' : 'Non-Priority Household (NPHH)'}</option>
-                  <option value="NONE">{isTa ? 'குடும்ப அட்டை இல்லை (No Ration Card)' : 'No Ration Card'}</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2 pt-2">
-                <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={answers.is_woman_head_of_household}
-                    onChange={(e) => updateAnswer('is_woman_head_of_household', e.target.checked)}
-                    className="mt-0.5 rounded text-healthcare-600 focus:ring-healthcare-500 w-4 h-4"
-                  />
-                  <div>
-                    <span className="text-xs font-semibold text-slate-800 block">
-                      {isTa ? 'குடும்பத் தலைவி / குடும்பப் பெண் தலைவர் (Woman Head of Household)' : 'Woman Head of Household'}
-                    </span>
-                    <span className="text-[11px] text-slate-500 block">
-                      {isTa ? 'கலைஞர் மகளிர் உரிமைத் திட்டத்திற்கு (KMUT) இந்த விவரம் அவசியமானது.' : 'Required for Kalaignar Magalir Urimai Thittam (KMUT ₹1,000/month basic income transfer).'}
-                    </span>
-                  </div>
-                </label>
-              </div>
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{isTa ? opt.desc_ta : opt.desc_en}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
+
+            {validationErrors.employment_status && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.employment_status}</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 4: SOCIAL ELIGIBILITY */}
+        {/* QUESTION 4: HOUSEHOLD FINANCIAL CIRCUMSTANCES */}
         {/* ========================================================================= */}
         {currentStep === 4 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 4: சமூக மற்றும் சிறப்புத் தகுதிகள்' : 'Step 4: Social Eligibility & Category'}</span>
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 4 / 7' : 'Question 4 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+                <Home className="w-5 h-5 text-healthcare-600" />
+                <span>{isTa ? 'உங்கள் குடும்பத்தின் தோராயமான ஆண்டு வருமானம் என்ன?' : 'What is your approximate annual household income?'}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {isTa ? 'சட்டரீதியான சிறப்பு இடஒதுக்கீடு மற்றும் நலவாரிய உதவிகளுக்காக மட்டுமே இது பயன்படுகிறது.' : 'Used solely to check statutory eligibility for government welfare quotas and allowances.'}
+                {isTa
+                  ? 'பெரும்பாலான அரசு மானியங்கள் மற்றும் முதலமைச்சரின் காப்பீட்டுத் திட்டம் குறிப்பிட்ட வருமான வரம்பிற்குள் மட்டுமே வழங்கப்படுகின்றன.'
+                  : 'Schemes such as CMCHIS and KMUT require verification against statutory annual income ceilings.'}
               </p>
             </div>
 
-            {/* Privacy Explanation Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-blue-900">
-              <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            {/* Explanatory callout about Prefer Not to Say */}
+            <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-amber-900">
+              <Info className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-semibold">{isTa ? 'தனியுரிமை மற்றும் பாதுகாப்பு விளக்கம்' : 'Privacy & Voluntary Disclosure'}</p>
-                <p className="text-blue-800/90 text-[11px] mt-0.5">
-                  {isTa
-                    ? 'இப்பிரிவில் கேட்கப்படும் கேள்விகள் அரசு திட்டங்களின் சட்டப்பூர்வ தகுதிகளை அறிவதற்காக மட்டுமே கேட்கப்படுகின்றன. உங்கள் தகவல் எப்போதும் பாதுகாப்பாக இருக்கும்.'
-                    : 'Information requested here is strictly voluntary and used only to determine eligibility under affirmative action welfare programs.'}
-                </p>
+                <span className="font-semibold">{isTa ? 'ஏன் கேட்கிறோம்:' : 'Why this matters:'}</span>{' '}
+                {isTa
+                  ? 'முதலமைச்சரின் காப்பீட்டுத் திட்டம் (CMCHIS) மற்றும் கலைஞர் மகளிர் உரிமைத் திட்டம் போன்ற திட்டங்கள் ஆண்டு வருமானம் ₹72,000 அல்லது ₹1,20,000-க்குக் குறைவாக உள்ள குடும்பங்களுக்கு மட்டுமே பொருந்தும். "சொல்ல விரும்பவில்லை" என்பதையும் தேர்ந்தெடுக்கலாம், ஆனால் வருமான வரம்புள்ள சில திட்டங்களின் தகுதிக்கு கூடுதல் சரிபார்ப்பு தேவைப்படலாம்.'
+                  : 'Providing your income range allows NALAM AI to evaluate means-tested welfare programs like Chief Minister\'s Comprehensive Health Insurance (CMCHIS) and Kalaignar Magalir Urimai Thittam. Selecting "Prefer not to say" is permitted, but schemes with strict statutory income limits may require further verification.'}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'சமூகப் பிரிவு (Social Category)' : 'Social Category (Optional)'}
-                </label>
-                <select
-                  value={answers.caste_category}
-                  onChange={(e) => updateAnswer('caste_category', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="MBC">{isTa ? 'மிகவும் பிற்படுத்தப்பட்டோர் (MBC / DNC)' : 'Most Backward Class (MBC / DNC)'}</option>
-                  <option value="BC">{isTa ? 'பிற்படுத்தப்பட்டோர் (BC / BCM)' : 'Backward Class (BC / BCM)'}</option>
-                  <option value="SC">{isTa ? 'பட்டியலினத்தவர் (SC / SCA)' : 'Scheduled Caste (SC / SCA)'}</option>
-                  <option value="ST">{isTa ? 'பழங்குடியினர் (ST)' : 'Scheduled Tribe (ST)'}</option>
-                  <option value="GENERAL">{isTa ? 'பொதுப் பிரிவு (General / OC)' : 'General Category (OC)'}</option>
-                  <option value="PREFER_NOT_TO_SAY">{isTa ? 'கூற விரும்பவில்லை (Prefer not to say)' : 'Prefer not to say'}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'மாற்றுத்திறனாளி தகுதி (Disability Status)' : 'Disability Status'}
-                </label>
-                <select
-                  value={answers.is_differently_abled ? (answers.disability_percentage ? 'YES_PCT' : 'YES') : 'NO'}
-                  onChange={(e) => {
-                    const isYes = e.target.value.startsWith('YES');
-                    updateAnswer('is_differently_abled', isYes);
-                    if (!isYes) updateAnswer('disability_percentage', '');
-                  }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="NO">{isTa ? 'இல்லை (No)' : 'No disability'}</option>
-                  <option value="YES_PCT">{isTa ? 'ஆம் - 40% அல்லது அதற்கு மேற்பட்ட மாற்றுத்திறன்' : 'Yes - 40% or higher benchmark disability'}</option>
-                  <option value="YES">{isTa ? 'ஆம் - 40% க்கும் குறைவான மாற்றுத்திறன்' : 'Yes - Less than 40% disability'}</option>
-                </select>
-              </div>
-
-              {answers.is_differently_abled && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {isTa ? 'மாற்றுத்திறன் சதவீதம் (%)' : 'Disability Percentage (%)'}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    placeholder="e.g. 45"
-                    value={answers.disability_percentage}
-                    onChange={(e) => updateAnswer('disability_percentage', e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    {isTa ? 'மாதாந்திர ₹2,000 பராமரிப்பு உதவித்தொகை பெற 40% அல்லது அதற்கு மேல் இருக்க வேண்டும்.' : 'TN monthly maintenance allowance requires 40% or higher benchmark disability.'}
-                  </p>
-                </div>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {[
+                {
+                  id: 'BELOW_72K',
+                  label_en: 'Below ₹72,000 / year',
+                  label_ta: 'ஆண்டுக்கு ₹72,000-க்குக் கீழ்',
+                  desc_en: 'Priority welfare threshold (KMUT & lowest income aid)',
+                  desc_ta: 'முன்னுரிமை ஏழை எளிய குடும்பங்கள் & மகளிர் உரிமைத்தொகை தகுதி',
+                },
+                {
+                  id: '72K_TO_120K',
+                  label_en: '₹72,000 – ₹1,20,000 / year',
+                  label_ta: '₹72,000 முதல் ₹1,20,000 வரை',
+                  desc_en: 'Eligible for CMCHIS cashless hospital coverage',
+                  desc_ta: 'முதலமைச்சரின் விரிவான மருத்துவக் காப்பீட்டு உச்சவரம்பு',
+                },
+                {
+                  id: '120K_TO_250K',
+                  label_en: '₹1,20,000 – ₹2,50,000 / year',
+                  label_ta: '₹1,20,000 முதல் ₹2,50,000 வரை',
+                  desc_en: 'Lower-middle income household',
+                  desc_ta: 'குறைந்த நடுத்தர வருமான குடும்பங்கள்',
+                },
+                {
+                  id: '250K_TO_500K',
+                  label_en: '₹2,50,000 – ₹5,00,000 / year',
+                  label_ta: '₹2,50,000 முதல் ₹5,00,000 வரை',
+                  desc_en: 'Middle income household',
+                  desc_ta: 'நடுத்தர வருமான குடும்பங்கள்',
+                },
+                {
+                  id: 'ABOVE_500K',
+                  label_en: 'Above ₹5,00,000 / year',
+                  label_ta: 'ஆண்டுக்கு ₹5,00,000-க்கு மேல்',
+                  desc_en: 'Higher income household',
+                  desc_ta: 'உயர் வருமானப் பிரிவு',
+                },
+                {
+                  id: 'PREFER_NOT_TO_SAY',
+                  label_en: 'Prefer not to say',
+                  label_ta: 'கூற விரும்பவில்லை',
+                  desc_en: 'Skip income evaluation; verify criteria independently',
+                  desc_ta: 'வருமான வரம்பை இப்போது குறிப்பிடாமல் தொடரவும்',
+                },
+              ].map((opt) => {
+                const isSelected = answers.income_range === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateField('income_range', opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{isTa ? opt.desc_ta : opt.desc_en}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
+
+            {validationErrors.income_range && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.income_range}</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 5: EMPLOYMENT & EDUCATION */}
+        {/* QUESTION 5: EXISTING GOVERNMENT BENEFITS */}
         {/* ========================================================================= */}
         {currentStep === 5 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 5: வேலைவாய்ப்பு மற்றும் கல்வி நிலை' : 'Step 5: Employment & Education'}</span>
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 5 / 7' : 'Question 5 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-healthcare-600" />
+                <span>
+                  {isTa
+                    ? 'நீங்கள் தற்போது அரசு மருத்துவ அல்லது நலத்திட்ட உதவிகளைப் பெறுகிறீர்களா?'
+                    : 'Do you currently receive benefits from any government scheme?'}
+                </span>
               </h2>
               <p className="text-xs text-slate-500">
                 {isTa
-                  ? 'மாணவர் கல்வி உதவித்தொகை (புதுமைப் பெண், தமிழ்ப் புதல்வன்) மற்றும் முத்ரா கடன் உதவிகளை அறிய.'
-                  : 'Assesses eligibility for higher education scholarships (Pudhumai Penn, Tamil Pudhalvan) and MUDRA enterprise credit.'}
+                  ? 'ஏற்கனவே பெற்று வரும் திட்டங்களுடன் இணைந்து நீங்கள் கூடுதலாகப் பெறக்கூடிய நலத்திட்டங்களை அடையாளம் காண உதவுகிறது.'
+                  : 'Helps prevent duplicate applications and identifies complementary schemes you are also eligible to receive.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'வேலை நிலை (Employment Status)' : 'Employment Status'}
-                </label>
-                <select
-                  value={answers.employment_status}
-                  onChange={(e) => updateAnswer('employment_status', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="DAILY_WAGE">{isTa ? 'தினக்கூலி / விவசாயத் தொழிலாளி (Daily Wage)' : 'Daily Wage Worker / Laborer'}</option>
-                  <option value="SELF_EMPLOYED">{isTa ? 'சிறு தொழில் / சுயதொழில் (Self-Employed / Artisan)' : 'Self-Employed / Micro-business'}</option>
-                  <option value="STUDENT">{isTa ? 'மாணவர் (Student)' : 'Student'}</option>
-                  <option value="EMPLOYED">{isTa ? 'தனியார் / மாத சம்பளம் (Salaried)' : 'Salaried Employee'}</option>
-                  <option value="UNEMPLOYED">{isTa ? 'வேலையில்லாதவர் (Unemployed)' : 'Unemployed'}</option>
-                  <option value="RETIRED">{isTa ? 'ஓய்வு பெற்றவர் (Retired)' : 'Retired'}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'தற்போதைய படிப்பு நிலை (Student Status)' : 'Current Student Status'}
-                </label>
-                <select
-                  value={answers.student_status}
-                  onChange={(e) => updateAnswer('student_status', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="NOT_STUDYING">{isTa ? 'தற்போது படிக்கவில்லை (Not Studying)' : 'Not currently studying'}</option>
-                  <option value="GOVT_COLLEGE">{isTa ? 'அரசு கல்லூரி / பாலிடெக்னிக் மாணவர்' : 'Government College / University / Polytechnic'}</option>
-                  <option value="PRIVATE_COLLEGE">{isTa ? 'தனியார் கல்லூரி மாணவர்' : 'Private College / Higher Education'}</option>
-                  <option value="HIGHER_SECONDARY">{isTa ? '11ஆம் அல்லது 12ஆம் வகுப்பு பள்ளி மாணவர்' : '11th or 12th Standard School'}</option>
-                  <option value="SCHOOL">{isTa ? 'பள்ளி மாணவர் (1 முதல் 10ஆம் வகுப்பு)' : 'School Student (1st to 10th)'}</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={answers.studied_in_govt_school}
-                    onChange={(e) => updateAnswer('studied_in_govt_school', e.target.checked)}
-                    className="mt-0.5 rounded text-healthcare-600 focus:ring-healthcare-500 w-4 h-4"
-                  />
-                  <div>
-                    <span className="text-xs font-semibold text-slate-800 block">
-                      {isTa
-                        ? 'தமிழ்நாடு அரசுப் பள்ளியில் 6 முதல் 12-ஆம் வகுப்பு வரை பயின்றவர்'
-                        : 'Studied from 6th to 12th standard in a Tamil Nadu Government School'}
-                    </span>
-                    <span className="text-[11px] text-slate-500 block">
-                      {isTa
-                        ? 'புதுமைப் பெண் (மாணவிகளுக்கு ₹1,000/மாதம்) மற்றும் தமிழ்ப் புதல்வன் (மாணவர்களுக்கு ₹1,000/மாதம்) திட்டங்களுக்கு இந்த நிபந்தனை முக்கியமானது.'
-                        : 'Prerequisite for Pudhumai Penn (girls ₹1,000/mo) and Tamil Pudhalvan (boys ₹1,000/mo) higher education scholarships.'}
-                    </span>
-                  </div>
-                </label>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              {[
+                {
+                  id: 'YES',
+                  label_en: 'Yes',
+                  label_ta: 'ஆம்',
+                  desc_en: 'Currently enrolled in one or more government welfare/health programs',
+                  desc_ta: 'தற்போது ஒன்று அல்லது அதற்கு மேற்பட்ட அரசுத் திட்டங்களில் பயன் பெறுகிறேன்',
+                },
+                {
+                  id: 'NO',
+                  label_en: 'No',
+                  label_ta: 'இல்லை',
+                  desc_en: 'Not currently receiving benefits from any government scheme',
+                  desc_ta: 'எந்தவொரு அரசு நலத்திட்ட உதவியும் தற்போது பெறவில்லை',
+                },
+                {
+                  id: 'NOT_SURE',
+                  label_en: 'Not sure',
+                  label_ta: 'தெரியவில்லை / உறுதியில்லை',
+                  desc_en: 'Uncertain of current enrollment or past card validity',
+                  desc_ta: 'பதிவு நிலை அல்லது குடும்ப அட்டை பயன்கள் பற்றி உறுதியாகத் தெரியவில்லை',
+                },
+              ].map((opt) => {
+                const isSelected = answers.has_existing_benefits === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateField('has_existing_benefits', opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-2">
+                      <span className="text-base font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</span>
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-500 leading-relaxed">{isTa ? opt.desc_ta : opt.desc_en}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            {validationErrors.has_existing_benefits && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.has_existing_benefits}</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 6: HEALTH & FAMILY CIRCUMSTANCES */}
+        {/* QUESTION 6: RATION CARD / HOUSEHOLD ELIGIBILITY */}
         {/* ========================================================================= */}
         {currentStep === 6 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                <HeartPulse className="w-5 h-5 text-healthcare-600" />
-                <span>{isTa ? 'படி 6: சுகாதாரம் மற்றும் குடும்பச் சூழ்நிலை' : 'Step 6: Health & Family Circumstances'}</span>
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 6 / 7' : 'Question 6 of 7'}
+              </div>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-healthcare-600" />
+                <span>
+                  {isTa
+                    ? 'உங்கள் குடும்பத்திற்கு எந்த வகை ரேஷன் கார்டு உள்ளது?'
+                    : 'What ration card or household category applies to your family?'}
+                </span>
               </h2>
               <p className="text-xs text-slate-500">
                 {isTa
-                  ? 'டாக்டர் முத்துலட்சுமி ரெட்டி மகப்பேறு உதவி, விவசாய மானியம் (PM-KISAN), மற்றும் முதியோர் ஓய்வூதியத் தகுதியை சரிபார்க்க.'
-                  : 'Evaluates maternity benefits (MRMBS), PM-KISAN agricultural support, and senior citizen pensions.'}
+                  ? 'தமிழ்நாடு ஸ்மார்ட் ரேஷன் கார்டு வகை (PHH, AAY, NPHH) தமிழ்நாடு நலத்திட்டங்களின் முக்கிய ஆவணமாகும்.'
+                  : 'Ration card category is the primary verification key used by the Tamil Nadu Civil Supplies and Health Department.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'தாய்மை மற்றும் மகப்பேறு நிலை' : 'Pregnancy & Maternity Status'}
-                </label>
-                <select
-                  value={answers.pregnancy_status}
-                  onChange={(e) => updateAnswer('pregnancy_status', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-healthcare-500"
-                >
-                  <option value="NONE">{isTa ? 'பொருந்தாது (None)' : 'None'}</option>
-                  <option value="PREGNANT">{isTa ? 'கர்ப்பிணித் தாய் (Pregnant Woman)' : 'Pregnant Woman'}</option>
-                  <option value="LACTATING">{isTa ? 'பாலூட்டும் தாய் (Lactating Mother)' : 'Lactating Mother'}</option>
-                  <option value="CHILD_UNDER_2">{isTa ? '2 வயதுக்குட்பட்ட குழந்தை உள்ளது' : 'Mother with child under 2 years'}</option>
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {isTa ? 'டாக்டர் முத்துலட்சுமி ரெட்டி மகப்பேறு திட்டம் மூலம் ₹18,000 + ஊட்டச்சத்து பெட்டகம் வழங்கப்படுகிறது.' : 'MRMBS provides ₹18,000 cash assistance and nutrition kits for institutional deliveries.'}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isTa ? 'விவசாய சாகுபடி நிலம் உள்ளதா?' : 'Cultivable Agricultural Landholding?'}
-                </label>
-                <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              {[
+                {
+                  id: 'PHH',
+                  label_en: 'Priority Household (PHH / Rice Card)',
+                  label_ta: 'முன்னுரிமை குடும்ப அட்டை (PHH - அரிசி அட்டை)',
+                  desc_en: 'Eligible for all subsidized food, health insurance & welfare schemes',
+                  desc_ta: 'அனைத்து இலவச அரிசி, மளிகைப் பொருட்கள் மற்றும் மருத்துவக் காப்பீடு',
+                },
+                {
+                  id: 'PHH_AAY',
+                  label_en: 'Antyodaya Anna Yojana (AAY)',
+                  label_ta: 'அந்தியோதயா அன்ன யோஜனா (AAY - வறுமைக் கோட்டிற்கு கீழ்)',
+                  desc_en: 'Poorest of poor households; highest priority state & central aid',
+                  desc_ta: 'மிகவும் பின்தங்கிய ஏழைக் குடும்பங்கள், மிக முன்னுரிமை உதவி',
+                },
+                {
+                  id: 'NPHH',
+                  label_en: 'Non-Priority Household (NPHH)',
+                  label_ta: 'முன்னுரிமையற்ற குடும்ப அட்டை (NPHH - சர்க்கரை அட்டை)',
+                  desc_en: 'Standard household sugar/commodity card',
+                  desc_ta: 'சர்க்கரை அட்டை அல்லது பொருட்கள் இல்லாத குடும்ப அட்டை',
+                },
+                {
+                  id: 'NOT_SURE',
+                  label_en: 'Not sure',
+                  label_ta: 'தெரியவில்லை / அட்டை வகை தெரியாது',
+                  desc_en: 'Card category unknown, pending application or verification',
+                  desc_ta: 'குடும்ப அட்டை வகை விவரம் தெரியவில்லை அல்லது விண்ணப்ப நிலையில் உள்ளது',
+                },
+                {
+                  id: 'NOT_APPLICABLE',
+                  label_en: 'Not applicable / No ration card',
+                  label_ta: 'பொருந்தாது / ரேஷன் கார்டு இல்லை',
+                  desc_en: 'Do not have an active ration card in Tamil Nadu',
+                  desc_ta: 'தற்போது குடும்ப அட்டை கைவசம் இல்லை',
+                },
+              ].map((opt) => {
+                const isSelected = answers.ration_card_type === opt.id;
+                return (
                   <button
+                    key={opt.id}
                     type="button"
-                    onClick={() => updateAnswer('is_farmer', true)}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all ${
-                      answers.is_farmer
-                        ? 'bg-healthcare-50 border-healthcare-500 text-healthcare-800 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    onClick={() => updateField('ration_card_type', opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                     }`}
                   >
-                    🌾 {isTa ? 'ஆம் (நிலம் உள்ளது)' : 'Yes (Owns Land)'}
+                    <div
+                      className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{isTa ? opt.desc_ta : opt.desc_en}</div>
+                    </div>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateAnswer('is_farmer', false);
-                      updateAnswer('landholding_acres', '');
-                    }}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all ${
-                      !answers.is_farmer
-                        ? 'bg-healthcare-50 border-healthcare-500 text-healthcare-800 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    🚫 {isTa ? 'நிலமில்லை (No Land)' : 'No Land'}
-                  </button>
-                </div>
-
-                {answers.is_farmer && (
-                  <div>
-                    <input
-                      type="number"
-                      step="0.5"
-                      placeholder={isTa ? 'நில அளவு (ஏக்கரில்) e.g. 2.0' : 'Land extent in acres e.g. 2.0'}
-                      value={answers.landholding_acres}
-                      onChange={(e) => updateAnswer('landholding_acres', e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      {isTa ? 'பிரதம மந்திரி கிசான் சம்மான் நிதி (PM-KISAN) திட்டத்திற்கு நிலப்பட்டா அவசியமானது.' : 'PM-KISAN ₹6,000/yr is restricted to farmers with cultivable landholdings.'}
-                    </p>
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
+
+            {validationErrors.ration_card_type && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.ration_card_type}</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 7: EXISTING BENEFITS & PRIORITIES (ALLOWS SKIP) */}
+        {/* QUESTION 7: HEALTHCARE REQUIREMENT (MULTI-SELECT) */}
         {/* ========================================================================= */}
         {currentStep === 7 && (
           <div className="space-y-6 animate-fadeIn">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                  <Gift className="w-5 h-5 text-healthcare-600" />
-                  <span>{isTa ? 'படி 7: ஏற்கனவே பெறும் பலன்கள் & தற்போதைய தேவைகள்' : 'Step 7: Existing Benefits & Assistance Priorities'}</span>
-                </h2>
-                <p className="text-xs text-slate-500">
-                  {isTa ? 'நீங்கள் விரும்பும் உதவி வகைகளைத் தேர்ந்தெடுக்கவும் (தெரியவில்லை என்றால் தவிர்க்கலாம்).' : 'Select target welfare services. Unknown questions can be skipped.'}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSkipStep7}
-                className="text-xs text-slate-500 hover:text-navy-900 underline font-medium"
-              >
-                {isTa ? 'இப்படியைத் தவிர்க்க (Skip)' : 'Skip this step'}
-              </button>
-            </div>
-
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">
-                {isTa ? 'நீங்கள் அறிய அல்லது பெற விரும்பும் அரசு உதவிகள்:' : 'Types of welfare assistance you are looking for:'}
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {[
-                  { key: 'HEALTHCARE', icon: '🏥', label_ta: 'மருத்துவக் காப்பீடு & அறுவை சிகிச்சை நிதி', label_en: 'Healthcare Treatment & Surgery Insurance' },
-                  { key: 'MATERNITY', icon: '👶', label_ta: 'கர்ப்பிணித் தாய் ஊட்டச்சத்து & மகப்பேறு நிதி', label_en: 'Maternity Financial Aid & Nutrition' },
-                  { key: 'EDUCATION', icon: '🎓', label_ta: 'உயர்கல்வி மாணவர் உதவித்தொகை', label_en: 'Higher Education Scholarships' },
-                  { key: 'AGRICULTURE', icon: '🌾', label_ta: 'விவசாய வருமான ஆதரவு & மானியம்', label_en: 'Farmer Income Support & Crop Aid' },
-                  { key: 'LOAN', icon: '💼', label_ta: 'சிறு தொழில் தொடங்க பிணையமில்லா கடன்', label_en: 'Collateral-free Small Business Credit (MUDRA)' },
-                  { key: 'PENSION', icon: '👵', label_ta: 'முதியோர் / ஆதரவற்றோர் மாதாந்திர ஓய்வூதியம்', label_en: 'Senior Citizen & Destitute Pension' },
-                ].map((item) => {
-                  const isSelected = (answers.desired_assistance || []).includes(item.key);
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => toggleArrayItem('desired_assistance', item.key)}
-                      className={`p-3 rounded-xl border text-left text-xs transition-all flex items-center gap-2.5 ${
-                        isSelected
-                          ? 'bg-healthcare-50 border-healthcare-600 text-healthcare-900 font-bold shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className="text-base">{item.icon}</span>
-                      <span>{isTa ? item.label_ta : item.label_en}</span>
-                    </button>
-                  );
-                })}
+              <div className="text-xs font-bold uppercase tracking-wider text-healthcare-600 mb-1">
+                {isTa ? 'கேள்வி 7 / 7' : 'Question 7 of 7'}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* STEP 8: REVIEW & FIND SCHEMES */}
-        {/* ========================================================================= */}
-        {currentStep === 8 && (
-          <div className="space-y-6 animate-fadeIn">
-            <div>
-              <h2 className="text-lg font-bold text-navy-900 mb-1 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>{isTa ? 'படி 8: பதில்களைச் சரிபார்த்து தகுதியான திட்டங்களைக் கண்டறிக' : 'Step 8: Review Answers & Find Schemes'}</span>
+              <h2 className="text-xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+                <HeartPulse className="w-5 h-5 text-healthcare-600" />
+                <span>
+                  {isTa
+                    ? 'உங்களுக்கு என்ன வகையான மருத்துவ அல்லது சுகாதார உதவி தேவை?'
+                    : 'What specific healthcare or medical assistance are you looking for?'}
+                </span>
               </h2>
               <p className="text-xs text-slate-500">
                 {isTa
-                  ? 'கீழே உள்ள உங்கள் விவரங்களை சரிபார்க்கவும். தேவைப்பட்டால் திருத்திக் கொள்ளலாம்.'
-                  : 'Review your details below before running the deterministic scheme matcher.'}
+                  ? 'பொருந்தக்கூடிய அனைத்தையும் தேர்ந்தெடுக்கலாம் (ஒன்றுக்கு மேற்பட்டவற்றைத் தேர்வு செய்யலாம்):'
+                  : 'Select all that apply to you or your family members:'}
               </p>
             </div>
 
-            {/* Answer Summary Cards with Edit shortcuts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-healthcare-600" />
-                    {isTa ? 'இருப்பிடம்' : 'Location'}
-                  </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              {[
+                {
+                  id: 'HOSPITALISATION',
+                  label_en: 'Hospitalisation',
+                  label_ta: 'மருத்துவமனையில் தங்கி சிகிச்சை',
+                  desc_en: 'Inpatient hospital admission, bed care, ICU, cashless treatment',
+                  desc_ta: 'உள்நோயாளி படுக்கை சிகிச்சை, முதலமைச்சரின் காப்பீடு',
+                },
+                {
+                  id: 'SURGERY',
+                  label_en: 'Surgery',
+                  label_ta: 'அறுவை சிகிச்சை (Surgery)',
+                  desc_en: 'Major or minor surgical procedures, cardiac, ortho, eye surgery',
+                  desc_ta: 'இதயம், கண், எலும்பு முறிவு மற்றும் பொது அறுவை சிகிச்சைகள்',
+                },
+                {
+                  id: 'DIAGNOSTICS',
+                  label_en: 'Diagnostic tests',
+                  label_ta: 'பரிசோதனைகள் (MRI, CT, Lab Tests)',
+                  desc_en: 'Diagnostic scans, blood investigations, pathology tests',
+                  desc_ta: 'ரத்தப் பரிசோதனை, ஸ்கேன் மற்றும் மருத்துவ ஆய்வகச் சோதனைகள்',
+                },
+                {
+                  id: 'MEDICINES',
+                  label_en: 'Medicines',
+                  label_ta: 'மருந்து மாத்திரைகள் உதவி',
+                  desc_en: 'Prescription medicines for diabetes, hypertension, chronic illness',
+                  desc_ta: 'நீரிழிவு, ரத்த அழுத்தம் மற்றும் நீண்டகால நோய்களுக்கான மருந்துகள்',
+                },
+                {
+                  id: 'MATERNAL_CHILD',
+                  label_en: 'Maternal and child healthcare',
+                  label_ta: 'தாய் சேய் நலம் & கர்ப்பகால உதவி',
+                  desc_en: 'Pregnancy assistance, hospital delivery, Dr. Muthulakshmi Reddy scheme',
+                  desc_ta: 'டாக்டர் முத்துலட்சுமி ரெட்டி மகப்பேறு நிதி உதவி, ஊட்டச்சத்து பெட்டகம்',
+                },
+                {
+                  id: 'PREVENTIVE',
+                  label_en: 'Preventive healthcare',
+                  label_ta: 'முன்னெச்சரிக்கை பரிசோதனை & முகாம்கள்',
+                  desc_en: 'General health checkups, cancer screenings, eye & dental camps',
+                  desc_ta: 'மக்களைத் தேடி மருத்துவம், ஆரம்ப சுகாதார நிலைய பரிசோதனைகள்',
+                },
+                {
+                  id: 'GENERAL',
+                  label_en: 'General healthcare assistance',
+                  label_ta: 'பொது மருத்துவ உதவி & மருத்துவர் ஆலோசனை',
+                  desc_en: 'Outpatient consultation (OPD), fever, seasonal ailments',
+                  desc_ta: 'அரசு ஆரம்ப சுகாதார நிலைய நேரடி மருத்துவ ஆலோசனை',
+                },
+                {
+                  id: 'OTHER',
+                  label_en: 'Other',
+                  label_ta: 'மற்றவை / மாற்றுத்திறன் உபகரணங்கள்',
+                  desc_en: 'Assistive devices, disability aids, emergency ambulance coverage',
+                  desc_ta: 'மாற்றுத்திறனாளி உபகரணங்கள், அவசர கால உதவி',
+                },
+              ].map((opt) => {
+                const isSelected = (answers.healthcare_needs || []).includes(opt.id);
+                return (
                   <button
+                    key={opt.id}
                     type="button"
-                    onClick={() => setCurrentStep(1)}
-                    className="text-[11px] text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
+                    onClick={() => toggleHealthcareNeed(opt.id)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected
+                        ? 'border-healthcare-600 bg-healthcare-50/70 shadow-xs ring-2 ring-healthcare-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                    }`}
                   >
-                    <Edit2 className="w-3 h-3" />
-                    {isTa ? 'திருத்து' : 'Edit'}
+                    <div
+                      className={`w-5 h-5 rounded-md border mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-healthcare-600 bg-healthcare-600 text-white' : 'border-slate-300'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{isTa ? opt.label_ta : opt.label_en}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{isTa ? opt.desc_ta : opt.desc_en}</div>
+                    </div>
                   </button>
-                </div>
-                <p className="text-xs text-slate-600">
-                  {answers.district}, {answers.state} {answers.pincode ? `(${answers.pincode})` : ''}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {answers.residence === 'RURAL' ? (isTa ? 'கிராமப்புறம்' : 'Rural') : (isTa ? 'நகர்ப்புறம்' : 'Urban')}
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-healthcare-600" />
-                    {isTa ? 'சுயவிவரம் & குடும்பம்' : 'Profile & Household'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="text-[11px] text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    {isTa ? 'திருத்து' : 'Edit'}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-600">
-                  {answers.age ? `${answers.age} ${isTa ? 'வயது' : 'Years'}` : (isTa ? 'வயது குறிப்பிடப்படவில்லை' : 'Age not specified')}, {answers.gender}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {isTa ? `குடும்ப உறுப்பினர்கள்: ${answers.family_size}` : `Family Size: ${answers.family_size} members`}
-                  {answers.is_woman_head_of_household ? ` • ${isTa ? 'பெண் குடும்பத் தலைவர்' : 'Female Head'}` : ''}
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Home className="w-3.5 h-3.5 text-healthcare-600" />
-                    {isTa ? 'வருமானம் & குடும்ப அட்டை' : 'Income & Ration Card'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    className="text-[11px] text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    {isTa ? 'திருத்து' : 'Edit'}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-600 font-medium">
-                  {answers.income_range}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {isTa ? `குடும்ப அட்டை: ${answers.ration_card_type}` : `Ration Card: ${answers.ration_card_type}`}
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Briefcase className="w-3.5 h-3.5 text-healthcare-600" />
-                    {isTa ? 'வேலை & சிறப்பு தகுதிகள்' : 'Work & Special Circumstances'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(5)}
-                    className="text-[11px] text-healthcare-700 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    {isTa ? 'திருத்து' : 'Edit'}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-600">
-                  {answers.employment_status} • {answers.student_status}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {answers.studied_in_govt_school ? (isTa ? 'அரசுப் பள்ளி மாணவர்' : 'TN Govt School Alum') : ''}
-                  {answers.is_differently_abled ? ` • ${isTa ? 'மாற்றுத்திறனாளி' : 'Differently Abled'}` : ''}
-                </p>
-              </div>
+                );
+              })}
             </div>
 
-            {/* Privacy Disclaimers */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-[11px] text-slate-600 leading-relaxed">
-              <span className="font-semibold text-slate-700 block mb-0.5">
-                {isTa ? 'சட்டரீதியான பொறுப்புத் துறப்பு:' : 'Statutory Transparency Notice:'}
-              </span>
-              {isTa
-                ? 'நலம் AI வழங்கும் மதிப்பீடுகள் அரசு விதிகளின் அடிப்படையிலான கணிப்பு மட்டுமே. இறுதி ஒப்புதல் அரசுத் துறையின் அதிகாரப்பூர்வ ஆவண சரிபார்ப்புக்குப் பிறகே வழங்கப்படும்.'
-                : 'Recommendations are simulated based on your questionnaire answers and officially published government criteria. NALAM AI does not guarantee statutory approval.'}
+            {validationErrors.healthcare_needs && (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationErrors.healthcare_needs}</span>
+              </p>
+            )}
+
+            {/* Privacy Guarantee Note */}
+            <div className="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
+              🛡️ {isTa ? 'தனியுரிமை உறுதி: ஆதார் எண், கடவுச்சொல் அல்லது வங்கி கணக்கு எண்களை நாங்கள் ஒருபோதும் கேட்பதில்லை.' : 'Privacy Guarantee: We never collect Aadhaar numbers, passwords, or bank account details.'}
             </div>
           </div>
         )}
 
-        {/* Wizard Navigation Footer */}
-        <div className="mt-8 pt-5 border-t border-slate-200 flex items-center justify-between gap-3">
-          <div>
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>{isTa ? 'முந்தைய படி' : 'Back'}</span>
-              </button>
-            )}
+        {/* Bottom Wizard Navigation Buttons */}
+        <div className="mt-8 pt-6 border-t border-slate-200 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>
+              {currentStep === 1
+                ? isTa
+                  ? 'முகப்புக்குத் திரும்பு'
+                  : 'Back to Intro'
+                : isTa
+                ? 'முந்தைய கேள்வி'
+                : 'Back'}
+            </span>
+          </button>
+
+          <div className="text-xs text-slate-400 font-medium">
+            {isTa ? `படி ${currentStep} / 7` : `Step ${currentStep} of 7`}
           </div>
 
-          <div className="flex items-center gap-3">
-            {onBrowseDirectly && currentStep < 8 && (
-              <button
-                type="button"
-                onClick={onBrowseDirectly}
-                className="text-xs text-slate-500 hover:text-navy-900 underline font-medium"
-              >
-                {isTa ? 'அனைத்து திட்டங்களையும் காண்க' : 'Browse All Schemes Directly'}
-              </button>
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={isSubmitting}
+            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all ${
+              currentStep === 7
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 ring-2 ring-emerald-500/20'
+                : 'bg-healthcare-600 hover:bg-healthcare-700'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>{isTa ? 'மதிப்பிடப்படுகிறது...' : 'Evaluating Matches...'}</span>
+              </>
+            ) : currentStep === 7 ? (
+              <>
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>{isTa ? 'பொருத்தமான திட்டங்களைக் கண்டறியவும்' : 'Find Matching Schemes'}</span>
+              </>
+            ) : (
+              <>
+                <span>{isTa ? 'அடுத்த கேள்வி' : 'Next Question'}</span>
+                <ChevronRight className="w-4 h-4" />
+              </>
             )}
-
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={isSubmitting}
-              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-sm ${
-                currentStep === 8
-                  ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-500/20'
-                  : 'bg-healthcare-600 hover:bg-healthcare-700'
-              }`}
-            >
-              <span>
-                {currentStep === 8
-                  ? isSubmitting
-                    ? (isTa ? 'பரிசீலிக்கிறது...' : 'Evaluating Matches...')
-                    : (isTa ? 'தகுதியான திட்டங்களைக் காண்க' : 'Find Eligible Schemes')
-                  : (isTa ? 'தொடர்க' : 'Continue')}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          </button>
         </div>
       </div>
     </div>

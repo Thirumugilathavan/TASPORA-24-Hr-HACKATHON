@@ -283,6 +283,7 @@ class QuestionnaireAnswersIn(BaseModel):
     landholding_acres: Optional[float] = Field(None, ge=0.0)
 
     # Step 7: Existing benefits & desired welfare
+    has_existing_benefits: Optional[str] = None
     existing_benefits: Optional[List[str]] = Field(default_factory=list)
     desired_assistance: Optional[List[str]] = Field(default_factory=list)
 

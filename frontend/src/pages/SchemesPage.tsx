@@ -20,8 +20,12 @@ import {
   WifiOff,
   XCircle,
   Layers,
+  Clock,
+  ArrowRight,
+  HeartPulse,
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { schemeService } from '../services/schemeService';
 import {
   GovernmentScheme,
@@ -41,8 +45,10 @@ export const SchemesPage: React.FC = () => {
   const { language, t } = useTranslation();
   const isTa = language === 'ta';
 
-  // View Mode: 'wizard' | 'results' | 'catalog'
-  const [viewMode, setViewMode] = useState<'wizard' | 'results' | 'catalog'>('wizard');
+  const { currentPatient } = useAuth();
+
+  // View Mode: 'intro' | 'wizard' | 'results' | 'catalog'
+  const [viewMode, setViewMode] = useState<'intro' | 'wizard' | 'results' | 'catalog'>('intro');
   const [loading, setLoading] = useState<boolean>(false);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [matchResults, setMatchResults] = useState<SchemeMatchResponse | null>(null);
@@ -77,6 +83,18 @@ export const SchemesPage: React.FC = () => {
     };
   });
 
+  // Prefill location from patient profile if available
+  useEffect(() => {
+    if (currentPatient?.village) {
+      setAnswers((prev) => ({
+        ...prev,
+        district: prev.district || currentPatient.village?.district || 'Namakkal',
+        state: prev.state || currentPatient.village?.state || 'Tamil Nadu',
+        pincode: prev.pincode || (currentPatient.village as any)?.pincode || '',
+      }));
+    }
+  }, [currentPatient]);
+
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -97,14 +115,6 @@ export const SchemesPage: React.FC = () => {
     schemeService.getSavedSchemes().then((saved) => {
       setSavedSchemeIds(saved.map((s) => s.scheme_id));
     });
-
-    // Check if user already completed the questionnaire previously
-    if (typeof window !== 'undefined') {
-      const completed = localStorage.getItem('nalam_scheme_completed');
-      if (completed === 'true') {
-        handleRunMatching(answers);
-      }
-    }
   }, [language]);
 
   // Execute Scheme Matching
@@ -287,6 +297,187 @@ export const SchemesPage: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {/* ========================================================================= */}
+        {/* VIEW 0: INTRODUCTORY SCREEN */}
+        {/* ========================================================================= */}
+        {viewMode === 'intro' && (
+          <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+            {/* Hero Card */}
+            <div className="bg-gradient-to-r from-healthcare-800 via-healthcare-900 to-navy-950 rounded-3xl p-8 md:p-10 text-white shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-healthcare-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-emerald-300 text-xs font-semibold backdrop-blur-md mb-4 border border-white/10">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>{isTa ? 'சரிபார்க்கப்பட்ட அதிகாரப்பூர்வ அரசு நலத்திட்டங்கள்' : 'Verified Official Government Schemes'}</span>
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-tight mb-3">
+                  {isTa ? 'நலம் AI அரசு நலத்திட்ட வழிகாட்டி' : 'NALAM AI Government Healthcare Scheme Finder'}
+                </h1>
+
+                <p className="text-slate-200 text-sm md:text-base leading-relaxed mb-6">
+                  {isTa
+                    ? 'உங்கள் குடும்ப நிலை, இருப்பிடம் மற்றும் மருத்துவத் தேவைகளின் அடிப்படையில் தமிழ்நாடு மற்றும் மத்திய அரசு வழங்கும் மருத்துவக் காப்பீடு, மானியங்கள் மற்றும் நலத்திட்டங்களை உடனடியாகக் கண்டறியுங்கள்.'
+                    : 'Discover Central and Tamil Nadu government healthcare assistance, maternity coverage, cashless hospital insurance, and welfare subsidies tailored to your household circumstances.'}
+                </p>
+
+                {/* Main Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('wizard');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Sparkles className="w-4 h-4 text-slate-950" />
+                    <span>{isTa ? 'தகுதியான திட்டங்களைக் காண்க' : 'Find Eligible Schemes'}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBrowseCatalog}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-semibold text-sm border border-white/20 transition-colors"
+                  >
+                    <Landmark className="w-4 h-4 text-slate-300" />
+                    <span>{isTa ? 'அனைத்து திட்டங்களையும் காண்க' : 'Browse All Schemes Directly'}</span>
+                  </button>
+                </div>
+
+                {matchResults && (
+                  <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between text-xs text-slate-300">
+                    <span>{isTa ? 'முந்தைய மதிப்பீட்டு முடிவுகள் கிடைக்கின்றன.' : 'Previous matching results available.'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('results')}
+                      className="text-amber-300 hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <span>{isTa ? 'முடிவுகளைக் காண்க' : 'View Results'}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4 Feature Highlights Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-healthcare-50 text-healthcare-600 flex items-center justify-center mb-3">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {isTa ? 'சரியான தகுதி சரிபார்ப்பு' : 'Statutory Eligibility'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {isTa
+                    ? 'CMCHIS, PM-JAY மற்றும் கலைஞர் மகளிர் உரிமைத் திட்டங்களின் சட்டப்பூர்வ விதிகளுடன் துல்லியமாக பொருந்துகிறது.'
+                    : 'Evaluated deterministically against official criteria for CMCHIS, PM-JAY, KMUT, and more.'}
+                </p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {isTa ? '100% தனியுரிமை உறுதி' : 'Strict Privacy First'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {isTa
+                    ? 'ஆதார் எண், கடவுச்சொற்கள் அல்லது வங்கிக் கணக்கு எண்களை நாங்கள் ஒருபோதும் கேட்பதில்லை.'
+                    : 'Zero collection of Aadhaar numbers, passwords, bank details, or unnecessary personal info.'}
+                </p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {isTa ? '1 நிமிடத்தில் 7 கேள்விகள்' : 'Takes Under 1 Min'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {isTa
+                    ? '7 எளிய கேள்விகள் மூலமாக உங்களுக்குப் பொருத்தமான நலத்திட்டங்களை உடனடியாக அறியலாம்.'
+                    : '7 structured, step-by-step multiple-choice questions with full backward navigation.'}
+                </p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {isTa ? 'ஆவண சரிபார்ப்பு பட்டியல்' : 'Document Checklists'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {isTa
+                    ? 'தேவையான ஆவணப் பட்டியல் மற்றும் நேரடி அரசு விண்ணப்ப இணையதள இணைப்புகள் வழங்கப்படும்.'
+                    : 'Instant aggregated document checklists and direct official government application portal links.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Popular Verified Schemes Showcase */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Award className="w-4 h-4 text-healthcare-600" />
+                <span>{isTa ? 'முக்கிய அரசு நலத்திட்டங்கள்' : 'Popular Verified Government Schemes'}</span>
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <span className="text-[11px] font-bold text-healthcare-700 bg-healthcare-50 px-2 py-0.5 rounded-md">
+                    Tamil Nadu Health
+                  </span>
+                  <div className="text-sm font-bold text-slate-900 mt-2 mb-1">
+                    {isTa ? 'முதலமைச்சரின் விரிவான மருத்துவக் காப்பீட்டுத் திட்டம் (CMCHIS)' : "Chief Minister's Comprehensive Health Insurance (CMCHIS)"}
+                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold mb-1">
+                    {isTa ? 'ஆண்டுக்கு ₹5,00,000 வரை ரொக்கமில்லா சிகிச்சை' : 'Up to ₹5,00,000/year cashless hospital treatment'}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {isTa ? 'குடும்ப ஆண்டு வருமானம் ₹1,20,000-க்குள் உள்ள குடும்பங்களுக்கு' : 'Income ceiling under ₹1,20,000/year with Smart Ration Card'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
+                    Tamil Nadu Social Welfare
+                  </span>
+                  <div className="text-sm font-bold text-slate-900 mt-2 mb-1">
+                    {isTa ? 'கலைஞர் மகளிர் உரிமைத் திட்டம் (KMUT)' : 'Kalaignar Magalir Urimai Thittam (KMUT)'}
+                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold mb-1">
+                    {isTa ? 'மாதம் ₹1,000 அடிப்படை உரிமைத்தொகை' : '₹1,000/month basic income for female head of household'}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {isTa ? 'ஆண்டு வருமானம் ₹2.5 லட்சத்திற்குள் உள்ள தகுதியான பெண்கள்' : 'Family income under ₹2.5 Lakhs & electricity under 3,600 units'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    National Health Mission
+                  </span>
+                  <div className="text-sm font-bold text-slate-900 mt-2 mb-1">
+                    {isTa ? 'டாக்டர் முத்துலட்சுமி ரெட்டி மகப்பேறு நிதி உதவி' : 'Dr. Muthulakshmi Reddy Maternity Benefit Scheme'}
+                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold mb-1">
+                    {isTa ? '₹18,000 நிதி உதவி + அம்மா தாய்-சேய் ஊட்டச்சத்து பெட்டகம்' : '₹18,000 financial aid + Nutrition Kit'}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {isTa ? 'கர்ப்பிணித் தாய்மார்களுக்கு அரசு மருத்துவமனை பிரசவ உதவி' : 'For pregnant & lactating mothers registered in PICME'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
         {/* VIEW 1: QUESTIONNAIRE WIZARD */}
         {/* ========================================================================= */}
         {viewMode === 'wizard' && (
@@ -295,6 +486,7 @@ export const SchemesPage: React.FC = () => {
               initialAnswers={answers}
               onComplete={handleRunMatching}
               onBrowseDirectly={handleBrowseCatalog}
+              onBackToIntro={() => setViewMode('intro')}
               isSubmitting={loading}
             />
           </div>

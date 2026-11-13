@@ -49,6 +49,7 @@ export interface QuestionnaireFormAnswers {
   landholding_acres?: number | string;
 
   // Step 7: Existing Benefits & Priorities
+  has_existing_benefits?: string; // YES, NO, NOT_SURE
   existing_benefits?: string[];
   desired_assistance?: string[];
 
@@ -62,8 +63,18 @@ export function evaluateLocalSchemeMatches(
   const isTa = language === 'ta';
 
   // 1. Normalize demographic numbers
-  const age = answers.age ? Number(answers.age) : undefined;
-  const isSenior = answers.is_senior_citizen || (age !== undefined && age >= 60);
+  let age = answers.age ? Number(answers.age) : undefined;
+  if (age === undefined && answers.age_range) {
+    const ageMap: Record<string, number> = {
+      UNDER_18: 16,
+      '18_TO_29': 24,
+      '30_TO_44': 37,
+      '45_TO_59': 52,
+      '60_AND_ABOVE': 65,
+    };
+    age = ageMap[answers.age_range];
+  }
+  const isSenior = Boolean(answers.is_senior_citizen || (age !== undefined && age >= 60) || answers.age_range === '60_AND_ABOVE');
   const gender = answers.gender || 'PREFER_NOT_TO_SAY';
   const state = answers.state || 'Tamil Nadu';
   const isTamilNadu = state.toLowerCase().includes('tamil');
@@ -71,16 +82,17 @@ export function evaluateLocalSchemeMatches(
 
   // Income mapping
   let income = answers.annual_income ? Number(answers.annual_income) : undefined;
-  if (income === undefined) {
+  if (income === undefined && answers.income_range) {
     if (answers.income_range === 'BELOW_72K') income = 60000;
     else if (answers.income_range === '72K_TO_120K') income = 100000;
     else if (answers.income_range === '120K_TO_250K') income = 180000;
     else if (answers.income_range === '250K_TO_500K') income = 350000;
     else if (answers.income_range === 'ABOVE_500K') income = 600000;
+    else if (answers.income_range === 'PREFER_NOT_TO_SAY') income = undefined;
     else income = 80000;
   }
 
-  const hasRationCard = answers.ration_card_type !== 'NONE';
+  const hasRationCard = answers.ration_card_type !== 'NONE' && answers.ration_card_type !== 'NOT_APPLICABLE';
   const isWomanHead = Boolean(answers.is_woman_head_of_household);
   const isFemale = gender === 'FEMALE' || isWomanHead;
   const isMale = gender === 'MALE';
@@ -93,15 +105,17 @@ export function evaluateLocalSchemeMatches(
     answers.student_status === 'PRIVATE_COLLEGE' ||
     answers.student_status === 'ITI_DIPLOMA' ||
     answers.employment_status === 'STUDENT';
-  const studiedGovtSchool = Boolean(answers.studied_in_govt_school);
+  const studiedGovtSchool = Boolean(answers.studied_in_govt_school || isStudent);
+  const healthcareNeeds = (answers.healthcare_needs || []).map((h) => h.toUpperCase());
   const isPregnantOrMaternal =
     answers.pregnancy_status === 'PREGNANT' ||
     answers.pregnancy_status === 'LACTATING' ||
-    answers.pregnancy_status === 'CHILD_UNDER_2';
+    answers.pregnancy_status === 'CHILD_UNDER_2' ||
+    healthcareNeeds.some((h) => h.includes('MATERNAL'));
   const ownsLand =
-    Boolean(answers.is_farmer) || (answers.landholding_acres !== undefined && Number(answers.landholding_acres) > 0);
+    Boolean(answers.is_farmer || answers.employment_status === 'FARMER') ||
+    (answers.landholding_acres !== undefined && Number(answers.landholding_acres) > 0);
   const desired = answers.desired_assistance || [];
-  const healthcareNeeds = answers.healthcare_needs || [];
 
   const likelyMatches: SchemeMatchItemOut[] = [];
   const moreInfoNeeded: SchemeMatchItemOut[] = [];

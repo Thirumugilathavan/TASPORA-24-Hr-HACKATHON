@@ -657,9 +657,55 @@ class SchemeRecommendationEngine:
             schemes = cls.get_static_verified_schemes()
 
         # 2. Map questionnaire answers into standard user_data structure
+        # Derive age and income from range if direct number not provided
+        user_age = payload.age
+        if user_age is None and payload.age_range:
+            age_range_map = {
+                "UNDER_18": 16,
+                "18_TO_29": 24,
+                "30_TO_44": 37,
+                "45_TO_59": 52,
+                "60_AND_ABOVE": 65,
+            }
+            user_age = age_range_map.get(payload.age_range)
+
+        user_income = payload.annual_income
+        if user_income is None and payload.income_range:
+            income_map = {
+                "BELOW_72K": 60000,
+                "72K_TO_120K": 100000,
+                "120K_TO_250K": 180000,
+                "250K_TO_500K": 350000,
+                "ABOVE_500K": 600000,
+                "PREFER_NOT_TO_SAY": None,
+            }
+            user_income = income_map.get(payload.income_range)
+
+        hc_needs = [h.upper() for h in (payload.healthcare_needs or [])]
+        is_maternal = (
+            payload.pregnancy_status in ["PREGNANT", "LACTATING", "CHILD_UNDER_2"]
+            or "MATERNAL_CHILD" in hc_needs
+        )
+        needs_hospital = (
+            "TERTIARY_CARE" in hc_needs
+            or "HOSPITALISATION" in hc_needs
+            or "SURGERY" in hc_needs
+            or "healthcare" in (payload.desired_assistance or [])
+        )
+        is_farmer = bool(
+            payload.is_farmer
+            or payload.employment_status == "FARMER"
+            or (payload.landholding_acres and payload.landholding_acres > 0)
+        )
+        is_student = bool(
+            payload.student_status in ["SCHOOL", "HIGHER_SECONDARY", "GOVT_COLLEGE", "PRIVATE_COLLEGE", "ITI_DIPLOMA"]
+            or payload.employment_status == "STUDENT"
+        )
+        has_ration = payload.ration_card_type not in ["NONE", "NOT_APPLICABLE"]
+
         user_data: Dict[str, Any] = {
             "basic": {
-                "age": payload.age,
+                "age": user_age,
                 "state": payload.state or "Tamil Nadu",
                 "district": payload.district,
                 "village_or_town": payload.town_or_village,
@@ -674,9 +720,9 @@ class SchemeRecommendationEngine:
                 "has_disabled_member": bool(payload.is_differently_abled),
             },
             "financial": {
-                "annual_income": payload.annual_income,
+                "annual_income": user_income,
                 "income_range": payload.income_range or "BELOW_72K",
-                "has_ration_card": payload.ration_card_type != "NONE",
+                "has_ration_card": has_ration,
                 "ration_card_type": payload.ration_card_type or "PHH",
                 "existing_benefits": payload.existing_benefits or [],
             },
@@ -685,33 +731,30 @@ class SchemeRecommendationEngine:
                 "has_disability_certificate": bool(payload.is_differently_abled),
                 "disability_percentage": payload.disability_percentage,
                 "is_widow": "widow" in (payload.special_circumstances or []),
-                "is_senior_citizen": bool(payload.is_senior_citizen or (payload.age and payload.age >= 60)),
-                "is_farmer": bool(payload.is_farmer or (payload.landholding_acres and payload.landholding_acres > 0)),
-                "is_student": bool(
-                    payload.student_status in ["SCHOOL", "HIGHER_SECONDARY", "GOVT_COLLEGE", "PRIVATE_COLLEGE", "ITI_DIPLOMA"]
-                    or payload.employment_status == "STUDENT"
-                ),
+                "is_senior_citizen": bool(payload.is_senior_citizen or (user_age and user_age >= 60) or payload.age_range == "60_AND_ABOVE"),
+                "is_farmer": is_farmer,
+                "is_student": is_student,
             },
             "education_employment": {
-                "current_education_status": payload.student_status,
-                "studied_in_govt_school": bool(payload.studied_in_govt_school),
+                "current_education_status": "GOVT_COLLEGE" if is_student and not payload.student_status else payload.student_status,
+                "studied_in_govt_school": bool(payload.studied_in_govt_school or is_student),
                 "employment_status": payload.employment_status,
                 "highest_qualification": payload.education_level,
-                "seeking_scholarships": "education" in (payload.desired_assistance or []),
-                "interested_in_business": "loan" in (payload.desired_assistance or []),
+                "seeking_scholarships": is_student or ("education" in (payload.desired_assistance or [])),
+                "interested_in_business": payload.employment_status == "SELF_EMPLOYED" or ("loan" in (payload.desired_assistance or [])),
             },
             "agriculture_business": {
-                "owns_agricultural_land": bool(payload.is_farmer or (payload.landholding_acres and payload.landholding_acres > 0)),
-                "land_acres": payload.landholding_acres,
+                "owns_agricultural_land": is_farmer,
+                "land_acres": payload.landholding_acres or (2.0 if is_farmer else None),
                 "farmer_category": "SMALL_MARGINAL" if (payload.landholding_acres or 0) <= 5.0 else "LARGE",
                 "has_business": payload.employment_status == "SELF_EMPLOYED" or ("loan" in (payload.desired_assistance or [])),
             },
             "healthcare_needs": {
-                "needs_maternity_benefits": payload.pregnancy_status in ["PREGNANT", "LACTATING", "CHILD_UNDER_2"],
-                "needs_maternal_child_care": payload.pregnancy_status in ["PREGNANT", "LACTATING", "CHILD_UNDER_2"],
-                "needs_hospital_treatment_aid": "tertiary_care" in (payload.healthcare_needs or []) or "healthcare" in (payload.desired_assistance or []),
+                "needs_maternity_benefits": is_maternal,
+                "needs_maternal_child_care": is_maternal,
+                "needs_hospital_treatment_aid": needs_hospital,
                 "needs_health_insurance": True,
-                "needs_disability_support": bool(payload.is_differently_abled),
+                "needs_disability_support": bool(payload.is_differently_abled or "OTHER" in hc_needs),
             },
             "financial_needs": payload.desired_assistance or ["ALL"],
         }
