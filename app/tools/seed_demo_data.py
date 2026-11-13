@@ -28,7 +28,7 @@ from app.models.user import User
 from app.models.village import Village
 
 
-async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
+async def seed_all_demo_data(db: Optional[AsyncSession] = None, force: bool = False) -> bool:
     """Seeds the demonstration database if facilities are empty.
     
     Returns True if seeding occurred, False if data already existed.
@@ -39,8 +39,8 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
         owns_session = True
 
     try:
-        # Prevent seeding in production environment
-        if settings.ENVIRONMENT.lower() == "production":
+        # Prevent seeding in production environment unless forced
+        if settings.ENVIRONMENT.lower() == "production" and not force:
             return False
 
         # Check if already seeded

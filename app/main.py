@@ -13,19 +13,9 @@ from app.models.base import Base
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown procedures."""
-    if settings.ENVIRONMENT.lower() == "testing":
-        yield
-        return
-
-    # Ensure database tables exist (development/evaluation convenience)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    try:
-        if settings.ENVIRONMENT.lower() not in ["production", "testing"]:
-            from app.tools.seed_demo_data import seed_all_demo_data
-            await seed_all_demo_data()
-    except Exception:
-        pass
+    if settings.ENVIRONMENT.lower() != "testing":
+        from app.core.database import ensure_database_initialized
+        await ensure_database_initialized()
     yield
     # Clean shutdown
     await engine.dispose()
