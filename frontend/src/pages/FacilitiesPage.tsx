@@ -49,6 +49,8 @@ export const FacilitiesPage: React.FC = () => {
   // Filter & Query State
   const [radiusKm, setRadiusKm] = useState<number>(10);
   const [selectedType, setSelectedType] = useState<string>('ALL');
+  const [selectedOwnership, setSelectedOwnership] = useState<string>('ALL');
+  const [selectedService, setSelectedService] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
 
   // Results State
@@ -114,6 +116,9 @@ export const FacilitiesPage: React.FC = () => {
         const params: Parameters<typeof facilityService.getNearbyFacilities>[0] = {
           radius_km: radiusKm,
           facility_type: selectedType === 'ALL' ? undefined : selectedType,
+          ownership: selectedOwnership === 'ALL' ? undefined : selectedOwnership,
+          emergency_services: selectedService === 'EMERGENCY' ? true : undefined,
+          maternity_services: selectedService === 'MATERNITY' ? true : undefined,
           limit: PAGE_SIZE,
           skip: offset,
         };
@@ -146,7 +151,7 @@ export const FacilitiesPage: React.FC = () => {
         setLoadingMore(false);
       }
     },
-    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType]
+    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, selectedOwnership, selectedService]
   );
 
   useEffect(() => {
@@ -212,12 +217,26 @@ export const FacilitiesPage: React.FC = () => {
 
   // Client-side text filter on the currently loaded page/results
   const filteredFacilities = facilities.filter((fac) => {
+    if (selectedOwnership === 'GOVERNMENT' && fac.ownership && !['government', 'municipal corporation'].includes(fac.ownership.toLowerCase())) {
+      return false;
+    }
+    if (selectedOwnership === 'PRIVATE' && fac.ownership?.toLowerCase() !== 'private') {
+      return false;
+    }
+    if (selectedService === 'EMERGENCY' && !fac.emergency_services) {
+      return false;
+    }
+    if (selectedService === 'MATERNITY' && !fac.maternity_services) {
+      return false;
+    }
     if (!search.trim()) return true;
     const q = search.toLowerCase().trim();
     return (
       fac.name.toLowerCase().includes(q) ||
       (fac.district && fac.district.toLowerCase().includes(q)) ||
       (fac.address && fac.address.toLowerCase().includes(q)) ||
+      (fac.block && fac.block.toLowerCase().includes(q)) ||
+      (fac.locality && fac.locality.toLowerCase().includes(q)) ||
       (fac.subdistrict && fac.subdistrict.toLowerCase().includes(q))
     );
   });
@@ -381,6 +400,51 @@ export const FacilitiesPage: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Additional Filters: Ownership & Services */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-slate-600">Ownership:</span>
+            {[
+              { label: 'All Ownership', value: 'ALL' },
+              { label: '🏛️ Government', value: 'GOVERNMENT' },
+              { label: '🏥 Private Accredited', value: 'PRIVATE' },
+            ].map((own) => (
+              <button
+                key={own.value}
+                onClick={() => setSelectedOwnership(own.value)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  selectedOwnership === own.value
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {own.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-slate-600">Critical Care:</span>
+            {[
+              { label: 'All Services', value: 'ALL' },
+              { label: '🚨 24x7 Emergency', value: 'EMERGENCY' },
+              { label: '🤰 Maternity & Delivery', value: 'MATERNITY' },
+            ].map((srv) => (
+              <button
+                key={srv.value}
+                onClick={() => setSelectedService(srv.value)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  selectedService === srv.value
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {srv.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Search Input Bar */}
@@ -524,21 +588,58 @@ export const FacilitiesPage: React.FC = () => {
                       {fac.address || `${fac.district || ''}, ${fac.state || ''}`}
                     </p>
 
-                    {/* Ownership & Availability Notice */}
-                    <div className="pt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
-                        title="Operational attendance and stock require live verification"
-                      >
-                        <Info className="w-3 h-3 text-slate-400" />
-                        Availability not verified
-                      </span>
+                    {/* Ownership & Verified Badges */}
+                    <div className="pt-2 flex flex-wrap items-center gap-1.5">
+                      {(fac.verification_status === 'VERIFIED_OFFICIAL' || fac.geographic_verification_status === 'VERIFIED_OFFICIAL') ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Verified Official
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                          <Info className="w-3 h-3 text-slate-400" />
+                          Standard Listing
+                        </span>
+                      )}
+
+                      {fac.emergency_services && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          🚨 24x7 Emergency
+                        </span>
+                      )}
+
+                      {fac.maternity_services && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                          🤰 Maternity
+                        </span>
+                      )}
+
                       {fac.ownership && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                           {fac.ownership}
                         </span>
                       )}
                     </div>
+
+                    {/* Operational Details: Hours & Official Phone */}
+                    {(fac.opening_hours || fac.official_phone) && (
+                      <div className="pt-1.5 text-xs text-slate-600 space-y-1">
+                        {fac.opening_hours && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                            <span className="font-semibold text-slate-700">Hours:</span>
+                            <span>{fac.opening_hours}</span>
+                          </div>
+                        )}
+                        {fac.official_phone && (
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <span className="font-semibold text-slate-700">Phone:</span>
+                            <a href={`tel:${fac.official_phone}`} className="text-emerald-700 hover:underline font-mono font-medium">
+                              {fac.official_phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions: Directions and Details */}
@@ -567,13 +668,33 @@ export const FacilitiesPage: React.FC = () => {
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setBookingFacility(fac)}
-                        className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
-                      >
-                        Book Slot
-                      </button>
+                      {fac.appointment_booking_method === 'ONLINE_BOOKING_AVAILABLE' && fac.online_booking_url ? (
+                        <a
+                          href={fac.online_booking_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs inline-flex items-center gap-1"
+                        >
+                          Book Online ↗
+                        </a>
+                      ) : fac.appointment_booking_method === 'WALK_IN_ONLY' ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFacility(fac)}
+                          className="px-3 py-1.5 text-xs font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-300 rounded-lg transition-colors shadow-xs"
+                          title="Walk-in OPD registration at hospital counter (typically 07:30 AM - 12:00 PM)"
+                        >
+                          Walk-in OPD
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setBookingFacility(fac)}
+                          className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
+                        >
+                          Book Slot
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

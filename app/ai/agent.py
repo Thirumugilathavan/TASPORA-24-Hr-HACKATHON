@@ -389,46 +389,108 @@ class NalamAIAgent:
             options = slots_data.get("options", [])
 
             lines = []
-            if lang == "ta":
-                loc_txt = f" ({target_loc} பகுதி)" if target_loc else ""
-                lines.append(f"**அரசு ஆரம்ப சுகாதார நிலைய முன்பதிவு வழிகாட்டல்{loc_txt}:**\n")
-                lines.append(
-                    "கீழே உள்ள மருத்துவ ஆலோசனை அட்டைகளில் இருந்து உங்கள் விருப்பமான மையம் மற்றும் மருத்துவரை தேர்வு செய்து முன்பதிவு செய்யலாம்.\n"
-                    "முன்பதிவு செய்வதன் மூலம் வரிசையில் காத்திருக்கும் நேரம் குறைக்கப்படும்."
-                )
+            if not options:
+                if lang == "ta":
+                    lines.append(
+                        f"**{target_loc or 'கோரப்பட்ட'} பகுதியில் சரிபார்க்கப்பட்ட மருத்துவமனை முன்பதிவு தகவல்கள் தற்போது நலம் தரவுத்தளத்தில் இல்லை.**\n\n"
+                        "நலம் தளம் போலி முன்பதிவு எண்களையோ மாதிரி நேரங்களையோ உருவாக்காது. "
+                        "அரசு மருத்துவமனைகளில் காலை 07:30 முதல் நேரடி பதிவு கவுண்டர் மூலம் டோக்கன் பெறலாம். "
+                        "அவசர சிகிச்சைக்கு உடனடியாக **108** ஆம்புலன்ஸை அழைக்கவும்."
+                    )
+                else:
+                    lines.append(
+                        f"**No verified appointment booking records were found for {target_loc or 'the requested location'} in the NALAM database.**\n\n"
+                        "NALAM strictly adheres to zero-fabrication clinical safety and never generates fake appointment confirmation IDs or mock slots. "
+                        "For Government facilities, consultations operate via direct on-site Walk-In OPD Registration (07:30 AM – 12:00 PM). "
+                        "For medical emergencies, call **108** immediately."
+                    )
             else:
-                loc_txt = f" near {target_loc}" if target_loc else ""
-                lines.append(f"**Healthcare Consultation Appointment Booking{loc_txt}:**\n")
+                loc_txt = f" ({target_loc} பகுதி)" if target_loc else ""
+                loc_txt_en = f" in {target_loc}" if target_loc else ""
+
+                if lang == "ta":
+                    lines.append(f"**மருத்துவமனை முன்பதிவு மற்றும் பதிவு வழிகாட்டுதல்{loc_txt}:**\n")
+                    lines.append(
+                        "தமிழ்நாடு பொது சுகாதார அமைப்பில், அரசு மருத்துவமனைகள் (CMCH, தாலுகா மருத்துவமனைகள்) மற்றும் PHC-களில் "
+                        "முன்பதிவு இணைய வழியில் வழங்கப்படுவதில்லை; மருத்துவமனை புறநோயாளி (OPD) கவுண்டரில் நேரடி பதிவு மட்டுமே நடைபெறும். "
+                        "அங்கீகரிக்கப்பட்ட தனியார் மருத்துவமனைகளில் அதிகாரப்பூர்வ இணையதளம் மூலம் முன்பதிவு செய்யலாம்.\n"
+                    )
+                else:
+                    lines.append(f"**Verified Healthcare Appointment & Registration Guidance{loc_txt_en}:**\n")
+                    lines.append(
+                        "In Tamil Nadu public health infrastructure, all Government Hospitals (CMCH, Taluk Hospitals) and PHCs "
+                        "operate strictly via **on-site Walk-In OPD Registration** at hospital counters (typically 07:30 AM – 12:00 PM). "
+                        "Emergency casualties operate 24x7 with no appointment required. "
+                        "Verified private hospitals offer online appointment portals and dedicated booking telephone desks.\n"
+                    )
+
+                for opt in options[:4]:
+                    method = opt.get("booking_method", "WALK_IN_ONLY")
+                    fac_name = opt["facility_name"]
+                    phone = opt.get("booking_phone")
+                    online_url = opt.get("online_booking_url")
+                    inst = opt["instructions_ta"] if lang == "ta" else opt["instructions_en"]
+                    badge_label = "WALK-IN OPD" if method == "WALK_IN_ONLY" else "ONLINE BOOKING"
+                    badge_col = "blue" if method == "WALK_IN_ONLY" else "green"
+
+                    # Card action
+                    if method == "ONLINE_BOOKING_AVAILABLE" and online_url:
+                        c_action = {
+                            "label": "Official Booking Portal" if lang == "en" else "இணைய முன்பதிவு",
+                            "type": "LINK",
+                            "url": online_url,
+                        }
+                    elif phone:
+                        c_action = {
+                            "label": f"Call {phone}",
+                            "type": "CALL",
+                            "target": phone,
+                        }
+                    else:
+                        c_action = {
+                            "label": "Walk-in OPD Info" if lang == "en" else "நேரடி பதிவு விவரம்",
+                            "type": "INFO",
+                        }
+
+                    docs_summary = []
+                    for d in opt.get("verified_doctors", []):
+                        docs_summary.append(f"{d['doctor_name']} ({d['specialization']}) - {d['doctor_status']}")
+
+                    cards.append(AIChatCard(
+                        type=CardType.APPOINTMENT,
+                        title=fac_name,
+                        subtitle=f"{opt.get('ownership', 'Hospital')} • {opt.get('locality') or opt.get('district') or 'Coimbatore'}",
+                        badge=badge_label,
+                        badge_color=badge_col,
+                        details={
+                            "booking_method": method,
+                            "instructions": inst,
+                            "phone": phone or "Not listed",
+                            "online_portal": online_url or "N/A (Walk-in only)",
+                            "emergency_services": "24x7 Available" if opt.get("emergency_services") else "Standard hours",
+                            "doctors": ", ".join(docs_summary) if docs_summary else "Roster pending",
+                        },
+                        action=c_action,
+                    ))
+
+                    if lang == "ta":
+                        lines.append(
+                            f"- **{fac_name}** ({opt.get('ownership', 'மருத்துவமனை')}): `{badge_label}`\n"
+                            f"  - பதிவு முறை: {inst}\n"
+                            f"  - தொடர்பு: {phone or 'நேரடி அணுகல்'}\n"
+                        )
+                    else:
+                        lines.append(
+                            f"- **{fac_name}** ({opt.get('ownership', 'Hospital')}): `{badge_label}`\n"
+                            f"  - Procedure: {inst}\n"
+                            f"  - Official Contact: {phone or 'On-site counter'}\n"
+                        )
+
                 lines.append(
-                    "Select a health facility and doctor from the cards below to reserve your priority consultation slot.\n"
-                    "Booking guarantees priority queue triage and reserved medical officer review."
+                    "\n*Strict Clinical Safety Rule: NALAM never fabricates fake booking confirmations or synthetic appointment tokens.*"
+                    if lang == "en"
+                    else "\n*மருத்துவ பாதுகாப்பு விதி: நலம் தளம் போலியான முன்பதிவு டோக்கன்களையோ உறுதிப்படுத்தல் எண்களையோ ஒருபோதும் வழங்காது.*"
                 )
-
-            for opt in options[:3]:
-                cards.append(AIChatCard(
-                    type=CardType.APPOINTMENT,
-                    title=f"{opt['facility_name']}",
-                    subtitle=f"{opt['doctor_name']} • {opt['specialization']}",
-                    badge=f"Status: {opt['doctor_status']}",
-                    badge_color="green" if opt["doctor_status"] == "PRESENT" else "blue",
-                    details={
-                        "date": opt["date"],
-                        "shift_hours": opt["shift_hours"],
-                        "available_slots": ", ".join(opt["available_slots"]),
-                    },
-                    action={
-                        "label": "Confirm Booking" if lang == "en" else "முன்பதிவு உறுதிசெய்",
-                        "type": "BOOK",
-                        "facility_id": opt["facility_id"],
-                        "doctor_id": opt["doctor_id"],
-                    },
-                ))
-
-            lines.append(
-                "\n*Note: NALAM guarantees reserved tokens for verified scheduled doctors.*"
-                if lang == "en"
-                else "\n*குறிப்பு: நலம் தளத்தின் மூலம் முன்பதிவு செய்யப்பட்ட டோக்கன்களுக்கு முன்னுரிமை அளிக்கப்படுகிறது.*"
-            )
 
             resp_text = "\n".join(lines)
             session.add_turn(message, lang, classification.intent.value, resolved_loc, tools_called, resp_text)
@@ -696,14 +758,26 @@ class NalamAIAgent:
         # BRANCH 12: FACILITY SEARCH INTENT
         # -------------------------------------------------------------
         loc = classification.extracted_location or session.active_location
-        fac_type = classification.extracted_facility_type or "PHC"
+        fac_type = classification.extracted_facility_type
+        ownership = classification.entities.get("ownership")
+        service = classification.entities.get("service")
+        maternity = True if (service == "maternity") else None
+        emergency = True if (service == "emergency") else None
+
+        # If user asked about Coimbatore generally or no location was given in a Coimbatore context
+        if not loc and (fac_type or service or ownership):
+            loc = "Coimbatore"
 
         tools_called.append("search_facilities_tool")
         fac_data = await search_facilities_tool(
             db,
             location_name=loc,
             facility_type=fac_type,
-            limit=4,
+            ownership=ownership,
+            service=service,
+            maternity=maternity,
+            emergency=emergency,
+            limit=5,
         )
 
         matched_facilities = fac_data.get("facilities", [])
@@ -716,30 +790,50 @@ class NalamAIAgent:
 
             if lang == "ta":
                 lines.append(
-                    f"**{loc or 'கோரப்பட்ட'} நகரில் தற்போது நேரடி நலம் (NALAM) நெட்வொர்க் அரசு ஆரம்ப சுகாதார நிலையங்கள் எதுவும் இணைக்கப்படவில்லை.**\n\n"
+                    f"**{loc or 'கோரப்பட்ட'} பகுதியில் உங்கள் அளவுகோல்களுக்குப் பொருந்தக்கூடிய சரிபார்க்கப்பட்ட மருத்துவமனைகள் நலம் தரவுத்தளத்தில் இல்லை.**\n\n"
+                    "நலம் தளம் உண்மைத் தரவுகளை மட்டுமே காட்டுகிறது; கற்பனையான தகவல்களை உருவாக்காது.\n"
                 )
                 if nearest_km and nearest_name:
                     lines.append(
                         f"நலம் நெட்வொர்க்கில் மிக அருகிலுள்ள சுகாதார மையம்: **{nearest_name}** (~{nearest_km} கி.மீ தொலைவில் உள்ளது).\n"
-                        "அவசர சிகிச்சை தேவைப்பட்டால் உடனடியாக **108** ஆம்புலன்ஸை அழைக்கவும் அல்லது உள்ளூர் அரசு தலைமை மருத்துவமனையை அணுகவும்."
                     )
+                lines.append(
+                    "அவசர சிகிச்சை தேவைப்பட்டால் உடனடியாக **108** ஆம்புலன்ஸை அழைக்கவும் அல்லது உள்ளூர் அரசு தலைமை மருத்துவமனையை அணுகவும்."
+                )
             else:
                 lines.append(
-                    f"**Currently, no Primary Health Centres (PHC) directly registered in NALAM were found in {loc or 'the requested location'}.**\n\n"
+                    f"**Currently, no verified healthcare facilities matching your criteria were found in {loc or 'the requested location'} in the NALAM database.**\n\n"
+                    "NALAM strictly adheres to zero-fabrication clinical safety and never estimates or invents healthcare facility data.\n"
                 )
                 if nearest_km and nearest_name:
                     lines.append(
                         f"The closest registered facility in the network is **{nearest_name}** (~{nearest_km} km away).\n"
-                        "For immediate emergency assistance, call **108** or visit your local Government Medical College Hospital."
                     )
+                lines.append(
+                    "For immediate emergency assistance, call **108** or visit your local Government Medical College Hospital."
+                )
         else:
-            loc_hdr = f" near {loc}" if loc else ""
-            loc_hdr_ta = f" ({loc} பகுதி)" if loc else ""
-
-            if lang == "ta":
-                lines.append(f"**அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC) விவரங்கள்{loc_hdr_ta}:**\n")
+            loc_label = loc or "Coimbatore"
+            if ownership == "Government":
+                hdr_en = f"**Verified Government Healthcare Facilities in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள அரசு மருத்துவமனைகள் விவரங்கள்:**\n"
+            elif service == "maternity":
+                hdr_en = f"**Verified Maternity & Delivery Hospitals in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள பிரசவ மற்றும் தாய் சேய் நல மருத்துவமனைகள்:**\n"
+            elif service == "emergency":
+                hdr_en = f"**Verified 24/7 Emergency & Casualty Hospitals in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள 24/7 அவசர சிகிச்சை மருத்துவமனைகள்:**\n"
+            elif fac_type == "CHC":
+                hdr_en = f"**Community Health Centres (CHC) in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள சமூக சுகாதார மையங்கள் (CHC):**\n"
+            elif fac_type == "PHC":
+                hdr_en = f"**Primary Health Centres (PHC) in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள அரசு ஆரம்ப சுகாதார நிலையங்கள் (PHC):**\n"
             else:
-                lines.append(f"**Primary Healthcare Facilities{loc_hdr} (ranked by geographic proximity):**\n")
+                hdr_en = f"**Verified Healthcare Facilities in {loc_label}:**\n"
+                hdr_ta = f"**{loc_label} பகுதியில் உள்ள மருத்துவமனைகள் விவரங்கள்:**\n"
+
+            lines.append(hdr_ta if lang == "ta" else hdr_en)
 
             for f in matched_facilities:
                 dist_str = f"{f['distance_km']} km" if f["distance_km"] is not None else "Nearby"
@@ -747,56 +841,95 @@ class NalamAIAgent:
                 doc_name = doc_info["name"] if doc_info else "Medical Officer on duty"
                 doc_status = doc_info["attendance_status"] if doc_info else "UNKNOWN"
 
-                badge_color = "green" if doc_status == "PRESENT" else ("yellow" if doc_status == "EXPECTED" else "blue")
+                method = f.get("appointment_booking_method", "WALK_IN_ONLY")
+                phone = f.get("official_phone") or f.get("emergency_contact")
+                online_url = f.get("online_booking_url")
+                hours = f.get("opening_hours") or "OPD: 07:30 AM - 12:00 PM | Casualty: 24x7"
+
+                # Badging
+                if f.get("emergency_services"):
+                    badge_label = "24x7 EMERGENCY"
+                    badge_color = "red"
+                elif f.get("maternity_services"):
+                    badge_label = "MATERNITY CARE"
+                    badge_color = "purple"
+                elif doc_status == "PRESENT":
+                    badge_label = "DOCTOR PRESENT"
+                    badge_color = "green"
+                else:
+                    badge_label = f["facility_type"]
+                    badge_color = "blue"
+
+                # Action
+                if method == "ONLINE_BOOKING_AVAILABLE" and online_url:
+                    c_action = {
+                        "label": "Official Booking Portal" if lang == "en" else "இணைய முன்பதிவு",
+                        "type": "LINK",
+                        "url": online_url,
+                    }
+                elif phone:
+                    c_action = {
+                        "label": f"Call {phone}",
+                        "type": "CALL",
+                        "target": phone,
+                    }
+                else:
+                    c_action = {
+                        "label": "Walk-in OPD Info" if lang == "en" else "நேரடி பதிவு விவரம்",
+                        "type": "INFO",
+                    }
 
                 cards.append(AIChatCard(
                     type=CardType.FACILITY,
                     title=f["name"],
-                    subtitle=f"{f['facility_type']} • {dist_str} away",
-                    badge=f"Doctor: {doc_status}",
+                    subtitle=f"{f.get('ownership', 'Hospital')} • {f.get('locality') or f.get('block') or f.get('district') or 'Coimbatore'}",
+                    badge=badge_label,
                     badge_color=badge_color,
                     details={
+                        "category": f.get("facility_category") or f["facility_type"],
+                        "ownership": f.get("ownership"),
                         "distance_km": f["distance_km"],
                         "address": f["address"],
-                        "services": f["services"],
-                        "doctor_name": doc_name,
-                        "doctor_status": doc_status,
-                        "doctor_hours": doc_info.get("hours") if doc_info else "09:00 - 16:00",
-                        "contact_phone": f.get("contact_details", {}).get("phone", "04288-252100"),
+                        "phone": phone or "Not listed",
+                        "opening_hours": hours,
+                        "booking_method": method,
+                        "emergency_services": "24x7 Available" if f.get("emergency_services") else "Standard hours",
+                        "maternity_services": "Available" if f.get("maternity_services") else "General OPD",
                     },
-                    action={
-                        "label": "Book Appointment Slot" if lang == "en" else "நேரடி முன்பதிவு",
-                        "type": "BOOK",
-                        "facility_id": f["facility_id"],
-                    },
+                    action=c_action,
                 ))
 
                 if lang == "ta":
-                    status_ta = (
-                        "பணியில் உள்ளார் (உறுதிசெய்யப்பட்டது)"
-                        if doc_status == "PRESENT"
-                        else ("திட்டமிடப்பட்ட பணி" if doc_status == "EXPECTED" else "வருகை விவரம் கிடைக்கவில்லை")
+                    booking_desc = (
+                        "நேரடி புறநோயாளி (OPD) பதிவு கவுண்டர்"
+                        if method == "WALK_IN_ONLY"
+                        else f"இணைய முன்பதிவு: {online_url}"
                     )
-                    services_str = ", ".join(f["services"][:3])
                     lines.append(
-                        f"- **{f['name']}** ({f['facility_type']}) – தூரம்: `{dist_str}`\n"
+                        f"- **{f['name']}** ({f.get('ownership', 'மருத்துவமனை')}) – தூரம்: `{dist_str}`\n"
                         f"  - முகவரி: {f['address']}\n"
-                        f"  - மருத்துவர்: **{doc_name}** (`{doc_status}` - {status_ta})\n"
-                        f"  - சேவைகள்: {services_str}\n"
+                        f"  - தொலைபேசி: {phone or 'நேரடி அணுகல்'}\n"
+                        f"  - செயல்படும் நேரம்: {hours}\n"
+                        f"  - முன்பதிவு முறை: {booking_desc}\n"
                     )
                 else:
-                    services_str = ", ".join(f["services"][:4])
+                    booking_desc = (
+                        "Walk-in registration at hospital OPD counter (07:30 AM - 12:00 PM). 24x7 Casualty."
+                        if method == "WALK_IN_ONLY"
+                        else f"Online booking portal: {online_url}"
+                    )
                     lines.append(
-                        f"- **{f['name']}** ({f['facility_type']}) — **{dist_str}**\n"
+                        f"- **{f['name']}** ({f.get('ownership', 'Hospital')}) — **{dist_str}**\n"
                         f"  - Address: {f['address']}\n"
-                        f"  - Doctor on duty: **{doc_name}** (Status: `{doc_status}` — {'Physically verified present' if doc_status == 'PRESENT' else 'Scheduled shift'})\n"
-                        f"  - Core Services: {services_str}\n"
+                        f"  - Phone: {phone or 'Not listed'}\n"
+                        f"  - Hours: {hours}\n"
+                        f"  - Booking: {booking_desc}\n"
                     )
 
             lines.append(
-                "\n*You can book a confirmed consultation slot directly using the action button on any facility card above.*"
+                "\n*Notice: NALAM displays verified district records and never generates synthetic hospital or doctor data.*"
                 if lang == "en"
-                else "\n*மேலே உள்ள வசதி அட்டை மூலம் நேரடியாக முன்பதிவு செய்யலாம்.*"
+                else "\n*அறிவிப்பு: நலம் தளம் சரிபார்க்கப்பட்ட அதிகாரப்பூர்வ தகவல்களை மட்டுமே வழங்குகிறது; மாதிரி தகவல்களை உருவாக்காது.*"
             )
 
         resp_text = "\n".join(lines)

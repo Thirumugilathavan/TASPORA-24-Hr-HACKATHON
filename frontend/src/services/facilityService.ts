@@ -5,8 +5,16 @@ import { apiRequest } from './apiClient';
 export interface FacilityFilters {
   query?: string;
   facility_type?: string;
+  facility_category?: string;
+  ownership?: string;
+  district?: string;
+  block?: string;
+  locality?: string;
+  emergency_services?: boolean;
+  maternity_services?: boolean;
   service?: string;
   village_id?: string;
+  search?: string;
 }
 
 export interface NearbyFacilityParams {
@@ -16,6 +24,11 @@ export interface NearbyFacilityParams {
   patient_id?: string;
   radius_km?: number;
   facility_type?: string;
+  facility_category?: string;
+  ownership?: string;
+  district?: string;
+  emergency_services?: boolean;
+  maternity_services?: boolean;
   skip?: number;
   limit?: number;
 }
@@ -40,6 +53,18 @@ export const facilityService = {
     }
     if (params.facility_type && params.facility_type !== 'ALL') {
       queryParams.append('facility_type', params.facility_type);
+    }
+    if (params.ownership && params.ownership !== 'ALL') {
+      queryParams.append('ownership', params.ownership);
+    }
+    if (params.district) {
+      queryParams.append('district', params.district);
+    }
+    if (params.emergency_services !== undefined) {
+      queryParams.append('emergency_services', params.emergency_services.toString());
+    }
+    if (params.maternity_services !== undefined) {
+      queryParams.append('maternity_services', params.maternity_services.toString());
     }
     if (params.skip !== undefined) {
       queryParams.append('skip', params.skip.toString());

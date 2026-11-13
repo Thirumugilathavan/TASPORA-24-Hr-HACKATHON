@@ -20,7 +20,10 @@ from app.models.village import Village
 from app.models.facility import Facility, FacilityService
 from app.models.doctor import Doctor, DoctorSchedule
 from app.models.medicine import Medicine
+from app.core.config import settings
 from app.models.stock import FacilityMedicineBelief
+
+settings.ENVIRONMENT = "testing"
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

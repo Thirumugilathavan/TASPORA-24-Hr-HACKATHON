@@ -121,12 +121,28 @@ def classify_intent(
 
     # 3. Facility Type Extraction
     fac_type = None
-    if "chc" in lowered or "சமூக சுகாதார மையம்" in lowered or "community health" in lowered:
+    if any(k in lowered for k in ["chc", "chcs", "சமூக சுகாதார மையம்", "community health"]):
         fac_type = "CHC"
-    elif "phc" in lowered or "ஆரம்ப சுகாதார நிலையம்" in lowered or "primary health" in lowered:
-        fac_type = "PHC"
-    elif "uphc" in lowered or "நகர்ப்புற ஆரம்ப சுகாதார" in lowered:
+    elif any(k in lowered for k in ["uphc", "uphcs", "நகர்ப்புற ஆரம்ப சுகாதார"]):
         fac_type = "UPHC"
+    elif any(k in lowered for k in ["phc", "phcs", "ஆரம்ப சுகாதார நிலையம்", "primary health"]):
+        fac_type = "PHC"
+    elif any(k in lowered for k in ["hospital", "hospitals", "மருத்துவமனை", "மருத்துவமனைகள்", "clinic", "dispensary"]):
+        fac_type = "HOSPITAL"
+
+    # 4. Ownership Extraction (Government vs Private)
+    extracted_ownership = None
+    if any(k in lowered for k in ["government", "govt", "public", "அரசு"]):
+        extracted_ownership = "Government"
+    elif any(k in lowered for k in ["private", "pvt", "தனியார்"]):
+        extracted_ownership = "Private"
+
+    # 5. Service / Specialty Extraction (Maternity, Emergency, etc.)
+    extracted_service = None
+    if any(k in lowered for k in ["maternity", "பிரசவ", "கர்ப்ப", "தாய் சேய்", "தாய்சேய்", "delivery", "டெலிவரி", "மசக்கை", "obstetric"]):
+        extracted_service = "maternity"
+    elif any(k in lowered for k in ["emergency", "அவசர", "trauma", "விபத்து", "casualty", "24x7", "24 மணி", "தீவிர சிகிச்சை"]):
+        extracted_service = "emergency"
 
     # -------------------------------------------------------------
     # PRIORITY 1: EMERGENCY TRIAGE & AMBULANCE
@@ -138,7 +154,13 @@ def classify_intent(
         r"(?<!heat\s)(?<!sun\s)\bstroke\b", r"பக்கவாதம்", r"snake bite", r"பாம்பு கடி", r"\b108\b",
         r"ambulance", r"ஆம்புலன்ஸ்",
     ]
-    if any(re.search(p, lowered) for p in emergency_patterns):
+    # Check if this is an immediate life-threatening emergency vs asking which hospitals have emergency services
+    is_facility_inquiry = any(w in lowered for w in [
+        "which hospital", "what hospital", "suggest hospital", "list of hospital",
+        "hospitals have", "hospitals provide", "hospital with", "மருத்துவமனையில் அவசர",
+        "எந்த மருத்துவமனை", "show me hospital", "which government hospital"
+    ])
+    if any(re.search(p, lowered) for p in emergency_patterns) and not is_facility_inquiry:
         is_amb = "108" in lowered or "ambulance" in lowered or "ஆம்புலன்ஸ்" in lowered
         return IntentClassificationResult(
             intent=IntentType.AMBULANCE_INFORMATION if is_amb else IntentType.EMERGENCY_HELP,
@@ -205,6 +227,11 @@ def classify_intent(
             extracted_location=effective_loc,
             is_location_explicit=is_explicit_loc,
             extracted_facility_type=fac_type,
+            entities={
+                "ownership": extracted_ownership,
+                "service": extracted_service,
+                "facility_type": fac_type,
+            },
         )
 
     # -------------------------------------------------------------
@@ -283,11 +310,13 @@ def classify_intent(
     # PRIORITY 9: FACILITY SEARCH (EXPLICIT REQUESTS)
     # -------------------------------------------------------------
     facility_patterns = [
-        r"\bphc\b", r"\bchc\b", r"\buphc\b", r"\bhospital\b", r"\bhospitals\b",
+        r"\bphc\b", r"\bphcs\b", r"\bchc\b", r"\bchcs\b", r"\buphc\b", r"\buphcs\b",
+        r"\bhospital\b", r"\bhospitals\b",
         r"\bclinic\b", r"\bdispensary\b", r"\bhealth centre\b",
         r"ஆரம்ப சுகாதார நிலையம்", r"மருத்துவமனை", r"மருத்துவ மையம்",
         r"சுகாதார நிலையம்", r"find a phc", r"show hospitals", r"மருத்துவமனை எங்கே",
-        r"facilities", r"healthcare facilities",
+        r"facilities", r"healthcare facilities", r"suggest hospitals", r"மருத்துவமனைகள்",
+        r"maternity", r"பிரசவ", r"emergency", r"அவசர மருத்துவமனை",
     ]
     if any(re.search(p, lowered) for p in facility_patterns):
         return IntentClassificationResult(
@@ -295,7 +324,12 @@ def classify_intent(
             confidence=0.95,
             extracted_location=effective_loc,
             is_location_explicit=is_explicit_loc,
-            extracted_facility_type=fac_type or "PHC",
+            extracted_facility_type=fac_type,
+            entities={
+                "ownership": extracted_ownership,
+                "service": extracted_service,
+                "facility_type": fac_type,
+            },
         )
 
     # -------------------------------------------------------------
