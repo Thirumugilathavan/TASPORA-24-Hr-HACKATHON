@@ -1,6 +1,10 @@
+import os
+import sys
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.core.security import hash_password
 
 DB_PATH = "carebridge.db"
@@ -9,14 +13,14 @@ def seed():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    # Village: Muthupilli Alangulam
-    v_id = "594a8caa663c5d1c9ee0f18236b8a147"
-    cur.execute("SELECT id, name, district, state, latitude, longitude FROM villages WHERE id = ?", (v_id,))
+    # Get first village
+    cur.execute("SELECT id, name, district, state, latitude, longitude FROM villages LIMIT 1")
     v_row = cur.fetchone()
     if not v_row:
         print("Village not found!")
         return
 
+    v_id = v_row[0]
     print(f"Target Village: {v_row[1]}, {v_row[2]}, {v_row[3]} ({v_row[4]}, {v_row[5]})")
 
     phone = "9876543210"
