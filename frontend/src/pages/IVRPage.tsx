@@ -124,7 +124,48 @@ export const IVRPage: React.FC = () => {
 
   // ---------------------------------------------------------------------------
   // Speech Synthesis Engine (Native Web Speech API)
+  // Voices load asynchronously in browsers — we cache them after voiceschanged
+  // fires, then pick the best Tamil / English voice for each utterance.
   // ---------------------------------------------------------------------------
+  const cachedVoicesRef = useRef<SpeechSynthesisVoice[]>([]);
+
+  // Load voices once and keep them cached. Chrome fires voiceschanged; Firefox
+  // populates synchronously; Safari also fires the event.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) cachedVoicesRef.current = v;
+    };
+
+    loadVoices(); // may already be populated on Firefox / Safari
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, []);
+
+  /** Pick the best available voice for the given language tag. */
+  const pickVoice = (langTag: string): SpeechSynthesisVoice | null => {
+    const voices = cachedVoicesRef.current;
+    if (!voices.length) return null;
+    // Exact match first, then prefix match
+    return (
+      voices.find((v) => v.lang === langTag) ||
+      voices.find((v) => v.lang.startsWith(langTag.split('-')[0])) ||
+      null
+    );
+  };
+
+  /**
+   * Speak `text` using the correct language voice.
+   *
+   * When Tamil is selected the backend returns bilingual text like:
+   *   "அருகிலுள்ள மருத்துவமனை / Nearest hospital…"
+   * We detect Tamil Unicode ranges and split the string so each segment
+   * is spoken with its own language-tagged utterance. This guarantees the
+   * Tamil portions are read by a Tamil TTS engine and not mangled by an
+   * English engine.
+   */
   const speakText = useCallback(
     (text: string, lang: 'ta' | 'en') => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -135,33 +176,61 @@ export const IVRPage: React.FC = () => {
       window.speechSynthesis.cancel();
       if (isMuted) return;
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'ta' ? 'ta-IN' : 'en-IN';
-      utterance.rate = 0.95; // Slightly slower for rural clarity
-      utterance.pitch = 1.0;
+      // Detect whether text contains Tamil Unicode (U+0B80–U+0BFF)
+      const hasTamil = /[\u0B80-\u0BFF]/.test(text);
 
-      // Voice selection preference
-      const voices = window.speechSynthesis.getVoices();
-      if (lang === 'ta') {
-        const tamilVoice = voices.find(
-          (v) => v.lang.startsWith('ta') || v.name.toLowerCase().includes('tamil')
-        );
-        if (tamilVoice) utterance.voice = tamilVoice;
-      } else {
-        const enVoice = voices.find(
-          (v) =>
-            v.lang === 'en-IN' ||
-            v.lang.startsWith('en') ||
-            v.name.toLowerCase().includes('india')
-        );
-        if (enVoice) utterance.voice = enVoice;
+      if (!hasTamil || lang === 'en') {
+        // Pure English path — single utterance
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = 'en-IN';
+        utt.rate = 0.92;
+        utt.pitch = 1.0;
+        const voice = pickVoice('en-IN') || pickVoice('en-GB') || pickVoice('en');
+        if (voice) utt.voice = voice;
+        utt.onstart = () => setIsSpeaking(true);
+        utt.onend = () => setIsSpeaking(false);
+        utt.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utt);
+        return;
       }
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      // Tamil path — split on " / " separator used by the backend bilingual format,
+      // or on transitions between Tamil and Latin character blocks.
+      // Strategy: split the text into segments; tag each with ta-IN or en-IN.
+      const segments: Array<{ text: string; langTag: string }> = [];
 
-      window.speechSynthesis.speak(utterance);
+      // Split on " / " which the backend uses as Tamil/English separator
+      const parts = text.split(/\s*\/\s*/);
+      parts.forEach((part) => {
+        const isTamilPart = /[\u0B80-\u0BFF]/.test(part);
+        if (part.trim()) {
+          segments.push({ text: part.trim(), langTag: isTamilPart ? 'ta-IN' : 'en-IN' });
+        }
+      });
+
+      if (segments.length === 0) return;
+
+      const tamilVoice = pickVoice('ta-IN');
+      const englishVoice = pickVoice('en-IN') || pickVoice('en-GB') || pickVoice('en');
+
+      // Queue utterances — only the first fires onstart, only the last fires onend
+      segments.forEach((seg, idx) => {
+        const utt = new SpeechSynthesisUtterance(seg.text);
+        utt.lang = seg.langTag;
+        utt.rate = seg.langTag === 'ta-IN' ? 0.88 : 0.92; // Tamil slightly slower
+        utt.pitch = 1.0;
+
+        const voice = seg.langTag === 'ta-IN' ? tamilVoice : englishVoice;
+        if (voice) utt.voice = voice;
+
+        if (idx === 0) utt.onstart = () => setIsSpeaking(true);
+        if (idx === segments.length - 1) {
+          utt.onend = () => setIsSpeaking(false);
+          utt.onerror = () => setIsSpeaking(false);
+        }
+
+        window.speechSynthesis.speak(utt);
+      });
     },
     [isMuted]
   );
@@ -173,6 +242,20 @@ export const IVRPage: React.FC = () => {
     }
     setIsSpeaking(false);
   }, []);
+
+  /**
+   * Pick the best text to speak from an IVR response.
+   * Prefers the language-specific field (speak_text_ta / speak_text_en) over
+   * the combined speak_text, so each TTS engine receives clean, unmixed text.
+   */
+  const pickSpeakText = useCallback(
+    (res: IVRSimulationResponse, lang: 'ta' | 'en'): string => {
+      if (lang === 'ta' && res.speak_text_ta) return res.speak_text_ta;
+      if (lang === 'en' && res.speak_text_en) return res.speak_text_en;
+      return res.speak_text;
+    },
+    []
+  );
 
   useEffect(() => {
     return () => {
@@ -240,7 +323,7 @@ export const IVRPage: React.FC = () => {
         },
       ]);
 
-      speakText(res.speak_text, language);
+      speakText(pickSpeakText(res, language), language);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to connect simulated helpline. Please try again.');
       setCallStatus('IDLE');
@@ -354,7 +437,7 @@ export const IVRPage: React.FC = () => {
         },
       ]);
 
-      speakText(res.speak_text, res.language || language);
+      speakText(pickSpeakText(res, res.language || language), res.language || language);
     } catch (err: any) {
       setErrorMessage(err.message || 'Keypad processing error.');
     } finally {
@@ -412,7 +495,7 @@ export const IVRPage: React.FC = () => {
         },
       ]);
 
-      speakText(res.speak_text, language);
+      speakText(pickSpeakText(res, language), language);
     } catch (err: any) {
       setPincodeError(err.message || 'PIN code could not be resolved. Please try village search.');
     } finally {
@@ -483,7 +566,7 @@ export const IVRPage: React.FC = () => {
             },
           ]);
 
-          speakText(res.speak_text, language);
+          speakText(pickSpeakText(res, language), language);
         } catch (err: any) {
           setErrorMessage(err.message || 'Failed to retrieve facilities for coordinates.');
         } finally {
@@ -554,7 +637,7 @@ export const IVRPage: React.FC = () => {
         },
       ]);
 
-      speakText(res.speak_text, language);
+      speakText(pickSpeakText(res, language), language);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to find facilities near village.');
     } finally {
