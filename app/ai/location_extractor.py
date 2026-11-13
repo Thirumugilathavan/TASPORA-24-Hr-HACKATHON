@@ -247,18 +247,39 @@ def extract_location(
     cleaned = normalize_tamil_text(text)
     lowered = cleaned.lower()
 
-    # 1. Direct match on known location synonyms (longest match first to catch compound names)
+    # Broad district names that should yield to a more specific sub-locality/block when both appear
+    BROAD_DISTRICTS = {"coimbatore", "salem", "namakkal", "erode", "tiruppur", "chennai"}
+
+    # 1. Direct match on known location synonyms
+    # We collect all matches in the query to pick the most specific locality
     sorted_synonyms = sorted(LOCATION_SYNONYMS.keys(), key=lambda s: len(s), reverse=True)
 
-    # Check for Tamil words with case suffixes:
-    # e.g., "கோயம்புத்தூர்ல", "கோயம்புத்தூரில்", "கோயம்புத்தூருக்கு", "கோவையில்", "சேலத்தில்", "சேலத்துல"
+    found_matches: List[Tuple[int, str, str]] = []  # (start_index, canonical, matched_syn)
     for syn in sorted_synonyms:
         # Match as whole word or with standard Tamil case suffixes (-ல, -ல், -இல், -க்கு, -உக்கு, -அருகே, etc.)
         pattern = rf"(?:\b|^){re.escape(syn)}(?:ல|ல்|இல்|க்கு|உக்கு|அருகே|உள்ள|பகுதியில்|லேயே|ள)?(?:\b|$|\s)"
-        if re.search(pattern, cleaned, re.IGNORECASE):
+        m = re.search(pattern, cleaned, re.IGNORECASE)
+        if m:
             canonical = LOCATION_SYNONYMS[syn]
-            coords = REFERENCE_COORDINATES.get(canonical.lower())
-            return (canonical, coords, True)
+            # Avoid duplicate canonical entries
+            if not any(c == canonical for _, c, _ in found_matches):
+                found_matches.append((m.start(), canonical, syn))
+
+    if found_matches:
+        # If both a broad district (e.g. Coimbatore) and a specific sub-locality (e.g. Sulur, Pollachi) are present,
+        # ALWAYS prioritize the more specific sub-locality!
+        sub_matches = [m for m in found_matches if m[1].lower() not in BROAD_DISTRICTS]
+        if sub_matches:
+            # Sort sub-matches by appearance order in text
+            sub_matches.sort(key=lambda x: x[0])
+            best_canonical = sub_matches[0][1]
+        else:
+            # Only broad district(s) matched — pick the one that appeared first
+            found_matches.sort(key=lambda x: x[0])
+            best_canonical = found_matches[0][1]
+
+        coords = REFERENCE_COORDINATES.get(best_canonical.lower())
+        return (best_canonical, coords, True)
 
     # 2. Match Tanglish patterns: "<Location> la", "<Location> le", "<Location> kitta", "<Location> pakkatthula"
     tanglish_match = re.search(

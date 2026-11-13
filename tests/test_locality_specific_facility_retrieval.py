@@ -129,3 +129,17 @@ def test_phc_sulur_query():
     assert result.intent == IntentType.FACILITY_SEARCH
     assert result.extracted_location is not None
     assert "sulur" in result.extracted_location.lower()
+
+
+# ---------------------------------------------------------------------------
+# Test 11: Exact reported bug query: "I am asking about Sulur in Coimbatore. Where is the hospital over there?"
+# ---------------------------------------------------------------------------
+def test_exact_reported_sulur_in_coimbatore_query():
+    """When query says 'Sulur in Coimbatore', Sulur must take precedence over Coimbatore."""
+    query = "I am asking about Sulur in Coimbatore. Where is the hospital over there?"
+    result = classify_intent(query, "en")
+    assert result.intent == IntentType.FACILITY_SEARCH
+    assert result.extracted_location == "Sulur", (
+        f"Expected Sulur, got {result.extracted_location}"
+    )
+
