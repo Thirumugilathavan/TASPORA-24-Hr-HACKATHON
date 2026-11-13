@@ -39,10 +39,16 @@ export async function apiRequest<T>(
       }
 
       // Handle expired / invalid token — clear credentials and signal the app
-      if (response.status === 401) {
+      // CRITICAL: NEVER fire session-expired on auth endpoints (/auth/login or /auth/register)!
+      // A 401 on /auth/login is "invalid phone/password", NOT an expired session!
+      const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+      if (response.status === 401 && !isAuthEndpoint) {
         if (typeof window !== 'undefined') {
+          localStorage.removeItem('nalam_token');
           localStorage.removeItem('carebridge_token');
+          localStorage.removeItem('nalam_user');
           localStorage.removeItem('carebridge_user');
+          localStorage.removeItem('nalam_patient');
           localStorage.removeItem('carebridge_patient');
           localStorage.removeItem('carebridge_my_request_ids');
           window.dispatchEvent(new CustomEvent('nalam:session-expired'));

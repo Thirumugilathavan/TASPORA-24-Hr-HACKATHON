@@ -7,7 +7,7 @@ TOKEN = os.environ.get("VERCEL_TOKEN", "")
 TEAM_ID = "team_hZFY41JOno3O30hj16T1dhmz"
 
 # Get latest deployments for backend and frontend
-req = urllib.request.Request("https://api.vercel.com/v6/deployments?limit=2", headers={"Authorization": f"Bearer {TOKEN}"})
+req = urllib.request.Request(f"https://api.vercel.com/v6/deployments?teamId={TEAM_ID}&limit=10", headers={"Authorization": f"Bearer {TOKEN}"})
 with urllib.request.urlopen(req) as resp:
     res = json.loads(resp.read().decode())
 

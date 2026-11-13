@@ -47,10 +47,18 @@ export const LoginPage: React.FC = () => {
     setError(null);
   };
 
-  const handleDemoLogin = () => {
-    loginDemoUser();
-    notify(t('welcomeNotify', 'Logged in as Demo Patient!'), 'success');
-    navigate('/');
+  const handleDemoLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await loginDemoUser();
+      notify(t('welcomeNotify', 'Logged in as Demo Patient!'), 'success');
+      navigate('/');
+    } catch (err: any) {
+      setError(err?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

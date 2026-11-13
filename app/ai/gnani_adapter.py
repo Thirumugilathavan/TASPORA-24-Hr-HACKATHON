@@ -1,4 +1,4 @@
-"""Gnani.ai Indic Voice & Speech Adapter for CareBridge.
+"""Gnani.ai Indic Voice & Speech Adapter for NALAM.
 
 Provides production Speech-to-Text (Prisma STT) and Text-to-Speech (Timbre TTS)
 tailored for rural Tamil (ta-IN) and Indian English (en-IN).
@@ -15,7 +15,7 @@ import httpx
 
 from app.core.config import settings
 
-logger = logging.getLogger("carebridge.ai.gnani")
+logger = logging.getLogger("nalam.ai.gnani")
 
 
 class GnaniVoiceAdapter:
