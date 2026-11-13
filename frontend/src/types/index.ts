@@ -268,3 +268,114 @@ export interface UserCampPreference {
   notify_categories: string[];
 }
 
+// -------------------------------------------------------------
+// NALAM Scheme Finder — Government Schemes & Welfare
+// -------------------------------------------------------------
+
+export interface RequiredDocument {
+  name_en: string;
+  name_ta: string;
+  is_mandatory: boolean;
+  description_en?: string;
+  description_ta?: string;
+}
+
+export interface GovernmentScheme {
+  id: string;
+  slug: string;
+  name: string;
+  name_ta: string;
+  short_description: string;
+  short_description_ta: string;
+  detailed_description?: string;
+  detailed_description_ta?: string;
+  department: string;
+  department_ta: string;
+  level: 'CENTRAL' | 'STATE' | 'DISTRICT' | 'LOCAL';
+  state: string;
+  districts: string[];
+  category: 'HEALTHCARE' | 'AGRICULTURE' | 'EDUCATION' | 'WOMEN_CHILD' | 'PENSION' | 'HOUSING' | 'FINANCIAL_AID' | 'DISABILITY' | 'EMPLOYMENT';
+  target_beneficiaries?: string[];
+  target_beneficiaries_ta?: string[];
+  benefit_type: string;
+  benefit_amount_desc: string;
+  benefit_amount_desc_ta: string;
+  benefit_frequency: string;
+  eligibility_rules?: Record<string, any>;
+  required_documents?: RequiredDocument[];
+  application_mode?: string;
+  application_process?: string;
+  application_process_ta?: string;
+  official_portal_url: string;
+  official_source_url: string;
+  is_active: boolean;
+  application_status: string;
+  last_verified_at: string;
+  verification_status: string;
+  is_saved?: boolean;
+}
+
+export type EligibilityStatus = 'LIKELY_ELIGIBLE' | 'POSSIBLY_ELIGIBLE' | 'MORE_INFO_REQUIRED' | 'NOT_ELIGIBLE';
+
+export interface EligibilityEvaluation {
+  scheme: GovernmentScheme;
+  eligibility_status: EligibilityStatus;
+  match_score: number;
+  matched_reasons: string[];
+  unverified_conditions: string[];
+  missing_fields: string[];
+  required_documents: RequiredDocument[];
+  is_saved: boolean;
+}
+
+export interface SchemeRecommendationResponse {
+  total_evaluated: number;
+  likely_eligible_count: number;
+  possibly_eligible_count: number;
+  more_info_count: number;
+  recommendations: EligibilityEvaluation[];
+  disclaimer: string;
+  disclaimer_ta: string;
+}
+
+export interface UserSchemeProfile {
+  id: string;
+  user_id: string;
+  consent_given: boolean;
+  consent_timestamp?: string;
+  step_progress: number;
+  profile_data: Record<string, any>;
+  prefilled_from_profile: boolean;
+}
+
+export interface SavedScheme {
+  id: string;
+  scheme_id: string;
+  saved_at: string;
+  notes?: string;
+  scheme: GovernmentScheme;
+}
+
+export interface CompareSchemesResponse {
+  schemes: GovernmentScheme[];
+  comparison_fields: { key: string; label_en: string; label_ta: string }[];
+}
+
+export interface AggregatedDocumentItem {
+  name_en: string;
+  name_ta: string;
+  is_mandatory: boolean;
+  description_en?: string;
+  description_ta?: string;
+  required_for_schemes: string[];
+  required_for_schemes_ta: string[];
+}
+
+export interface DocumentChecklistResponse {
+  total_documents: number;
+  mandatory_documents: AggregatedDocumentItem[];
+  optional_documents: AggregatedDocumentItem[];
+  schemes_covered: { id: string; name: string; name_ta: string }[];
+}
+
+

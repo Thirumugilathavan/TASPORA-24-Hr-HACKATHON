@@ -10,6 +10,7 @@ import {
   PhoneCall,
   Activity,
   HeartPulse,
+  Landmark,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -33,7 +34,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, currentPatient } = useAuth();
   const { notify } = useNotification();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -273,6 +274,30 @@ export const DashboardPage: React.FC = () => {
 
         {/* Right Column (1 col) */}
         <div className="space-y-6">
+          {/* Government Scheme Finder Banner */}
+          <div className="bg-gradient-to-br from-healthcare-900 to-navy-950 text-white rounded-xl p-5 shadow-sm border border-healthcare-800">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="p-1.5 rounded-lg bg-white/10 text-healthcare-300">
+                <Landmark className="w-4 h-4 text-healthcare-400" />
+              </span>
+              <h2 className="text-sm font-bold text-white">
+                {language === 'ta' ? 'அரசு நலத்திட்ட உதவிகள்' : 'Government Benefits & Subsidies'}
+              </h2>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+              {language === 'ta'
+                ? 'மருத்துவக் காப்பீடு (CMCHIS), மகப்பேறு நிதி உதவி மற்றும் கல்வி உதவித்தொகை தகுதியை உடனடியாகக் கண்டறியுங்கள்.'
+                : 'Discover financial subsidies, health insurance (CMCHIS), maternity aid, and scholarships you qualify for.'}
+            </p>
+            <button
+              onClick={() => navigate('/schemes')}
+              className="w-full py-2 text-xs font-bold text-white bg-healthcare-600 hover:bg-healthcare-500 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <span>{language === 'ta' ? 'திட்டங்களைக் கண்டறிக' : 'Explore Government Schemes'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* No Wasted Trips Travel Advisory */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-2">

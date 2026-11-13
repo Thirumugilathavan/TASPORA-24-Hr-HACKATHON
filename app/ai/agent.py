@@ -24,6 +24,7 @@ from app.ai.tools import (
     check_medicine_stock_tool,
     emergency_guidance_tool,
     get_recommendations_tool,
+    query_government_schemes_tool,
     query_rag_knowledge_tool,
     search_facilities_tool,
 )
@@ -476,6 +477,83 @@ class NalamAIAgent:
                 cards=cards,
                 rag_sources=rag_sources,
                 action_taken="RAG_DOCUMENT_RETRIEVAL",
+            )
+
+        # -------------------------------------------------------------
+        # 6.5. GOVERNMENT SCHEMES & WELFARE DISCOVERY INTENT
+        # -------------------------------------------------------------
+        scheme_keywords = [
+            "scheme", "schemes", "subsidy", "subsidies", "scholarship", "scholarships",
+            "welfare", "financial aid", "financial assistance", "pension", "maternity benefit",
+            "kmut", "cmchis", "pm-kisan", "pm kisan", "mudra", "pudhumai penn", "tamil pudhalvan",
+            "திட்டம்", "திட்டங்கள்", "நலத்திட்டம்", "மானியம்", "கல்வி உதவித்தொகை", "ஓய்வூதியம்",
+            "மகப்பேறு உதவி", "உரிமைத்தொகை", "புதுமைப் பெண்", "தமிழ்ப் புதல்வன்", "முதியோர் உதவித்தொகை",
+            "விவசாய மானியம்", "மருத்துவக் காப்பீடு",
+        ]
+        if any(sk in lowered for sk in scheme_keywords):
+            tools_called.append("query_government_schemes_tool")
+            scheme_data = await query_government_schemes_tool(db, query_text=message)
+            schemes_found = scheme_data.get("schemes", [])
+
+            lines = []
+            if lang == "ta":
+                lines.append(f"**உங்களுக்கான அரசு நலத்திட்டங்கள் மற்றும் நிதி உதவித் தகவல்கள் ({len(schemes_found)} திட்டங்கள் கண்டறியப்பட்டன):**\n")
+            else:
+                lines.append(f"**Verified Government Welfare Schemes & Subsidies ({len(schemes_found)} schemes discovered):**\n")
+
+            for s in schemes_found:
+                title = s["name_ta"] if lang == "ta" else s["name"]
+                desc = s["short_description_ta"] if lang == "ta" else s["short_description"]
+                benefit = s["benefit_amount_desc_ta"] if lang == "ta" else s["benefit_amount_desc"]
+                dept = s["department_ta"] if lang == "ta" else s["department"]
+                docs = s["required_documents_ta"] if lang == "ta" else s["required_documents"]
+
+                cards.append(AIChatCard(
+                    type=CardType.SCHEME,
+                    title=title,
+                    subtitle=f"{s['level']} • {s['category']}",
+                    badge=benefit,
+                    badge_color="green",
+                    details={
+                        "department": dept,
+                        "benefit": benefit,
+                        "description": desc,
+                        "required_documents": docs,
+                        "official_portal": s["official_portal_url"],
+                    },
+                    action={"label": "Official Portal ↗", "type": "LINK", "url": s["official_portal_url"]},
+                ))
+
+                if lang == "ta":
+                    lines.append(
+                        f"**{title}** ({s['level']})\n"
+                        f"  - **பயன்:** {benefit}\n"
+                        f"  - **துறை:** {dept}\n"
+                        f"  - **தேவையான ஆவணங்கள்:** {', '.join(docs)}\n"
+                        f"  - **அதிகாரப்பூர்வ தளம்:** {s['official_portal_url']}\n"
+                    )
+                else:
+                    lines.append(
+                        f"**{title}** ({s['level']} Scheme)\n"
+                        f"  - **Benefit:** {benefit}\n"
+                        f"  - **Department:** {dept}\n"
+                        f"  - **Documents:** {', '.join(docs)}\n"
+                        f"  - **Official Portal:** {s['official_portal_url']}\n"
+                    )
+
+            if lang == "ta":
+                lines.append("\n*குறிப்பு: NALAM Scheme Finder மூலம் முழுமையான 8-படி தகுதி மதிப்பீட்டை மேற்கொண்டு துல்லியமான தகுதியை அறியலாம்.*")
+            else:
+                lines.append("\n*Note: Complete the guided 8-step questionnaire in NALAM Scheme Finder for verified eligibility matching.*")
+
+            return AIChatResponse(
+                conversation_id=conv_id,
+                response_text="\n".join(lines),
+                language=lang,
+                intent="GOVERNMENT_SCHEMES_DISCOVERY",
+                tools_called=tools_called,
+                cards=cards,
+                action_taken="DISCOVER_GOVERNMENT_SCHEMES",
             )
 
         # -------------------------------------------------------------

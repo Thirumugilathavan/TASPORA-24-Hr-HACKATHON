@@ -105,3 +105,5 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 if settings.API_V1_PREFIX != "/api/v1":
     app.include_router(api_router, prefix="/api/v1")
+if settings.API_V1_PREFIX != "/api":
+    app.include_router(api_router, prefix="/api")

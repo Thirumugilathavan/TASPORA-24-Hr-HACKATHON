@@ -16,6 +16,7 @@ class CardType(str, Enum):
     EMERGENCY = "EMERGENCY"
     RAG_SOURCE = "RAG_SOURCE"
     DISCLAIMER = "DISCLAIMER"
+    SCHEME = "SCHEME"
 
 
 class AIChatCard(BaseModel):

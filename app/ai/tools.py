@@ -26,6 +26,7 @@ from app.models.patient import Patient
 from app.models.stock import FacilityMedicineBelief
 from app.models.user import User
 from app.models.village import Village
+from app.models.scheme import GovernmentScheme
 from app.schemas.shared import AttendanceStatus, AvailabilityLabel
 from app.services.distance_service import haversine_km
 from app.ai.rag import rag_engine
@@ -453,4 +454,66 @@ def emergency_guidance_tool(symptom_or_query: str) -> Dict[str, Any]:
             "District Headquarters Hospital Namakkal",
             "Government Mohan Kumaramangalam Medical College Hospital, Salem",
         ],
+    }
+
+
+async def query_government_schemes_tool(
+    db: AsyncSession,
+    query_text: str,
+    category: Optional[str] = None,
+    limit: int = 3,
+) -> Dict[str, Any]:
+    """Queries verified government welfare schemes, subsidies, healthcare benefits, and scholarships."""
+    from app.services.scheme_recommendation_service import SchemeRecommendationEngine
+    await SchemeRecommendationEngine.seed_verified_schemes_if_empty(db)
+
+    stmt = select(GovernmentScheme).where(GovernmentScheme.is_active == True)
+    if category and category != "ALL":
+        stmt = stmt.where(GovernmentScheme.category == category)
+
+    q = query_text.lower().strip()
+    # Map common query keywords to categories or search terms
+    if any(k in q for k in ["scholarship", "கல்வி", "படிப்பு", "மாணவர்", "மாணவி", "student", "college", "school"]):
+        stmt = stmt.where(GovernmentScheme.category == "EDUCATION")
+    elif any(k in q for k in ["hospital", "மருத்துவ", "insurance", "காப்பீடு", "cmchis", "ஆரோக்கிய", "health"]):
+        stmt = stmt.where(GovernmentScheme.category == "HEALTHCARE")
+    elif any(k in q for k in ["farmer", "விவசாய", "உழவர்", "agriculture", "kisan", "நிலம்"]):
+        stmt = stmt.where(GovernmentScheme.category == "AGRICULTURE")
+    elif any(k in q for k in ["pension", "ஓய்வூதியம்", "முதியோர்", "விதவை", "senior", "widow"]):
+        stmt = stmt.where(GovernmentScheme.category == "PENSION")
+    elif any(k in q for k in ["women", "பெண்", "தாய்", "கர்ப்பிணி", "maternity", "மகப்பேறு", "kmut"]):
+        stmt = stmt.where(GovernmentScheme.category == "WOMEN_CHILD")
+    elif any(k in q for k in ["disability", "மாற்றுத்திறனாளி", "ஊனம்"]):
+        stmt = stmt.where(GovernmentScheme.category == "DISABILITY")
+    elif any(k in q for k in ["loan", "business", "தொழில்", "முத்ரா", "mudra"]):
+        stmt = stmt.where(GovernmentScheme.category == "EMPLOYMENT")
+
+    stmt = stmt.order_by(GovernmentScheme.level.desc(), GovernmentScheme.name.asc()).limit(limit)
+    schemes = (await db.execute(stmt)).scalars().all()
+
+    results = []
+    for s in schemes:
+        results.append({
+            "id": str(s.id),
+            "slug": s.slug,
+            "name": s.name,
+            "name_ta": s.name_ta,
+            "short_description": s.short_description,
+            "short_description_ta": s.short_description_ta,
+            "department": s.department,
+            "department_ta": s.department_ta,
+            "level": s.level,
+            "category": s.category,
+            "benefit_amount_desc": s.benefit_amount_desc,
+            "benefit_amount_desc_ta": s.benefit_amount_desc_ta,
+            "official_portal_url": s.official_portal_url,
+            "official_source_url": s.official_source_url,
+            "required_documents": [d["name_en"] for d in (s.required_documents or [])[:3]],
+            "required_documents_ta": [d["name_ta"] for d in (s.required_documents or [])[:3]],
+        })
+
+    return {
+        "query": query_text,
+        "count": len(results),
+        "schemes": results,
     }

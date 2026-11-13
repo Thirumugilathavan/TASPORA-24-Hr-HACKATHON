@@ -12,6 +12,7 @@ from app.models.stock import StockReport, FacilityMedicineBelief
 from app.models.ivr import IVRSession, IVRInteraction, IVRAuthAttempt
 from app.models.notification import Notification
 from app.models.health_camp import HealthCampSource, HealthCamp, UserCampPreference
+from app.models.scheme import GovernmentScheme, UserSchemeProfile, SavedUserScheme, SchemeAuditLog
 
 __all__ = [
     "Base",
@@ -37,4 +38,8 @@ __all__ = [
     "HealthCampSource",
     "HealthCamp",
     "UserCampPreference",
+    "GovernmentScheme",
+    "UserSchemeProfile",
+    "SavedUserScheme",
+    "SchemeAuditLog",
 ]
