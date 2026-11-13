@@ -24,7 +24,13 @@ class AvailabilityLabel(str, Enum):
     LIKELY = "LIKELY"; UNCERTAIN = "UNCERTAIN"; UNLIKELY = "UNLIKELY"
 
 class RequestType(str, Enum):
-    CONSULTATION = "CONSULTATION"; REFILL = "REFILL"; CHECKUP = "CHECKUP"; DIAGNOSTIC = "DIAGNOSTIC"
+    CONSULTATION = "CONSULTATION"
+    REFILL = "REFILL"
+    CHECKUP = "CHECKUP"
+    DIAGNOSTIC = "DIAGNOSTIC"
+    CAMP_FOLLOWUP = "CAMP_FOLLOWUP"
+    SCHEME_ASSISTANCE = "SCHEME_ASSISTANCE"
+    FACILITY_ASSISTANCE = "FACILITY_ASSISTANCE"
 
 class Urgency(str, Enum):
     NORMAL = "NORMAL"; PRIORITY = "PRIORITY"; URGENT = "URGENT"
@@ -81,7 +87,13 @@ class AvailabilityOut(BaseModel):
 class RequestIn(BaseModel):
     patient_id: UUID
     request_type: RequestType
+    title: Optional[str] = None
     medicine_id: Optional[UUID] = None
+    facility_id: Optional[UUID] = None
+    camp_id: Optional[UUID] = None
+    preferred_date: Optional[date] = None
+    contact_phone: Optional[str] = None
+    extra_metadata: Optional[str] = None
     description: str = ""
     urgency: Urgency = Urgency.NORMAL
 
@@ -89,6 +101,17 @@ class RequestOut(BaseModel):
     id: UUID
     status: str = "PENDING"
     created_at: datetime
+    patient_id: Optional[UUID] = None
+    request_type: Optional[RequestType] = None
+    title: Optional[str] = None
+    medicine_id: Optional[UUID] = None
+    facility_id: Optional[UUID] = None
+    camp_id: Optional[UUID] = None
+    preferred_date: Optional[date] = None
+    contact_phone: Optional[str] = None
+    extra_metadata: Optional[str] = None
+    description: Optional[str] = None
+    urgency: Optional[Urgency] = None
 
 class RecommendationItem(BaseModel):
     rank: int

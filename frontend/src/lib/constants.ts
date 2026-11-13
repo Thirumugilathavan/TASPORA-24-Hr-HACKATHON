@@ -28,6 +28,9 @@ export const REQUEST_TYPE_LABELS: Record<string, string> = {
   REFILL: 'Medicine Refill',
   CHECKUP: 'Routine Health Checkup',
   DIAGNOSTIC: 'Diagnostic / Lab Test',
+  CAMP_FOLLOWUP: 'Camp Follow-up Care',
+  SCHEME_ASSISTANCE: 'Scheme Financial Aid',
+  FACILITY_ASSISTANCE: 'Healthcare Facility Help',
 };
 
 export function getRequestTypeLabel(type: string, t?: (k: string, f?: string) => string): string {
@@ -37,6 +40,9 @@ export function getRequestTypeLabel(type: string, t?: (k: string, f?: string) =>
     REFILL: 'reqRefill',
     CHECKUP: 'reqCheckup',
     DIAGNOSTIC: 'reqDiagnostic',
+    CAMP_FOLLOWUP: 'reqCampFollowup',
+    SCHEME_ASSISTANCE: 'reqSchemeAssistance',
+    FACILITY_ASSISTANCE: 'reqFacilityAssistance',
   };
   const key = keyMap[type.toUpperCase()];
   return key ? t(key, REQUEST_TYPE_LABELS[type] || type) : (REQUEST_TYPE_LABELS[type] || type);

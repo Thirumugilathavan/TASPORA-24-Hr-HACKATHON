@@ -65,7 +65,13 @@ export interface CreatePatientRequest {
 export interface CreateRequestPayload {
   patient_id: string;
   request_type: string;
+  title?: string;
   medicine_id?: string;
+  facility_id?: string;
+  camp_id?: string;
+  preferred_date?: string;
+  contact_phone?: string;
+  extra_metadata?: string;
   description: string;
   urgency: string;
 }

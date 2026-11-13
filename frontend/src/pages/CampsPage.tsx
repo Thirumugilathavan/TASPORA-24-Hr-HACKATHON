@@ -807,7 +807,15 @@ export const CampsPage: React.FC = () => {
       )}
 
       {/* Camp Detail Modal */}
-      <CampDetailModal camp={selectedCamp} onClose={() => setSelectedCamp(null)} />
+      <CampDetailModal
+        camp={selectedCamp}
+        onClose={() => setSelectedCamp(null)}
+        onRequestCreated={(req) => {
+          setSyncMessage(
+            `Follow-up request #${req.id.length > 8 ? req.id.slice(0, 8) : req.id} registered successfully for ${selectedCamp?.title || 'this health camp'}.`
+          );
+        }}
+      />
     </div>
   );
 };

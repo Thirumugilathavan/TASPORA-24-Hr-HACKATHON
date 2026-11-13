@@ -24,17 +24,38 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       <div>
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase bg-slate-100 px-2 py-0.5 rounded">
-              #{request.id}
+            <span
+              className="text-xs font-mono font-bold text-slate-500 uppercase bg-slate-100 px-2 py-0.5 rounded"
+              title={request.id}
+            >
+              #{request.id.length > 12 ? request.id.slice(0, 8) : request.id}
             </span>
             <span className="text-xs font-semibold text-navy-900">{typeLabel}</span>
           </div>
           <StatusBadge status={request.urgency} type="urgency" />
         </div>
 
-        <p className="text-sm text-slate-700 mt-2 leading-relaxed font-normal">
+        {request.title && (
+          <h4 className="text-sm font-bold text-slate-900 mt-1 mb-0.5">
+            {request.title}
+          </h4>
+        )}
+
+        <p className="text-xs text-slate-700 leading-relaxed font-normal">
           {request.description}
         </p>
+
+        {request.camp_id && (
+          <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 mr-2">
+            Health Camp Follow-up
+          </span>
+        )}
+
+        {request.preferred_date && (
+          <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+            Target: {request.preferred_date}
+          </span>
+        )}
 
         {request.medicine_name && (
           <p className="mt-2 text-xs font-medium text-healthcare-800 bg-healthcare-50/70 p-2 rounded-lg border border-healthcare-100 inline-block">

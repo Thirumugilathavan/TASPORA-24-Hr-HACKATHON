@@ -6,7 +6,14 @@ export type AvailabilityStatus = 'IN_STOCK' | 'LOW' | 'OUT' | 'UNKNOWN';
 
 export type AvailabilityLabel = 'LIKELY' | 'UNCERTAIN' | 'UNLIKELY';
 
-export type RequestType = 'CONSULTATION' | 'REFILL' | 'CHECKUP' | 'DIAGNOSTIC';
+export type RequestType =
+  | 'CONSULTATION'
+  | 'REFILL'
+  | 'CHECKUP'
+  | 'DIAGNOSTIC'
+  | 'CAMP_FOLLOWUP'
+  | 'SCHEME_ASSISTANCE'
+  | 'FACILITY_ASSISTANCE';
 
 export type Urgency = 'NORMAL' | 'PRIORITY' | 'URGENT';
 
@@ -132,12 +139,21 @@ export interface HealthcareRequest {
   id: string;
   patient_id: string;
   request_type: RequestType;
+  title?: string;
   medicine_id?: string;
   medicine_name?: string;
+  facility_id?: string;
+  facility_name?: string;
+  camp_id?: string;
+  camp_title?: string;
+  preferred_date?: string;
+  contact_phone?: string;
+  extra_metadata?: string;
   description: string;
   urgency: Urgency;
   status: 'PENDING' | 'RECOMMENDED' | 'BOOKED' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
+  updated_at?: string;
   recommendations?: RecommendationItem[];
 }
 

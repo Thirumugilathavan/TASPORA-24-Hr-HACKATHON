@@ -66,6 +66,9 @@ def map_request_to_service(request_type: RequestType) -> str:
         RequestType.REFILL: "Pharmacy Refill",
         RequestType.CHECKUP: "General Checkup",
         RequestType.DIAGNOSTIC: "Diagnostics",
+        RequestType.CAMP_FOLLOWUP: "General Medicine",
+        RequestType.SCHEME_ASSISTANCE: "General Medicine",
+        RequestType.FACILITY_ASSISTANCE: "General Medicine",
     }
     return mapping.get(request_type, "General Medicine")
 
@@ -97,7 +100,7 @@ def evaluate_facility_suitability(
             return 0.92 if has_service else 0.20
         return 0.40 if has_service else 0.10
 
-    if request_type in (RequestType.CONSULTATION, RequestType.CHECKUP):
+    if request_type in (RequestType.CONSULTATION, RequestType.CHECKUP, RequestType.CAMP_FOLLOWUP, RequestType.FACILITY_ASSISTANCE):
         if facility_type == "PHARMACY":
             return 0.10  # Pharmacies cannot conduct clinical consultations
         if facility_type == "HOSPITAL":

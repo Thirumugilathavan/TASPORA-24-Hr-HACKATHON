@@ -207,3 +207,56 @@ async def test_get_request_patient_forbidden_for_other_patient(client: AsyncClie
     res = await client.get(f"/api/requests/{req_id}", headers={"Authorization": f"Bearer {token2}"})
     assert res.status_code == 403
     assert res.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_create_health_camp_followup_request_and_list(client: AsyncClient, db_session):
+    """Verify creating a health camp follow-up request and listing requests with filters."""
+    patient = User(name="Kavitha Mani", phone="9876543315", password_hash="h", role=Role.PATIENT.value)
+    db_session.add(patient)
+    await db_session.commit()
+    await db_session.refresh(patient)
+
+    token = create_access_token({"sub": str(patient.id), "role": patient.role})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    camp_uuid = uuid.uuid4()
+    facility_uuid = uuid.uuid4()
+
+    payload = {
+        "patient_id": str(patient.id),
+        "request_type": "CAMP_FOLLOWUP",
+        "title": "Post-Camp Cataract Follow-up",
+        "camp_id": str(camp_uuid),
+        "facility_id": str(facility_uuid),
+        "preferred_date": "2026-11-25",
+        "contact_phone": "9876543315",
+        "description": "Attended camp on Saturday, need surgical review token",
+        "urgency": "PRIORITY",
+    }
+
+    create_res = await client.post("/api/requests", json=payload, headers=headers)
+    assert create_res.status_code == 201
+    created_data = create_res.json()
+    assert created_data["title"] == "Post-Camp Cataract Follow-up"
+    assert created_data["request_type"] == "CAMP_FOLLOWUP"
+    assert created_data["camp_id"] == str(camp_uuid)
+    assert created_data["preferred_date"] == "2026-11-25"
+    assert created_data["status"] == "PENDING"
+
+    # List requests for this patient
+    list_res = await client.get("/api/requests", headers=headers)
+    assert list_res.status_code == 200
+    items = list_res.json()
+    assert len(items) >= 1
+    found = next((i for i in items if i["id"] == created_data["id"]), None)
+    assert found is not None
+    assert found["title"] == "Post-Camp Cataract Follow-up"
+    assert found["camp_id"] == str(camp_uuid)
+
+    # Filter by camp_id
+    camp_res = await client.get(f"/api/requests?camp_id={camp_uuid}", headers=headers)
+    assert camp_res.status_code == 200
+    camp_items = camp_res.json()
+    assert len(camp_items) == 1
+    assert camp_items[0]["id"] == created_data["id"]
