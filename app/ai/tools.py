@@ -51,14 +51,17 @@ async def search_facilities_tool(
     max_distance_km: float = 50.0,
     reference_lat: Optional[float] = None,
     reference_lon: Optional[float] = None,
+    user_has_gps: bool = False,
     limit: int = 10,
 ) -> Dict[str, Any]:
     """Searches verified facilities from database with multi-criteria filtering and geographic ranking."""
     target_lat = reference_lat
     target_lon = reference_lon
     detected_location = location_name
+    # Track whether coordinates came from real user GPS vs reference lookup
+    coords_from_gps = user_has_gps and reference_lat is not None and reference_lon is not None
 
-    # Determine reference coordinates if location name provided
+    # Determine reference coordinates if location name provided (for sorting only, NOT display)
     clean_loc = (location_name or "").strip().lower()
     if clean_loc and (target_lat is None or target_lon is None):
         for loc_key, (klat, klon, _) in REFERENCE_COORDINATES.items():
@@ -91,12 +94,15 @@ async def search_facilities_tool(
         "gandhipuram", "saibaba colony", "ram nagar", "selvapuram", "ganapathy"
     ]
     is_coimbatore_query = any(k in clean_loc for k in coimbatore_keywords)
+    # Track whether user specified a SUB-locality within Coimbatore district
+    specific_sub = None
 
     if is_coimbatore_query:
         stmt = stmt.where(func.lower(Facility.district) == "coimbatore")
-        # If user named a specific block/locality (e.g. "Pollachi", "Mettupalayam")
+        # If user named a specific block/locality (e.g. "Pollachi", "Sulur", "Mettupalayam")
         specific_sub = next((k for k in coimbatore_keywords[3:] if k in clean_loc), None)
         if specific_sub:
+            # SQL filter for the sub-locality
             sub_clean = f"%{specific_sub}%"
             stmt = stmt.where(
                 func.lower(func.coalesce(Facility.block, "")).like(sub_clean)
@@ -164,9 +170,14 @@ async def search_facilities_tool(
     results = []
 
     for fac in all_facilities:
+        # Internal distance for sorting (always computed when coords available)
+        sort_dist_km = None
+        # Display distance only shown when user has real GPS coordinates
         dist_km = None
         if target_lat is not None and target_lon is not None:
-            dist_km = round(haversine_km(target_lat, target_lon, fac.latitude, fac.longitude), 1)
+            sort_dist_km = round(haversine_km(target_lat, target_lon, fac.latitude, fac.longitude), 1)
+            if coords_from_gps:
+                dist_km = sort_dist_km
 
         # Check doctor attendance
         doctors_info = []
@@ -229,44 +240,61 @@ async def search_facilities_tool(
             "contact_details": fac.contact_details or {},
             "services": services_list,
             "doctors": doctors_info,
+            "_sort_dist_km": sort_dist_km,
         })
 
     # Sort by distance if coordinates available
     if target_lat is not None and target_lon is not None:
-        results.sort(key=lambda x: (x["distance_km"] if x["distance_km"] is not None else 999.0))
+        results.sort(key=lambda x: (x["_sort_dist_km"] if x["_sort_dist_km"] is not None else 999.0))
     else:
         results.sort(key=lambda x: x["name"])
 
-    # If location_name was explicitly requested and not Coimbatore-wide, filter within max_distance_km
+    # If location_name was explicitly requested, apply post-query locality filtering
     in_range_facilities = results
-    if clean_loc and not is_coimbatore_query:
+    if clean_loc and (not is_coimbatore_query or specific_sub):
         other_districts = ["tiruppur", "tirupur", "erode", "nilgiris", "salem", "namakkal", "ooty"]
         is_prohibited_district = any(d in clean_loc for d in other_districts)
 
+        # For specific sub-locality within Coimbatore, filter strictly by sub-locality name
+        filter_key = specific_sub if specific_sub else clean_loc
         matched = []
         for f in results:
             addr_lower = (f["address"] or "").lower()
             name_lower = f["name"].lower()
             dist_lower = (f["district"] or "").lower()
-            is_text_match = clean_loc in addr_lower or clean_loc in name_lower or clean_loc in dist_lower
+            block_lower = (f["block"] or "").lower()
+            locality_lower = (f["locality"] or "").lower()
+            is_text_match = (
+                filter_key in addr_lower
+                or filter_key in name_lower
+                or filter_key in dist_lower
+                or filter_key in block_lower
+                or filter_key in locality_lower
+            )
 
             # If user explicitly asked for another district, do not leak Coimbatore facilities
             if is_prohibited_district:
                 if is_text_match:
                     matched.append(f)
             else:
-                is_dist_match = f["distance_km"] is not None and f["distance_km"] <= max_distance_km
-                if is_text_match or is_dist_match:
+                is_dist_match = f["_sort_dist_km"] is not None and f["_sort_dist_km"] <= max_distance_km
+                if is_text_match or (is_dist_match and not specific_sub):
                     matched.append(f)
         in_range_facilities = matched
 
+    # Compute nearest facility info from full results when sub-locality filtering yields empty
+    nearest_dist = results[0]["_sort_dist_km"] if results else None
+    nearest_name = results[0]["name"] if results else None
+
     return {
         "query_location": detected_location,
+        "query_sub_locality": specific_sub.capitalize() if specific_sub else None,
         "reference_lat": target_lat,
         "reference_lon": target_lon,
+        "user_has_gps": coords_from_gps,
         "in_range": len(in_range_facilities) > 0,
-        "nearest_distance_km": results[0]["distance_km"] if results else None,
-        "nearest_facility_name": results[0]["name"] if results else None,
+        "nearest_distance_km": nearest_dist,
+        "nearest_facility_name": nearest_name,
         "count": len(in_range_facilities[:limit]),
         "facilities": in_range_facilities[:limit],
     }

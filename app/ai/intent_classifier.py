@@ -48,6 +48,7 @@ class IntentType(str, Enum):
     FOLLOW_UP = "FOLLOW_UP"
     UNKNOWN_INTENT = "UNKNOWN_INTENT"
     CLINICAL_SAFETY = "CLINICAL_SAFETY"
+    SYMPTOM_WITH_FACILITY = "SYMPTOM_WITH_FACILITY"
 
 
 @dataclass
@@ -60,6 +61,7 @@ class IntentClassificationResult:
     extracted_doctor: Optional[str] = None
     extracted_facility_type: Optional[str] = None
     extracted_date: Optional[str] = None
+    extracted_symptom: Optional[str] = None
     needs_clarification: bool = False
     clarification_prompt_en: Optional[str] = None
     clarification_prompt_ta: Optional[str] = None
@@ -198,16 +200,68 @@ def classify_intent(
         r"stomach pain", r"வயிற்று வலி", r"sore throat", r"தொண்டை வலி",
         r"body pain", r"உடல் வலி", r"dizziness", r"தலைச்சுற்றல்",
         r"என்ன செய்யலாம்", r"what should i do", r"feel sick", r"உடம்பு சரியில்லை",
+        r"dehydration", r"நீரிழப்பு", r"weakness", r"சோர்வு",
+        r"cuts", r"wound", r"காயம்", r"bleeding", r"ரத்தம்",
     ]
-    # Check if this is symptom guidance without requesting a facility/doctor search
-    if any(re.search(p, lowered) for p in symptom_patterns) and not any(
-        k in lowered for k in ["phc", "hospital", "doctor", "dr.", "மருத்துவர்", "மருத்துவமனை", "book", "appointment"]
-    ):
+    # Detect specific symptom
+    detected_symptom = None
+    symptom_map = {
+        "fever": ["fever", "காய்ச்சல்"],
+        "cough": ["cough", "இருமல்"],
+        "cold": ["cold", "சளி"],
+        "headache": ["headache", "தலைவலி"],
+        "vomiting": ["vomit", "வாந்தி"],
+        "diarrhea": ["diarrhea", "பேதி"],
+        "stomach_pain": ["stomach pain", "வயிற்று வலி"],
+        "sore_throat": ["sore throat", "தொண்டை வலி"],
+        "body_pain": ["body pain", "உடல் வலி"],
+        "dizziness": ["dizziness", "தலைச்சுற்றல்"],
+        "dehydration": ["dehydration", "நீரிழப்பு"],
+        "weakness": ["weakness", "சோர்வு", "feel sick", "உடம்பு சரியில்லை"],
+        "cuts_wounds": ["cuts", "wound", "காயம்", "bleeding", "ரத்தம்"],
+    }
+    for sym_key, sym_triggers in symptom_map.items():
+        if any(t in lowered for t in sym_triggers):
+            detected_symptom = sym_key
+            break
+
+    has_symptom = any(re.search(p, lowered) for p in symptom_patterns)
+    # Educational / informational phrasing → let HEALTH_INFORMATION handle it
+    educational_phrases = [
+        r"what causes", r"how to prevent", r"benefits of", r"risk factors",
+        r"symptoms of", r"treatment for", r"what is", r"explain",
+        r"causes of", r"prevention of", r"how to treat",
+        r"தடுப்பது எப்படி", r"என்ன காரணம்",
+    ]
+    is_educational = any(re.search(p, lowered) for p in educational_phrases)
+    has_facility_keyword = any(
+        k in lowered for k in ["phc", "hospital", "doctor", "dr.", "மருத்துவர்", "மருத்துவமனை", "book", "appointment", "find", "where", "nearest", "near", "எங்கே", "எங்க", "அருகில்"]
+    )
+    # Check if symptom + facility/location coexist
+    if has_symptom and not is_educational and (has_facility_keyword or is_explicit_loc):
+        return IntentClassificationResult(
+            intent=IntentType.SYMPTOM_WITH_FACILITY,
+            confidence=0.93,
+            extracted_location=effective_loc,
+            is_location_explicit=is_explicit_loc,
+            extracted_facility_type=fac_type,
+            extracted_symptom=detected_symptom,
+            entities={
+                "ownership": extracted_ownership,
+                "service": extracted_service,
+                "facility_type": fac_type,
+                "symptom": detected_symptom,
+            },
+        )
+    # Pure symptom guidance without facility request (but not educational queries)
+    if has_symptom and not has_facility_keyword and not is_educational:
         return IntentClassificationResult(
             intent=IntentType.SYMPTOM_GUIDANCE,
             confidence=0.92,
             extracted_location=effective_loc,
             is_location_explicit=is_explicit_loc,
+            extracted_symptom=detected_symptom,
+            entities={"symptom": detected_symptom},
         )
 
     # -------------------------------------------------------------
