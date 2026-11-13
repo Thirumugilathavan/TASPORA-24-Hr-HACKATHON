@@ -8,6 +8,7 @@ from app.core.database import get_db
 router = APIRouter(tags=["Health"])
 
 
+@router.get("/")
 @router.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Health check endpoint providing platform status and simulated mode disclosure."""

@@ -93,16 +93,32 @@ async def get_nearby_facilities(
 async def get_facilities(
     village_id: Optional[UUID] = Query(None, description="Filter by village UUID"),
     facility_type: Optional[str] = Query(None, description="Filter by facility type (PHC, CHC, HOSPITAL, PHARMACY)"),
+    facility_category: Optional[str] = Query(None, description="Filter by category (PHC, UPHC, TALUK_HOSPITAL, etc.)"),
+    district: Optional[str] = Query(None, description="Filter by district (e.g. Coimbatore)"),
+    block: Optional[str] = Query(None, description="Filter by administrative block"),
+    locality: Optional[str] = Query(None, description="Filter by locality/town"),
+    ownership: Optional[str] = Query(None, description="Filter by ownership (Government, Private)"),
+    emergency_services: Optional[bool] = Query(None, description="Filter facilities with 24x7 emergency"),
+    maternity_services: Optional[bool] = Query(None, description="Filter facilities with maternity care"),
+    search: Optional[str] = Query(None, description="Text search by name, address, block, or locality"),
     service: Optional[str] = Query(None, description="Filter by offered service name"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    """List healthcare facilities with optional criteria (village_id, facility_type, service)."""
+    """List healthcare facilities with optional criteria (village_id, facility_type, district, service, etc.)."""
     handler = FacilityServiceHandler(db)
     items, total = await handler.list_facilities(
         village_id=village_id,
         facility_type=facility_type,
+        facility_category=facility_category,
+        district=district,
+        block=block,
+        locality=locality,
+        ownership=ownership,
+        emergency_services=emergency_services,
+        maternity_services=maternity_services,
+        search=search,
         service=service,
         skip=skip,
         limit=limit,

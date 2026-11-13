@@ -53,23 +53,24 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !password || !dob) {
-      setError(t('fillAllFieldsError', 'Please fill in all mandatory fields.'));
+      setError('Please fill in all mandatory fields.');
       return;
     }
 
     if (!villageId) {
-      setError(t('selectValidLocationError', 'Please search and select a verified village, town, or city from the suggestions.'));
+      setError('Please search and select a verified village, town, or city from the suggestions.');
       return;
     }
 
     if (!consentGiven) {
-      setError(t('consentRequiredError', 'You must grant consent to store your profile for healthcare coordination.'));
+      setError('You must grant consent to store your profile for healthcare coordination.');
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
+
       await register(
         name.trim(),
         phone.trim(),
@@ -81,10 +82,10 @@ export const RegisterPage: React.FC = () => {
         consentGiven
       );
 
-      notify(t('welcomeNotify', 'Registration successful! Welcome to NALAM AI.'), 'success');
+      notify('Registration complete! Welcome to NALAM.', 'success');
       navigate('/');
     } catch (err: any) {
-      setError(err.message || t('errorTitle', 'Registration failed. Please check your information.'));
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -100,16 +101,16 @@ export const RegisterPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('appName', 'NALAM AI')}</h1>
-          <p className="text-sm text-slate-600 mt-1">{t('taglineSub', 'Rural Healthcare Accessibility & Coordination')}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">NALAM</h1>
+          <p className="text-sm text-slate-600 mt-1">Rural Healthcare Accessibility & Coordination</p>
         </div>
 
         {/* Card */}
         <div className="mt-8 bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-800">{t('registerTitle', 'New Patient Registration')}</h2>
+            <h2 className="text-xl font-semibold text-slate-800">New Patient Registration</h2>
             <p className="text-xs text-slate-500 mt-1">
-              {t('registerSubtitle', 'Create an account linked with your village healthcare network across India')}
+              Create an account linked with your village healthcare network across India
             </p>
           </div>
 
@@ -124,7 +125,7 @@ export const RegisterPage: React.FC = () => {
             {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('fullName', 'Full Name')} <span className="text-rose-500">*</span>
+                Full Name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -132,7 +133,7 @@ export const RegisterPage: React.FC = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={t('enterFullNamePlaceholder', 'e.g. Ramesh Kumar')}
+                  placeholder="e.g. Ramesh Kumar"
                   required
                   className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
@@ -143,7 +144,7 @@ export const RegisterPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('registeredPhone', 'Phone Number')} <span className="text-rose-500">*</span>
+                  Phone Number <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -151,7 +152,7 @@ export const RegisterPage: React.FC = () => {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t('enterPhonePlaceholder', '10-digit mobile')}
+                    placeholder="10-digit mobile"
                     required
                     className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
@@ -160,7 +161,7 @@ export const RegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('password', 'Password')} <span className="text-rose-500">*</span>
+                  Password <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -168,7 +169,7 @@ export const RegisterPage: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t('enterPasswordPlaceholder', 'Min 8 characters')}
+                    placeholder="Min 8 characters"
                     required
                     className="w-full pl-9 pr-10 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
@@ -186,20 +187,20 @@ export const RegisterPage: React.FC = () => {
             {/* Nationwide Village / Town / City Search */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('villageLocation', 'Home Village, Town, or City')} <span className="text-rose-500">*</span>
+                Home Village, Town, or City <span className="text-rose-500">*</span>
               </label>
               <LocationSearchInput
                 selectedVillageId={villageId}
                 onSelect={handleLocationSelect}
                 required
-                placeholder={t('searchVillagePlaceholder', 'Search across all Indian states...')}
+                placeholder="Search across all Indian states (e.g. Rampur, Bilaspur, Tiruchirappalli)..."
               />
             </div>
 
             {/* Language Selection */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('preferredLanguage', 'Preferred Language')} <span className="text-rose-500">*</span>
+                Preferred Language <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Languages className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -222,7 +223,7 @@ export const RegisterPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('dateOfBirth', 'Date of Birth')} <span className="text-rose-500">*</span>
+                  Date of Birth <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -239,7 +240,7 @@ export const RegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('emergencyContactOptional', 'Emergency Contact Phone')}
+                  Emergency Contact Phone
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -264,7 +265,8 @@ export const RegisterPage: React.FC = () => {
                   className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <span>
-                  {t('consentGranted', 'I consent to sharing my healthcare requirements, medication history, and status updates with authorized NALAM AI health workers, doctors, and primary health centres.')}
+                  I consent to sharing my healthcare requirements, medication history, and status updates with
+                  authorized NALAM health workers, doctors, and primary health centres.
                 </span>
               </label>
             </div>
@@ -277,24 +279,16 @@ export const RegisterPage: React.FC = () => {
               disabled={loading}
               className="w-full mt-4 flex items-center justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-colors"
             >
-              {loading ? t('registering', 'Creating Account & Profile...') : t('registerBtn', 'Complete Registration')}
+              {loading ? 'Creating Account & Profile...' : 'Complete Registration'}
             </button>
           </form>
 
           {/* Footer Link */}
-          <div className="mt-6 text-center text-xs text-slate-600 space-y-2">
-            <div>
-              {t('alreadyHaveAccount', 'Already have a NALAM AI account?')}{' '}
-              <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
-                {t('signInHere', 'Sign in here')}
-              </Link>
-            </div>
-            <div className="pt-2 border-t border-slate-100">
-              <span className="text-slate-500">No account or mobile internet?</span>{' '}
-              <Link to="/ivr" className="font-semibold text-emerald-600 hover:text-emerald-700 underline">
-                Dial Toll-Free Voice Helpline (Simulated IVR)
-              </Link>
-            </div>
+          <div className="mt-6 text-center text-xs text-slate-600">
+            Already have a NALAM account?{' '}
+            <Link to="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
+              Sign in here
+            </Link>
           </div>
         </div>
       </div>

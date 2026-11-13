@@ -28,8 +28,11 @@ export const authService = {
         role: 'PATIENT',
         user_id: MOCK_USER.id,
       };
+      localStorage.setItem('nalam_token', response.access_token);
       localStorage.setItem('carebridge_token', response.access_token);
+      localStorage.setItem('nalam_user', JSON.stringify(MOCK_USER));
       localStorage.setItem('carebridge_user', JSON.stringify(MOCK_USER));
+      localStorage.setItem('nalam_patient', JSON.stringify(MOCK_PATIENT));
       localStorage.setItem('carebridge_patient', JSON.stringify(MOCK_PATIENT));
       return response;
     }
@@ -41,6 +44,7 @@ export const authService = {
         password: credentials.password,
       }),
     });
+    localStorage.setItem('nalam_token', res.access_token);
     localStorage.setItem('carebridge_token', res.access_token);
     return res;
   },
@@ -56,6 +60,7 @@ export const authService = {
         role: 'PATIENT',
         created_at: new Date().toISOString(),
       };
+      localStorage.setItem('nalam_user', JSON.stringify(newUser));
       localStorage.setItem('carebridge_user', JSON.stringify(newUser));
       return {
         id: newUser.id,
@@ -142,7 +147,7 @@ export const authService = {
 
   async getCurrentPatient(patientId?: string): Promise<Patient> {
     if (config.isMockMode) {
-      const stored = localStorage.getItem('carebridge_patient');
+      const stored = localStorage.getItem('nalam_patient') || localStorage.getItem('carebridge_patient');
       if (stored) {
         try {
           return JSON.parse(stored);
@@ -157,8 +162,11 @@ export const authService = {
   },
 
   logout(): void {
+    localStorage.removeItem('nalam_token');
     localStorage.removeItem('carebridge_token');
+    localStorage.removeItem('nalam_user');
     localStorage.removeItem('carebridge_user');
+    localStorage.removeItem('nalam_patient');
     localStorage.removeItem('carebridge_patient');
   },
 };

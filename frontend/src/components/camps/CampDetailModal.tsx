@@ -74,8 +74,8 @@ export const CampDetailModal: React.FC<CampDetailModalProps> = ({
       if (isAuthenticated) {
         setLoadingExisting(true);
         requestService
-          .getRequestsByCampId(camp.id)
-          .then((reqs) => setExistingRequests(reqs || []))
+          .getRequests()
+          .then((reqs: HealthcareRequest[]) => setExistingRequests((reqs || []).filter((r) => r.camp_id === camp.id)))
           .catch(() => setExistingRequests([]))
           .finally(() => setLoadingExisting(false));
       } else {

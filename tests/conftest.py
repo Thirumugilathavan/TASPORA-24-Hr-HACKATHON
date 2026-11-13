@@ -20,6 +20,10 @@ from app.models.village import Village
 from app.models.facility import Facility, FacilityService
 from app.models.doctor import Doctor, DoctorSchedule
 from app.models.medicine import Medicine
+from app.core.config import settings
+from app.models.stock import FacilityMedicineBelief
+
+settings.ENVIRONMENT = "testing"
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -124,7 +128,28 @@ async def seed_data(db_session: AsyncSession) -> Dict[str, Any]:
         district="Rural District",
         state="Karnataka",
     )
-    db_session.add_all([village_1, village_2])
+    village_tiruchengode = Village(
+        name="Tiruchengode",
+        latitude=11.3800,
+        longitude=77.8900,
+        district="Namakkal",
+        state="Tamil Nadu",
+    )
+    village_coimbatore = Village(
+        name="Coimbatore",
+        latitude=11.0168,
+        longitude=76.9558,
+        district="Coimbatore",
+        state="Tamil Nadu",
+    )
+    village_salem = Village(
+        name="Salem",
+        latitude=11.6643,
+        longitude=78.1460,
+        district="Salem",
+        state="Tamil Nadu",
+    )
+    db_session.add_all([village_1, village_2, village_tiruchengode, village_coimbatore, village_salem])
     await db_session.flush()
 
     # Seed Facilities
@@ -155,7 +180,34 @@ async def seed_data(db_session: AsyncSession) -> Dict[str, Any]:
         longitude=77.6000,
         contact_details={"phone": "9876543212"},
     )
-    db_session.add_all([fac_1, fac_2, fac_3])
+    fac_tiruchengode = Facility(
+        name="UPHC Tiruchengode",
+        facility_type="PHC",
+        address="Near Old Bus Stand, Tiruchengode, Namakkal District, Tamil Nadu",
+        village_id=village_tiruchengode.id,
+        latitude=11.3812,
+        longitude=77.8934,
+        contact_details={"phone": "04288-252100", "emergency": "108"},
+    )
+    fac_coimbatore = Facility(
+        name="UPHC Singanallur, Coimbatore",
+        facility_type="PHC",
+        address="Trichy Road, Singanallur, Coimbatore, Tamil Nadu - 641005",
+        village_id=village_coimbatore.id,
+        latitude=11.0020,
+        longitude=77.0260,
+        contact_details={"phone": "0422-2578100", "emergency": "108"},
+    )
+    fac_salem = Facility(
+        name="UPHC Shevapet, Salem",
+        facility_type="PHC",
+        address="Main Road, Shevapet, Salem, Tamil Nadu - 636002",
+        village_id=village_salem.id,
+        latitude=11.6580,
+        longitude=78.1420,
+        contact_details={"phone": "0427-2211200", "emergency": "108"},
+    )
+    db_session.add_all([fac_1, fac_2, fac_3, fac_tiruchengode, fac_coimbatore, fac_salem])
     await db_session.flush()
 
     # Seed Facility Services
@@ -182,7 +234,28 @@ async def seed_data(db_session: AsyncSession) -> Dict[str, Any]:
         qualification="MD",
         contact_phone="9876543221",
     )
-    db_session.add_all([doc_1, doc_2])
+    doc_tiru = Doctor(
+        facility_id=fac_tiruchengode.id,
+        name="Dr. K. Senthil Nathan",
+        specialization="General Medicine",
+        qualification="MBBS",
+        contact_phone="9876543250",
+    )
+    doc_cbe = Doctor(
+        facility_id=fac_coimbatore.id,
+        name="Dr. S. Venkatesh",
+        specialization="General Medicine",
+        qualification="MBBS, MD",
+        contact_phone="9876543260",
+    )
+    doc_salem = Doctor(
+        facility_id=fac_salem.id,
+        name="Dr. N. Gayathri",
+        specialization="General Medicine & Family Health",
+        qualification="MBBS",
+        contact_phone="9876543261",
+    )
+    db_session.add_all([doc_1, doc_2, doc_tiru, doc_cbe, doc_salem])
     await db_session.flush()
 
     # Seed Schedules
@@ -206,7 +279,37 @@ async def seed_data(db_session: AsyncSession) -> Dict[str, Any]:
         last_verified_at=datetime.now(timezone.utc),
         notes="Verified present at 10:05",
     )
-    db_session.add_all([sched_1, sched_2])
+    sched_tiru = DoctorSchedule(
+        doctor_id=doc_tiru.id,
+        facility_id=fac_tiruchengode.id,
+        schedule_date=today,
+        start_time="08:30",
+        end_time="14:00",
+        attendance_status="PRESENT",
+        last_verified_at=datetime.now(timezone.utc),
+        notes="Verified present in Tiruchengode",
+    )
+    sched_cbe = DoctorSchedule(
+        doctor_id=doc_cbe.id,
+        facility_id=fac_coimbatore.id,
+        schedule_date=today,
+        start_time="08:30",
+        end_time="14:30",
+        attendance_status="PRESENT",
+        last_verified_at=datetime.now(timezone.utc),
+        notes="Verified present in Coimbatore",
+    )
+    sched_salem = DoctorSchedule(
+        doctor_id=doc_salem.id,
+        facility_id=fac_salem.id,
+        schedule_date=today,
+        start_time="09:00",
+        end_time="15:00",
+        attendance_status="PRESENT",
+        last_verified_at=datetime.now(timezone.utc),
+        notes="Verified present in Salem",
+    )
+    db_session.add_all([sched_1, sched_2, sched_tiru, sched_cbe, sched_salem])
     await db_session.flush()
 
     # Seed Medicines
@@ -229,6 +332,24 @@ async def seed_data(db_session: AsyncSession) -> Dict[str, Any]:
         dosage_form="Powder",
     )
     db_session.add_all([med_1, med_2, med_3])
+    await db_session.flush()
+
+    # Seed beliefs for testing
+    b1 = FacilityMedicineBelief(
+        facility_id=fac_tiruchengode.id,
+        medicine_id=med_1.id,
+        p_available=0.95,
+        confidence=0.92,
+        label="LIKELY",
+    )
+    b2 = FacilityMedicineBelief(
+        facility_id=fac_coimbatore.id,
+        medicine_id=med_1.id,
+        p_available=0.95,
+        confidence=0.90,
+        label="LIKELY",
+    )
+    db_session.add_all([b1, b2])
     await db_session.commit()
 
     return {

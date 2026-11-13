@@ -1,0 +1,106 @@
+{
+  "collection_metadata": {
+    "district": "Coimbatore",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "collection_date": "2026-11-13",
+    "total_records_collected": 33,
+    "verified_official_count": 33,
+    "unverified_count": 0,
+    "strict_rule_compliance": "Zero fabricated phone numbers, coordinates, or booking links. All missing fields default to null."
+  },
+  "sources": [
+    {
+      "source_id": "SRC-CBE-NIC-01",
+      "name": "Coimbatore District Administration - Health Directorate",
+      "url": "https://coimbatore.nic.in/health/",
+      "tier": "Priority A - Tamil Nadu Government Official",
+      "authority": "Office of the Joint Director of Health Services & District Collectorate, Coimbatore",
+      "records_covered": [
+        "Government Headquarters Hospital (GHQH), Pollachi",
+        "Government Hospital, Mettupalayam",
+        "Government Hospital, Valparai",
+        "Government Hospital, Annur",
+        "Government Hospital, Sulur",
+        "Government Hospital, Kinathukadavu",
+        "Government Hospital, Madukkarai",
+        "Government Hospital, Kottur",
+        "Government Hospital, Thondamuthur",
+        "Government Hospital, Negamam",
+        "Government Hospital, Sundakkamuthur"
+      ],
+      "access_date": "2026-11-13"
+    },
+    {
+      "source_id": "SRC-CBE-NIC-02",
+      "name": "Coimbatore District Administration - Public Utility Hospital Directory",
+      "url": "https://coimbatore.nic.in/public-utility-category/hospitals/",
+      "tier": "Priority A - Tamil Nadu Government Official",
+      "authority": "District Administration Portal, National Informatics Centre (NIC)",
+      "records_covered": [
+        "Coimbatore Medical College Hospital (CMCH)",
+        "Government ESI Medical College and Hospital"
+      ],
+      "access_date": "2026-11-13"
+    },
+    {
+      "source_id": "SRC-CCMC-01",
+      "name": "Coimbatore City Municipal Corporation (CCMC) Health & Maternal Child Care",
+      "url": "https://ccmc.gov.in/",
+      "tier": "Priority A - Urban Local Body Official",
+      "authority": "Coimbatore City Municipal Corporation Health Department",
+      "records_covered": [
+        "CTM Corporation Maternity Home",
+        "Central VVM Corporation Maternity Home",
+        "Singanallur Urban Primary Health Centre",
+        "Selvapuram Urban Primary Health Centre",
+        "Peelamedu Urban Primary Health Centre",
+        "R.S. Puram Urban Primary Health Centre"
+      ],
+      "access_date": "2026-11-13"
+    },
+    {
+      "source_id": "SRC-NHM-TN-01",
+      "name": "National Health Mission - Tamil Nadu (NHM-TN) & DPH",
+      "url": "https://nhm.tn.gov.in/",
+      "tier": "Priority A - State Health Mission",
+      "authority": "State Health Society, Directorate of Public Health & Preventive Medicine, Tamil Nadu",
+      "records_covered": [
+        "Karamadai Block Primary Health Centre",
+        "Pooluvapatti Block Primary Health Centre",
+        "Sarcarsamakulam Urban Primary Health Centre",
+        "Thaliyur Block Primary Health Centre",
+        "V. Chandrapuram Block Primary Health Centre",
+        "Kanjampatti Block Primary Health Centre"
+      ],
+      "access_date": "2026-11-13"
+    },
+    {
+      "source_id": "SRC-PVT-OFFICIAL-01",
+      "name": "Hospital Official Verified Portals",
+      "urls": [
+        "https://www.gangahospital.com",
+        "https://www.psghospitals.com",
+        "https://www.kmchhospitals.com",
+        "https://www.sriramakrishnahospital.com",
+        "https://www.gknmhospital.org",
+        "https://www.royalcarehospital.in",
+        "https://www.raohospital.com",
+        "https://gemhospitals.com"
+      ],
+      "tier": "Priority C - Official Primary Institution Websites",
+      "authority": "Direct Hospital Administration & Patient Registration Divisions",
+      "records_covered": [
+        "Ganga Hospital",
+        "PSG Hospitals",
+        "Kovai Medical Center and Hospital (KMCH)",
+        "Sri Ramakrishna Hospital",
+        "G. Kuppuswamy Naidu Memorial Hospital (GKNM Hospital)",
+        "Royal Care Super Speciality Hospital",
+        "Rao Hospital",
+        "GEM Hospital"
+      ],
+      "access_date": "2026-11-13"
+    }
+  ]
+}

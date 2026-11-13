@@ -12,7 +12,7 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${config.apiBaseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('carebridge_token') : null;
+  const token = typeof window !== 'undefined' ? (localStorage.getItem('nalam_token') || localStorage.getItem('carebridge_token')) : null;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -74,8 +74,9 @@ export async function apiRequest<T>(
       throw err;
     }
     const message = err instanceof Error ? err.message : 'Network error or backend server unavailable';
+    const targetDisplay = config.apiBaseUrl || (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api');
     throw new ApiConnectionError(
-      `Unable to connect to NALAM AI API at ${config.apiBaseUrl}. Please verify the backend is running. (${message})`,
+      `Unable to connect to NALAM AI API at ${targetDisplay}. Please verify the backend is running. (${message})`,
       0,
       'NETWORK_ERROR'
     );

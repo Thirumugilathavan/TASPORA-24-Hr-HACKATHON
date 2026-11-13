@@ -5,8 +5,16 @@ import { apiRequest } from './apiClient';
 export interface FacilityFilters {
   query?: string;
   facility_type?: string;
+  facility_category?: string;
+  ownership?: string;
+  district?: string;
+  block?: string;
+  locality?: string;
+  emergency_services?: boolean;
+  maternity_services?: boolean;
   service?: string;
   village_id?: string;
+  search?: string;
 }
 
 export interface NearbyFacilityParams {
@@ -16,11 +24,14 @@ export interface NearbyFacilityParams {
   patient_id?: string;
   radius_km?: number;
   facility_type?: string;
+  facility_category?: string;
   ownership?: string;
-  query?: string;
-  auto_expand?: boolean;
+  district?: string;
+  emergency_services?: boolean;
+  maternity_services?: boolean;
   skip?: number;
   limit?: number;
+  auto_expand?: boolean;
 }
 
 export const facilityService = {
@@ -47,11 +58,14 @@ export const facilityService = {
     if (params.ownership && params.ownership !== 'ALL') {
       queryParams.append('ownership', params.ownership);
     }
-    if (params.query && params.query.trim()) {
-      queryParams.append('query', params.query.trim());
+    if (params.district) {
+      queryParams.append('district', params.district);
     }
-    if (params.auto_expand !== undefined) {
-      queryParams.append('auto_expand', params.auto_expand ? 'true' : 'false');
+    if (params.emergency_services !== undefined) {
+      queryParams.append('emergency_services', params.emergency_services.toString());
+    }
+    if (params.maternity_services !== undefined) {
+      queryParams.append('maternity_services', params.maternity_services.toString());
     }
     if (params.skip !== undefined) {
       queryParams.append('skip', params.skip.toString());

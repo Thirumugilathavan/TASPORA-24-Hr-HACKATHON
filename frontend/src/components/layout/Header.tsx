@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, Globe, LogOut, ChevronDown, UserCircle2, Bot } from 'lucide-react';
+import { Menu, Bell, Globe, LogOut, ChevronDown, UserCircle2, Bot } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { LANGUAGES } from '../../lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
 import { LanguageCode } from '../../lib/i18n';
 import { AIAssistantModal } from '../assistant/AIAssistantModal';
-import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -36,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
           type="button"
           onClick={onToggleSidebar}
           className="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100"
-          aria-label={t('openSidebar', 'Open sidebar')}
+          aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -48,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* NALAM AI Healthcare Assistant Launcher */}
+        {/* NALAM AI Assistant Launcher */}
         <button
           type="button"
           onClick={() => setIsAIOpen(true)}
@@ -100,8 +99,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
           )}
         </div>
 
-        {/* Real In-App Notification Dropdown */}
-        <NotificationDropdown />
+        {/* Notification visual bell icon */}
+        <div className="relative">
+          <button
+            type="button"
+            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors relative"
+            title="Notifications (UI demonstration element)"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-healthcare-500 ring-2 ring-white" />
+          </button>
+        </div>
 
         {/* User Profile dropdown */}
         <div className="relative">
@@ -115,10 +123,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
             </div>
             <div className="text-left hidden lg:block">
               <div className="text-xs font-semibold text-slate-800 leading-tight">
-                {user?.name || t('registeredPatient', 'Registered Patient')}
+                {user?.name || 'Registered Patient'}
               </div>
               <div className="text-[11px] text-slate-500 leading-tight">
-                {patient?.village?.name || t('ruralCommunity', 'Rural Community')}
+                {patient?.village?.name || 'Rural Community'}
               </div>
             </div>
             <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
@@ -130,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title, breadcru
                 <div className="text-xs font-semibold text-slate-800">{user?.name}</div>
                 <div className="text-[11px] text-slate-500">{user?.phone}</div>
                 <div className="text-[10px] text-emerald-600 font-medium mt-0.5">
-                  {t('roleLabel', 'Role:')} {user?.role || t('rolePatient', 'Patient')}
+                  Role: {user?.role || 'PATIENT'}
                 </div>
               </div>
 

@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
+  Pill,
   ClipboardList,
   Calendar,
   PlusCircle,
   MapPin,
   ArrowRight,
+  Sparkles,
   PhoneCall,
   Activity,
   HeartPulse,
-  Landmark,
+  Bot,
+  Mic,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useTranslation } from '../context/LanguageContext';
 import { StatCard } from '../components/common/StatCard';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
@@ -21,6 +23,7 @@ import { AppointmentCard } from '../components/appointments/AppointmentCard';
 import { BookAppointmentModal } from '../components/appointments/BookAppointmentModal';
 import { CreateRequestModal } from '../components/requests/CreateRequestModal';
 import { RequestCard } from '../components/requests/RequestCard';
+import { FacilityDetailModal } from '../components/facilities/FacilityDetailModal';
 import { NearbyFacilitiesSection } from '../components/facilities/NearbyFacilitiesSection';
 import { Facility, HealthcareRequest, Appointment } from '../types';
 import { facilityService } from '../services/facilityService';
@@ -28,13 +31,11 @@ import { requestService } from '../services/requestService';
 import { appointmentService } from '../services/appointmentService';
 import { useNotification } from '../context/NotificationContext';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { formatDate } from '../lib/utils';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, currentPatient } = useAuth();
   const { notify } = useNotification();
-  const { t, language } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export const DashboardPage: React.FC = () => {
   // Modals state
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [, setSelectedFacility] = useState<Facility | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
 
   // Cancel dialog
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
@@ -76,7 +77,7 @@ export const DashboardPage: React.FC = () => {
       setRequests(reqData);
       setAppointments(apptData);
     } catch (err: any) {
-      setError(err.message || t('errorTitle', 'Unable to load dashboard data. Please check connection.'));
+      setError(err.message || 'Unable to load dashboard data. Please check connection.');
     } finally {
       setLoading(false);
     }
@@ -86,18 +87,18 @@ export const DashboardPage: React.FC = () => {
     if (!cancelTarget) return;
     try {
       await appointmentService.cancelAppointment(cancelTarget.id);
-      notify(t('appointmentCancelledNotify', 'Appointment cancelled successfully.'), 'info');
+      notify('Appointment cancelled successfully.', 'info');
       setCancelTarget(null);
       // Refresh appointments
       const updated = await appointmentService.getAppointments();
       setAppointments(updated);
     } catch (err: any) {
-      notify(err.message || t('errorTitle', 'Failed to cancel appointment'), 'error');
+      notify(err.message || 'Failed to cancel appointment', 'error');
     }
   };
 
   if (loading) {
-    return <LoadingState message={t('loadingDashboard', 'Loading your healthcare dashboard...')} />;
+    return <LoadingState message="Loading your healthcare dashboard..." />;
   }
 
   if (error) {
@@ -116,61 +117,97 @@ export const DashboardPage: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-medium text-emerald-100 mb-2">
             <HeartPulse className="w-3.5 h-3.5" />
-            {t('ruralCoordActive', 'Rural Healthcare Coordination Active')}
+            Rural Healthcare Coordination Active
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {t('welcomeBack', { name: user?.name || t('rolePatient', 'Patient') })}
+            Welcome back, {user?.name || 'Patient'}!
           </h1>
           <p className="text-emerald-100 text-sm mt-1 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-300" />
-            {t('homeVillage', 'Home Village:')} <strong>{currentPatient?.village?.name || 'Thiruvallur District'}</strong>
+            Home Village: <strong>{currentPatient?.village?.name || 'Thiruvallur District'}</strong>
             <span className="text-emerald-300">•</span>
-            {t('registeredPhone', 'Registered Phone:')} <strong>{user?.phone || '9876543210'}</strong>
+            Registered Phone: <strong>{user?.phone || '9876543210'}</strong>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-nalam-ai'))}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md hover:shadow-lg transition-all border border-emerald-400/30 cursor-pointer"
+          >
+            <Bot className="w-4 h-4 text-emerald-100" />
+            <Mic className="w-3.5 h-3.5 text-teal-200" />
+            Talk to NALAM (AI Voice)
+          </button>
+          <button
             onClick={() => setIsRequestModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-800 font-medium text-sm rounded-xl shadow-sm hover:bg-emerald-50 transition-colors"
           >
             <PlusCircle className="w-4 h-4 text-emerald-600" />
-            {t('createNewRequest', 'Create Request')}
+            Create Request
           </button>
           <button
             onClick={() => setIsBookModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-medium text-sm rounded-xl border border-white/20 transition-colors"
           >
             <Calendar className="w-4 h-4" />
-            {t('bookVisit', 'Book Visit')}
+            Book Visit
           </button>
         </div>
+      </div>
+
+      {/* Prominent NALAM Voice & Chatbot Banner */}
+      <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-teal-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center shrink-0">
+            <Bot className="w-6 h-6 text-teal-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base tracking-wide">NALAM Multilingual Voice Assistant</h3>
+              <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full">
+                Gnani.ai Voice Cloud
+              </span>
+            </div>
+            <p className="text-xs text-teal-100/80 mt-0.5">
+              Speak or type in Tamil (தமிழ்) or English to find nearby PHCs, verify doctor attendance, or check medicine stock.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-nalam-ai'))}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all shrink-0 cursor-pointer"
+        >
+          <Mic className="w-4 h-4" />
+          Speak to NALAM
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title={t('statNearbyFacilities', 'Nearby Facilities')}
+          title="Nearby Facilities"
           value={facilities.length}
-          subtitle={currentPatient?.village?.name ? t('subtitleNearVillage', { village: currentPatient.village.name }) : t('subtitleRankedByDistance', 'Ranked by distance')}
+          subtitle={currentPatient?.village?.name ? `Near ${currentPatient.village.name}` : 'Ranked by distance'}
           icon={<Building2 className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
-          title={t('statActiveRequests', 'Active Requests')}
+          title="Active Requests"
           value={pendingRequests.length}
-          subtitle={t('subtitleAwaitingDispatch', 'Awaiting dispatch or visits')}
+          subtitle="Awaiting dispatch or visits"
           icon={<ClipboardList className="w-5 h-5 text-sky-600" />}
         />
         <StatCard
-          title={t('statUpcomingVisits', 'Upcoming Visits')}
+          title="Upcoming Visits"
           value={upcomingAppointments.length}
-          subtitle={t('subtitleConfirmedSlots', 'Confirmed doctor slots')}
+          subtitle="Confirmed doctor slots"
           icon={<Calendar className="w-5 h-5 text-amber-600" />}
         />
         <StatCard
-          title={t('statAshaSupport', 'ASHA Support')}
-          value={t('online', 'Online')}
-          subtitle={t('subtitleVillageCoordinator', 'Village health coordinator')}
+          title="ASHA Support"
+          value="Online"
+          subtitle="Village health coordinator"
           icon={<Activity className="w-5 h-5 text-purple-600" />}
         />
       </div>
@@ -189,14 +226,14 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">{t('upcomingAppointments', 'Upcoming Appointments')}</h2>
-                <p className="text-xs text-slate-500">{t('scheduledConsultations', 'Scheduled consultations at primary centers')}</p>
+                <h2 className="text-base font-semibold text-slate-900">Upcoming Appointments</h2>
+                <p className="text-xs text-slate-500">Scheduled consultations at primary centers</p>
               </div>
               <button
                 onClick={() => navigate('/appointments')}
                 className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
-                {t('viewAll', 'View all')} ({appointments.length})
+                View all ({appointments.length})
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -204,14 +241,14 @@ export const DashboardPage: React.FC = () => {
             {upcomingAppointments.length === 0 ? (
               <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">{t('noAppointmentsScheduled', 'No appointments scheduled')}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{t('needToSeeDoctor', 'Need to see a doctor at the local PHC?')}</p>
+                <p className="text-sm font-medium text-slate-600">No appointments scheduled</p>
+                <p className="text-xs text-slate-400 mt-0.5">Need to see a doctor at the local PHC?</p>
                 <button
                   onClick={() => setIsBookModalOpen(true)}
                   className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100/70 hover:bg-emerald-100 rounded-lg transition-colors"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  {t('bookAnAppointment', 'Book an Appointment')}
+                  Book an Appointment
                 </button>
               </div>
             ) : (
@@ -231,14 +268,14 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">{t('recentRequests', 'Recent Healthcare Requests')}</h2>
-                <p className="text-xs text-slate-500">{t('recentRequestsSub', 'Refill, consultation, and diagnostic requests')}</p>
+                <h2 className="text-base font-semibold text-slate-900">Recent Healthcare Requests</h2>
+                <p className="text-xs text-slate-500">Refill, consultation, and diagnostic requests</p>
               </div>
               <button
                 onClick={() => navigate('/requests')}
                 className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
-                {t('viewAll', 'View all')} ({requests.length})
+                View all ({requests.length})
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -246,16 +283,16 @@ export const DashboardPage: React.FC = () => {
             {requests.length === 0 ? (
               <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">{t('noRecentRequests', 'No recent requests')}</p>
+                <p className="text-sm font-medium text-slate-600">No recent requests</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {t('submitRequestForMeds', 'Submit a request for medicine refills or specialist checks')}
+                  Submit a request for medicine refills or specialist checks
                 </p>
                 <button
                   onClick={() => setIsRequestModalOpen(true)}
                   className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100/70 hover:bg-emerald-100 rounded-lg transition-colors"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  {t('createNewRequest', 'Create Request')}
+                  Create Request
                 </button>
               </div>
             ) : (
@@ -274,57 +311,33 @@ export const DashboardPage: React.FC = () => {
 
         {/* Right Column (1 col) */}
         <div className="space-y-6">
-          {/* Government Scheme Finder Banner */}
-          <div className="bg-gradient-to-br from-healthcare-900 to-navy-950 text-white rounded-xl p-5 shadow-sm border border-healthcare-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="p-1.5 rounded-lg bg-white/10 text-healthcare-300">
-                <Landmark className="w-4 h-4 text-healthcare-400" />
-              </span>
-              <h2 className="text-sm font-bold text-white">
-                {language === 'ta' ? 'அரசு நலத்திட்ட உதவிகள்' : 'Government Benefits & Subsidies'}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed mb-3">
-              {language === 'ta'
-                ? 'மருத்துவக் காப்பீடு (CMCHIS), மகப்பேறு நிதி உதவி மற்றும் கல்வி உதவித்தொகை தகுதியை உடனடியாகக் கண்டறியுங்கள்.'
-                : 'Discover financial subsidies, health insurance (CMCHIS), maternity aid, and scholarships you qualify for.'}
-            </p>
-            <button
-              onClick={() => navigate('/schemes')}
-              className="w-full py-2 text-xs font-bold text-white bg-healthcare-600 hover:bg-healthcare-500 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              <span>{language === 'ta' ? 'திட்டங்களைக் கண்டறிக' : 'Explore Government Schemes'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
           {/* No Wasted Trips Travel Advisory */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
                 <HeartPulse className="w-4 h-4 text-emerald-600" />
               </span>
-              <h2 className="text-sm font-bold text-slate-900">{t('noWastedTripsPolicy', 'No Wasted Trips Policy')}</h2>
+              <h2 className="text-sm font-bold text-slate-900">No Wasted Trips Policy</h2>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {t('noWastedTripsDesc', 'NALAM AI ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.')}
+              NALAM ranks nearby healthcare facilities by precise geographic distance from your registered village or device GPS.
             </p>
             <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5 text-slate-600">
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                <span className="text-emerald-600">✓</span> {t('verifiedGovCount', '147k+ Government Health Centers')}
+                <span className="text-emerald-600">✓</span> 147k+ Government Health Centers
               </p>
               <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                <span className="text-emerald-600">✓</span> {t('realCensusResolution', 'Real Census coordinate resolution')}
+                <span className="text-emerald-600">✓</span> Real Census coordinate resolution
               </p>
               <p className="text-[11px] text-slate-500 pt-1">
-                {t('advisoryNotice', 'Before travelling for urgent medication or specialist care, create a request or confirm attendance.')}
+                Before travelling for urgent medication or specialist care, create a request or confirm attendance.
               </p>
             </div>
             <button
               onClick={() => navigate('/facilities')}
               className="mt-3.5 w-full py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center justify-center gap-1.5"
             >
-              {t('browseAllFacilities', 'Browse All Facilities Directory')}
+              Browse All Facilities Directory
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -333,10 +346,10 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 text-white shadow-sm">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-emerald-400" />
-              {t('emergencyHelpDesks', 'Emergency Help Desks')}
+              Emergency Help Desks
             </h3>
             <p className="text-xs text-slate-300 mt-1">
-              {t('emergencyHelplineSub', 'Direct hotlines for ambulance and maternal support:')}
+              Direct hotlines for ambulance and maternal support:
             </p>
 
             <div className="mt-4 space-y-2">
@@ -344,15 +357,15 @@ export const DashboardPage: React.FC = () => {
                 href="tel:108"
                 className="flex items-center justify-between p-2.5 rounded-lg bg-white/10 hover:bg-white/15 transition-colors text-sm"
               >
-                <span className="font-medium">{t('emergencyAmbulance108', '108 Emergency Ambulance')}</span>
-                <span className="px-2 py-0.5 rounded bg-rose-500/80 text-white font-bold text-xs">{t('free', 'FREE')}</span>
+                <span className="font-medium">108 Emergency Ambulance</span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/80 text-white font-bold text-xs">FREE</span>
               </a>
               <a
                 href="tel:102"
                 className="flex items-center justify-between p-2.5 rounded-lg bg-white/10 hover:bg-white/15 transition-colors text-sm"
               >
-                <span className="font-medium">{t('jananiHelpline102', '102 Janani Shishu Helpline')}</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/80 text-white font-bold text-xs">{t('free', 'FREE')}</span>
+                <span className="font-medium">102 Janani Shishu Helpline</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/80 text-white font-bold text-xs">FREE</span>
               </a>
             </div>
           </div>
@@ -363,25 +376,39 @@ export const DashboardPage: React.FC = () => {
       <CreateRequestModal
         isOpen={isRequestModalOpen}
         onClose={() => setIsRequestModalOpen(false)}
-        onCreated={() => loadDashboardData()}
+        onCreated={(req) => {
+          setRequests([req, ...requests]);
+          notify('Request submitted successfully with AI routing!', 'success');
+        }}
       />
 
       <BookAppointmentModal
         isOpen={isBookModalOpen}
         onClose={() => setIsBookModalOpen(false)}
-        onSuccess={() => loadDashboardData()}
+        onSuccess={(appt) => {
+          setAppointments([appt, ...appointments]);
+        }}
       />
 
+      {selectedFacility && (
+        <FacilityDetailModal
+          facility={selectedFacility}
+          onClose={() => setSelectedFacility(null)}
+          onBookAppointment={() => {
+            setSelectedFacility(null);
+            setIsBookModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* Cancel Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!cancelTarget}
-        title={t('cancelApptTitle', 'Cancel Appointment')}
-        message={t('cancelApptMessage', {
-          facility: cancelTarget?.facility_name || '',
-          date: cancelTarget ? formatDate(cancelTarget.appointment_date, t) : '',
-        })}
-        confirmLabel={t('yesCancel', 'Yes, Cancel')}
-        cancelLabel={t('cancel', 'Cancel')}
-        isDestructive={true}
+        title="Cancel Appointment"
+        message={`Are you sure you want to cancel your appointment at ${cancelTarget?.facility_name} on ${cancelTarget?.appointment_date}?`}
+        confirmLabel="Yes, Cancel"
+        cancelLabel="Keep Appointment"
+        isDestructive
         onConfirm={handleConfirmCancel}
         onCancel={() => setCancelTarget(null)}
       />

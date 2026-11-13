@@ -28,7 +28,7 @@ from app.models.user import User
 from app.models.village import Village
 
 
-async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
+async def seed_all_demo_data(db: Optional[AsyncSession] = None, force: bool = False) -> bool:
     """Seeds the demonstration database if facilities are empty.
     
     Returns True if seeding occurred, False if data already existed.
@@ -39,8 +39,8 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
         owns_session = True
 
     try:
-        # Prevent seeding in production environment
-        if settings.ENVIRONMENT.lower() == "production":
+        # Prevent seeding in production environment unless forced
+        if settings.ENVIRONMENT.lower() == "production" and not force:
             return False
 
         # Check if already seeded
@@ -132,6 +132,24 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
                 "state": "Uttar Pradesh",
                 "latitude": 27.5684,
                 "longitude": 80.6791,
+                "is_synthetic": True,
+            },
+            {
+                "id": uuid.UUID("e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"),
+                "name": "Coimbatore",
+                "district": "Coimbatore",
+                "state": "Tamil Nadu",
+                "latitude": 11.0168,
+                "longitude": 76.9558,
+                "is_synthetic": True,
+            },
+            {
+                "id": uuid.UUID("f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c"),
+                "name": "Salem",
+                "district": "Salem",
+                "state": "Tamil Nadu",
+                "latitude": 11.6643,
+                "longitude": 78.1460,
                 "is_synthetic": True,
             },
         ]
@@ -275,6 +293,26 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
                 "contact_details": {"phone": "04175-223300"},
                 "services": ["First Aid", "Blood Pressure Screening", "Antenatal Checkup"],
             },
+            {
+                "name": "UPHC Singanallur, Coimbatore",
+                "facility_type": "PHC",
+                "address": "Trichy Road, Singanallur, Coimbatore, Tamil Nadu - 641005",
+                "village_id": villages_by_name["Coimbatore"].id,
+                "latitude": 11.0020,
+                "longitude": 77.0260,
+                "contact_details": {"phone": "0422-2578100", "emergency": "108"},
+                "services": ["General OPD", "Maternal Care", "Immunization", "Diagnostic Lab", "Essential Medicines"],
+            },
+            {
+                "name": "UPHC Shevapet, Salem",
+                "facility_type": "PHC",
+                "address": "Main Road, Shevapet, Salem, Tamil Nadu - 636002",
+                "village_id": villages_by_name["Salem"].id,
+                "latitude": 11.6580,
+                "longitude": 78.1420,
+                "contact_details": {"phone": "0427-2211200", "emergency": "108"},
+                "services": ["General OPD", "Maternal Care", "Immunization", "Essential Medicines"],
+            },
         ]
 
         facilities_by_name = {}
@@ -353,6 +391,28 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
                 "end_time": "16:00",
                 "notes": "Planned roster; physical check-in pending",
             },
+            {
+                "facility_name": "UPHC Singanallur, Coimbatore",
+                "name": "Dr. S. Venkatesh",
+                "specialization": "General Medicine",
+                "qualification": "MBBS, MD",
+                "contact_phone": "9876543260",
+                "attendance_status": "PRESENT",
+                "start_time": "08:30",
+                "end_time": "14:30",
+                "notes": "Physically verified present on duty in Coimbatore",
+            },
+            {
+                "facility_name": "UPHC Shevapet, Salem",
+                "name": "Dr. N. Gayathri",
+                "specialization": "General Medicine & Family Health",
+                "qualification": "MBBS",
+                "contact_phone": "9876543261",
+                "attendance_status": "PRESENT",
+                "start_time": "09:00",
+                "end_time": "15:00",
+                "notes": "Physically verified present on duty in Salem",
+            },
         ]
 
         for ddata in doctors_data:
@@ -410,6 +470,15 @@ async def seed_all_demo_data(db: Optional[AsyncSession] = None) -> bool:
             ("CHC Mohanpur", "ORS Sachet", 0.95, 0.90, "LIKELY"),
             ("Sub-Centre Anandpur", "Paracetamol", 0.80, 0.70, "LIKELY"),
             ("Sub-Centre Anandpur", "ORS Sachet", 0.90, 0.85, "LIKELY"),
+            # Coimbatore & Salem facilities
+            ("UPHC Singanallur, Coimbatore", "Paracetamol", 0.95, 0.90, "LIKELY"),
+            ("UPHC Singanallur, Coimbatore", "Amoxicillin", 0.85, 0.80, "LIKELY"),
+            ("UPHC Singanallur, Coimbatore", "Metformin", 0.90, 0.88, "LIKELY"),
+            ("UPHC Singanallur, Coimbatore", "ORS Sachet", 0.95, 0.92, "LIKELY"),
+            ("UPHC Shevapet, Salem", "Paracetamol", 0.92, 0.88, "LIKELY"),
+            ("UPHC Shevapet, Salem", "Amoxicillin", 0.80, 0.75, "LIKELY"),
+            ("UPHC Shevapet, Salem", "Metformin", 0.85, 0.82, "LIKELY"),
+            ("UPHC Shevapet, Salem", "ORS Sachet", 0.95, 0.90, "LIKELY"),
         ]
 
         staff_user_id = users_by_phone["9876543201"].id

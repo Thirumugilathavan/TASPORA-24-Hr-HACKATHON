@@ -27,3 +27,8 @@ htmlcov/
 .idea/
 *.swp
 *.swo
+
+.vercel
+.env.local
+.env.*.local
+

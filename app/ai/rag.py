@@ -45,7 +45,13 @@ class RAGKnowledgeEngine:
     ]
 
     def __init__(self, workspace_root: Optional[str] = None):
-        self.workspace_root = workspace_root or os.getcwd()
+        fallback_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if workspace_root:
+            self.workspace_root = workspace_root
+        elif os.path.exists(os.path.join(os.getcwd(), "STOCK_ALGORITHM.md")):
+            self.workspace_root = os.getcwd()
+        else:
+            self.workspace_root = fallback_root
         self.chunks: List[DocumentChunk] = []
         self._doc_count = 0
         self._avg_dl = 0.0

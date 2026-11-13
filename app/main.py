@@ -13,15 +13,9 @@ from app.models.base import Base
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown procedures."""
-    # Ensure database tables exist (development/evaluation convenience)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    try:
-        if settings.ENVIRONMENT.lower() != "production":
-            from app.tools.seed_demo_data import seed_all_demo_data
-            await seed_all_demo_data()
-    except Exception:
-        pass
+    if settings.ENVIRONMENT.lower() != "testing":
+        from app.core.database import ensure_database_initialized
+        await ensure_database_initialized()
     yield
     # Clean shutdown
     await engine.dispose()
@@ -30,7 +24,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=f"{settings.PROJECT_NAME} API",
     description=(
-        "NALAM AI – AI-Powered Rural Healthcare Accessibility and Coordination Platform.\n\n"
+        "CareBridge – AI-Powered Rural Healthcare Accessibility and Coordination Platform.\n\n"
         "**Notice:** Operating in simulated evaluation mode. All facility, doctor, inventory, "
         "and logistics records are synthetic simulations for hackathon demonstration."
     ),
@@ -105,5 +99,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 if settings.API_V1_PREFIX != "/api/v1":
     app.include_router(api_router, prefix="/api/v1")
-if settings.API_V1_PREFIX != "/api":
-    app.include_router(api_router, prefix="/api")
+
+
+@app.get("/", tags=["Health"])
+@app.get("/api", tags=["Health"])
+async def api_root():
+    from app.api.v1.health import health_check
+    from app.core.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        return await health_check(db=db)
+

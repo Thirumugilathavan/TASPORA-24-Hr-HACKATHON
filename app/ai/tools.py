@@ -20,7 +20,13 @@ from sqlalchemy.orm import selectinload
 
 from app.core.math_utils import round_expected_loss
 from app.models.doctor import Doctor, DoctorSchedule
-from app.models.facility import Facility, FacilityService
+from app.models.facility import (
+    Facility,
+    FacilityService,
+    FacilitySpecialty,
+    FacilitySource,
+    FacilityAppointmentConfig,
+)
 from app.models.medicine import Medicine
 from app.models.patient import Patient
 from app.models.stock import FacilityMedicineBelief
@@ -30,46 +36,37 @@ from app.models.scheme import GovernmentScheme
 from app.schemas.shared import AttendanceStatus, AvailabilityLabel
 from app.services.distance_service import haversine_km
 from app.ai.rag import rag_engine
-
-# Known reference coordinates for Tamil Nadu & evaluation districts
-REFERENCE_COORDINATES = {
-    "tiruchengode": (11.3800, 77.8900, "Namakkal, Tamil Nadu"),
-    "molasi": (11.3420, 77.8450, "Namakkal, Tamil Nadu"),
-    "namakkal": (11.2189, 78.1674, "Namakkal, Tamil Nadu"),
-    "rampur": (12.9165, 79.1325, "Vellore, Tamil Nadu"),
-    "mohanpur": (12.9240, 79.1450, "Vellore, Tamil Nadu"),
-    "anandpur": (12.2253, 79.0747, "Tiruvannamalai, Tamil Nadu"),
-    "vellore": (12.9165, 79.1325, "Vellore, Tamil Nadu"),
-    "salem": (11.6643, 78.1460, "Salem, Tamil Nadu"),
-    "sitapur": (27.5684, 80.6791, "Sitapur, Uttar Pradesh"),
-}
+from app.ai.location_extractor import REFERENCE_COORDINATES, get_coordinates_for_location
 
 
 async def search_facilities_tool(
     db: AsyncSession,
     location_name: Optional[str] = None,
     facility_type: Optional[str] = None,
+    facility_category: Optional[str] = None,
+    ownership: Optional[str] = None,
     service: Optional[str] = None,
+    maternity: Optional[bool] = None,
+    emergency: Optional[bool] = None,
     max_distance_km: float = 50.0,
     reference_lat: Optional[float] = None,
     reference_lon: Optional[float] = None,
-    limit: int = 5,
+    limit: int = 10,
 ) -> Dict[str, Any]:
-    """Searches real facilities from database, calculates distance, and loads doctors & services."""
+    """Searches verified facilities from database with multi-criteria filtering and geographic ranking."""
     target_lat = reference_lat
     target_lon = reference_lon
     detected_location = location_name
 
     # Determine reference coordinates if location name provided
-    if location_name and (target_lat is None or target_lon is None):
-        clean_loc = location_name.strip().lower()
-        # 1. Check known coordinates
+    clean_loc = (location_name or "").strip().lower()
+    if clean_loc and (target_lat is None or target_lon is None):
         for loc_key, (klat, klon, _) in REFERENCE_COORDINATES.items():
             if loc_key in clean_loc or clean_loc in loc_key:
                 target_lat, target_lon = klat, klon
                 break
 
-        # 2. Check villages table
+        # Check villages table if still unresolved
         if target_lat is None:
             v_stmt = select(Village).where(func.lower(Village.name).contains(clean_loc))
             v_res = await db.execute(v_stmt)
@@ -81,14 +78,78 @@ async def search_facilities_tool(
     # Query facilities with eager loaded relationships
     stmt = select(Facility).options(
         selectinload(Facility.services),
+        selectinload(Facility.specialties_rel),
+        selectinload(Facility.appointment_config),
         selectinload(Facility.doctors).selectinload(Doctor.schedules),
     )
 
-    if facility_type:
-        clean_type = facility_type.strip().upper()
-        stmt = stmt.where(func.upper(Facility.facility_type) == clean_type)
+    # Check if querying Coimbatore specifically or a known block/town
+    coimbatore_keywords = [
+        "coimbatore", "kovai", "cbe", "pollachi", "mettupalayam", "valparai", "annur",
+        "sulur", "kinathukadavu", "madukkarai", "anamalai", "thondamuthur", "karamadai",
+        "sarcarsamakulam", "sultanpet", "singanallur", "peelamedu", "r.s. puram",
+        "gandhipuram", "saibaba colony", "ram nagar", "selvapuram", "ganapathy"
+    ]
+    is_coimbatore_query = any(k in clean_loc for k in coimbatore_keywords)
 
-    if service:
+    if is_coimbatore_query:
+        stmt = stmt.where(func.lower(Facility.district) == "coimbatore")
+        # If user named a specific block/locality (e.g. "Pollachi", "Mettupalayam")
+        specific_sub = next((k for k in coimbatore_keywords[3:] if k in clean_loc), None)
+        if specific_sub:
+            sub_clean = f"%{specific_sub}%"
+            stmt = stmt.where(
+                func.lower(func.coalesce(Facility.block, "")).like(sub_clean)
+                | func.lower(func.coalesce(Facility.locality, "")).like(sub_clean)
+                | func.lower(Facility.address).like(sub_clean)
+                | func.lower(Facility.name).like(sub_clean)
+            )
+
+    # Filter by category / type if specified
+    if facility_category:
+        cat_upper = facility_category.strip().upper()
+        stmt = stmt.where(func.upper(Facility.facility_category).contains(cat_upper))
+    elif facility_type:
+        clean_type = facility_type.strip().upper()
+        if clean_type in ["PHC", "UPHC"]:
+            stmt = stmt.where(
+                or_(
+                    func.upper(Facility.facility_type).in_(["PHC", "UPHC"]),
+                    func.upper(Facility.facility_category).in_(["PRIMARY_HEALTH_CENTRE", "URBAN_PRIMARY_HEALTH_CENTRE", "PHC", "UPHC", "MATERNITY_HOME"]),
+                )
+            )
+        elif clean_type in ["CHC", "COMMUNITY_HEALTH_CENTRE"]:
+            stmt = stmt.where(
+                or_(
+                    func.upper(Facility.facility_type) == "CHC",
+                    func.upper(Facility.facility_category).in_([
+                        "CHC",
+                        "COMMUNITY_HEALTH_CENTRE",
+                        "SUB_DISTRICT_HOSPITAL",
+                        "TALUK_HOSPITAL",
+                    ]),
+                )
+            )
+        else:
+            stmt = stmt.where(func.upper(Facility.facility_type) == clean_type)
+
+    # Filter by ownership (e.g., "government", "private")
+    if ownership:
+        clean_own = ownership.strip().lower()
+        if clean_own in ["government", "govt", "public"]:
+            stmt = stmt.where(func.lower(Facility.ownership).in_(["government", "municipal corporation"]))
+        elif clean_own == "private":
+            stmt = stmt.where(func.lower(Facility.ownership) == "private")
+
+    # Filter by maternity / emergency flags
+    if maternity is True or (service and "matern" in service.lower()):
+        stmt = stmt.where(Facility.maternity_services == True)
+
+    if emergency is True or (service and ("emerg" in service.lower() or "trauma" in service.lower() or "casualty" in service.lower())):
+        stmt = stmt.where(Facility.emergency_services == True)
+
+    # Generic service search
+    if service and not ("matern" in service.lower() or "emerg" in service.lower()):
         stmt = (
             stmt.join(Facility.services)
             .where(func.lower(FacilityService.service_name).contains(service.lower()))
@@ -98,15 +159,7 @@ async def search_facilities_tool(
     res = await db.execute(stmt)
     all_facilities = list(res.scalars().all())
 
-    # Fallback to all facilities if specific filter was empty
-    if not all_facilities and facility_type:
-        fallback_stmt = select(Facility).options(
-            selectinload(Facility.services),
-            selectinload(Facility.doctors).selectinload(Doctor.schedules),
-        )
-        res = await db.execute(fallback_stmt)
-        all_facilities = list(res.scalars().all())
-
+    # Do not silently fall back to unrelated facilities from another district!
     today = date.today()
     results = []
 
@@ -134,14 +187,45 @@ async def search_facilities_tool(
 
         services_list = [s.service_name for s in fac.services]
 
+        # Verified booking info
+        apt_cfg = fac.appointment_config
+        booking_method = apt_cfg.booking_method if apt_cfg else (fac.appointment_booking_method or "WALK_IN_ONLY")
+        booking_url = apt_cfg.booking_url if apt_cfg else fac.online_booking_url
+        booking_phone = apt_cfg.booking_phone if apt_cfg else fac.official_phone
+        instructions_en = apt_cfg.instructions_en if apt_cfg else None
+        instructions_ta = apt_cfg.instructions_ta if apt_cfg else None
+
         results.append({
             "facility_id": str(fac.id),
             "name": fac.name,
+            "alternate_names": fac.alternate_names or [],
             "facility_type": fac.facility_type,
+            "facility_category": fac.facility_category,
+            "ownership": fac.ownership,
+            "district": fac.district,
+            "block": fac.block,
+            "locality": fac.locality,
             "address": fac.address,
+            "pincode": fac.pincode,
             "distance_km": dist_km,
             "latitude": fac.latitude,
             "longitude": fac.longitude,
+            "official_phone": fac.official_phone,
+            "official_website": fac.official_website,
+            "emergency_contact": fac.emergency_contact,
+            "opening_hours": fac.opening_hours,
+            "emergency_services": fac.emergency_services,
+            "ambulance_available": fac.ambulance_available,
+            "maternity_services": fac.maternity_services,
+            "pharmacy_available": fac.pharmacy_available,
+            "specialties": fac.specialties or [],
+            "appointment_booking_method": booking_method,
+            "online_booking_url": booking_url,
+            "booking_phone": booking_phone,
+            "instructions_en": instructions_en,
+            "instructions_ta": instructions_ta,
+            "official_source_url": fac.official_source_url,
+            "verification_status": fac.verification_status,
             "contact_details": fac.contact_details or {},
             "services": services_list,
             "doctors": doctors_info,
@@ -153,12 +237,38 @@ async def search_facilities_tool(
     else:
         results.sort(key=lambda x: x["name"])
 
+    # If location_name was explicitly requested and not Coimbatore-wide, filter within max_distance_km
+    in_range_facilities = results
+    if clean_loc and not is_coimbatore_query:
+        other_districts = ["tiruppur", "tirupur", "erode", "nilgiris", "salem", "namakkal", "ooty"]
+        is_prohibited_district = any(d in clean_loc for d in other_districts)
+
+        matched = []
+        for f in results:
+            addr_lower = (f["address"] or "").lower()
+            name_lower = f["name"].lower()
+            dist_lower = (f["district"] or "").lower()
+            is_text_match = clean_loc in addr_lower or clean_loc in name_lower or clean_loc in dist_lower
+
+            # If user explicitly asked for another district, do not leak Coimbatore facilities
+            if is_prohibited_district:
+                if is_text_match:
+                    matched.append(f)
+            else:
+                is_dist_match = f["distance_km"] is not None and f["distance_km"] <= max_distance_km
+                if is_text_match or is_dist_match:
+                    matched.append(f)
+        in_range_facilities = matched
+
     return {
         "query_location": detected_location,
         "reference_lat": target_lat,
         "reference_lon": target_lon,
-        "count": len(results[:limit]),
-        "facilities": results[:limit],
+        "in_range": len(in_range_facilities) > 0,
+        "nearest_distance_km": results[0]["distance_km"] if results else None,
+        "nearest_facility_name": results[0]["name"] if results else None,
+        "count": len(in_range_facilities[:limit]),
+        "facilities": in_range_facilities[:limit],
     }
 
 
@@ -186,12 +296,20 @@ async def check_doctor_availability_tool(
 
     if facility_name:
         stmt = stmt.join(Doctor.facility).where(func.lower(Facility.name).contains(facility_name.lower().strip()))
+    elif location_name and location_name.strip():
+        clean_loc = location_name.strip().lower()
+        stmt = stmt.join(Doctor.facility).where(
+            or_(
+                func.lower(Facility.address).contains(clean_loc),
+                func.lower(Facility.name).contains(clean_loc),
+            )
+        )
 
     res = await db.execute(stmt)
     doctors = list(res.scalars().all())
 
-    # Fallback to all doctors if search too strict
-    if not doctors:
+    # Fallback to all doctors ONLY if query had no specific location or facility filter
+    if not doctors and not location_name and not facility_name and not doctor_name:
         fallback_stmt = select(Doctor).options(
             selectinload(Doctor.facility),
             selectinload(Doctor.schedules),
@@ -433,8 +551,34 @@ def query_rag_knowledge_tool(query: str, top_k: int = 3) -> Dict[str, Any]:
     }
 
 
-def emergency_guidance_tool(symptom_or_query: str) -> Dict[str, Any]:
-    """Returns official 108 emergency ambulance protocols and immediate action items."""
+def emergency_guidance_tool(symptom_or_query: str, location_name: Optional[str] = None) -> Dict[str, Any]:
+    """Returns official 108 emergency ambulance protocols and verified 24x7 emergency hospital directory."""
+    clean_loc = (location_name or "").lower()
+    coimbatore_keywords = [
+        "coimbatore", "kovai", "pollachi", "mettupalayam", "valparai", "annur",
+        "sulur", "kinathukadavu", "madukkarai", "anamalai", "thondamuthur", "karamadai",
+        "singanallur", "peelamedu", "r.s. puram", "gandhipuram", "saibaba colony"
+    ]
+    is_cbe = any(k in clean_loc for k in coimbatore_keywords) or any(k in symptom_or_query.lower() for k in coimbatore_keywords)
+
+    if is_cbe:
+        emergency_facilities = [
+            "Coimbatore Medical College Hospital (CMCH) — 24/7 Level 1 Trauma Care, Trichy Road (Phone: 0422-2301393)",
+            "Government ESI Medical College Hospital — 24/7 Casualty & Emergency, Singanallur (Phone: 0422-2574391)",
+            "Government Headquarters Hospital (GHQH), Pollachi — 24/7 CEmONC & Trauma, Udumalai Road (Phone: 04259-229322)",
+            "Government Hospital, Mettupalayam — 24/7 CEmONC & Trauma Care (Phone: 04254-222027)",
+            "Ganga Hospital — 24/7 Emergency Trauma & Micro-surgery Unit, Mettupalayam Road (Phone: 0422-4250000)",
+            "PSG Hospitals — 24/7 Emergency, Stroke & Cardiac Care, Peelamedu (Emergency: 7449108108 / 0422-4345353)",
+            "Kovai Medical Center and Hospital (KMCH) — 24/7 Level 1 Emergency Centre, Avanashi Road (Phone: 0422-4323999)",
+            "Sri Ramakrishna Hospital — 24/7 Emergency & Trauma, New Siddhapudur (Phone: 7970108108 / 0422-3500000)",
+        ]
+    else:
+        emergency_facilities = [
+            "CHC Tiruchengode (24/7 Emergency & Inpatient Trauma Care)",
+            "District Headquarters Hospital Namakkal",
+            "Government Mohan Kumaramangalam Medical College Hospital, Salem",
+        ]
+
     return {
         "is_emergency": True,
         "emergency_number": "108",
@@ -449,11 +593,121 @@ def emergency_guidance_tool(symptom_or_query: str) -> Dict[str, Any]:
             "இணைப்பில் இருந்து உங்கள் இருப்பிடம் மற்றும் அடையாளங்களை தெரிவிக்கவும். "
             "நோயாளிக்கு தண்ணீர் கொடுக்காமல் அமைதியாக வைத்திருக்கவும்."
         ),
-        "nearest_24x7_facilities": [
-            "CHC Tiruchengode (24/7 Emergency & Inpatient Trauma Care)",
-            "District Headquarters Hospital Namakkal",
-            "Government Mohan Kumaramangalam Medical College Hospital, Salem",
-        ],
+        "nearest_24x7_facilities": emergency_facilities,
+    }
+
+
+async def get_appointment_slots_tool(
+    db: AsyncSession,
+    facility_name: Optional[str] = None,
+    location_name: Optional[str] = None,
+    target_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """Retrieves genuine hospital booking configurations and verified doctor schedules.
+    Never invents fake appointment IDs, fake slots, or mock confirmations.
+    """
+    query_date = target_date or date.today()
+
+    stmt = select(Facility).options(
+        selectinload(Facility.appointment_config),
+        selectinload(Facility.doctors).selectinload(Doctor.schedules),
+    )
+
+    clean_fac = (facility_name or "").strip().lower()
+    clean_loc = (location_name or "").strip().lower()
+
+    if clean_fac:
+        stmt = stmt.where(
+            func.lower(Facility.name).contains(clean_fac)
+            | func.lower(func.coalesce(Facility.locality, "")).contains(clean_fac)
+        )
+    elif clean_loc:
+        coimbatore_keywords = [
+            "coimbatore", "kovai", "pollachi", "mettupalayam", "valparai", "annur",
+            "sulur", "kinathukadavu", "madukkarai", "anamalai", "thondamuthur", "karamadai"
+        ]
+        if any(k in clean_loc for k in coimbatore_keywords):
+            stmt = stmt.where(func.lower(Facility.district) == "coimbatore")
+            specific_sub = next((k for k in coimbatore_keywords[2:] if k in clean_loc), None)
+            if specific_sub:
+                stmt = stmt.where(
+                    func.lower(func.coalesce(Facility.block, "")).contains(specific_sub)
+                    | func.lower(func.coalesce(Facility.locality, "")).contains(specific_sub)
+                    | func.lower(Facility.address).contains(specific_sub)
+                )
+        else:
+            stmt = stmt.where(
+                or_(
+                    func.lower(Facility.address).contains(clean_loc),
+                    func.lower(Facility.name).contains(clean_loc),
+                )
+            )
+
+    res = await db.execute(stmt)
+    facs = list(res.scalars().all())
+
+    if not facs:
+        return {
+            "date": query_date.isoformat(),
+            "booking_available": False,
+            "message": "No matching verified healthcare facility found in database for booking.",
+            "options": [],
+        }
+
+    booking_options = []
+    for fac in facs[:5]:
+        apt_cfg = fac.appointment_config
+        booking_method = apt_cfg.booking_method if apt_cfg else (fac.appointment_booking_method or "WALK_IN_ONLY")
+        online_url = apt_cfg.booking_url if apt_cfg else fac.online_booking_url
+        phone = apt_cfg.booking_phone if apt_cfg else fac.official_phone
+        inst_en = apt_cfg.instructions_en if apt_cfg else (
+            "Walk-in registration at hospital OPD counter (08:00 AM - 12:00 PM). Emergency casualties operate 24x7 without prior booking."
+            if booking_method == "WALK_IN_ONLY"
+            else f"Book online at {online_url} or call {phone}."
+        )
+        inst_ta = apt_cfg.instructions_ta if apt_cfg else (
+            "மருத்துவமனை புறநோயாளி கவுண்டரில் நேரடி பதிவு (காலை 08:00 - நண்பகல் 12:00). அவசர சிகிச்சை பிரிவு 24 மணி நேரமும் செயல்படும்."
+            if booking_method == "WALK_IN_ONLY"
+            else f"{online_url} இணையதளத்தில் அல்லது {phone} எண்ணில் முன்பதிவு செய்யலாம்."
+        )
+
+        real_doctors = []
+        for doc in fac.doctors:
+            sched = next((s for s in doc.schedules if s.schedule_date == query_date), None)
+            att = sched.attendance_status if sched else "SCHEDULE_PENDING"
+            hours = f"{sched.start_time} - {sched.end_time}" if sched else fac.opening_hours or "Consultation pending"
+
+            real_doctors.append({
+                "doctor_id": str(doc.id),
+                "doctor_name": doc.name,
+                "specialization": doc.specialization,
+                "doctor_status": att,
+                "shift_hours": hours,
+            })
+
+        booking_options.append({
+            "facility_id": str(fac.id),
+            "facility_name": fac.name,
+            "district": fac.district,
+            "block": fac.block,
+            "locality": fac.locality,
+            "address": fac.address,
+            "ownership": fac.ownership,
+            "booking_method": booking_method,
+            "online_booking_url": online_url,
+            "booking_phone": phone,
+            "instructions_en": inst_en,
+            "instructions_ta": inst_ta,
+            "emergency_services": fac.emergency_services,
+            "opening_hours": fac.opening_hours,
+            "verified_doctors": real_doctors,
+            "available_slots": [],  # Never invent mock slots!
+        })
+
+    return {
+        "date": query_date.isoformat(),
+        "booking_available": len(booking_options) > 0,
+        "options": booking_options,
     }
 
 

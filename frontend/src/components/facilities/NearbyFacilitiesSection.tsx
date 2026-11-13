@@ -13,7 +13,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Facility, Village, NearbyFacilityListResponse } from '../../types';
-import { facilityService } from '../../services/facilityService';
+import { facilityService, NearbyFacilityParams } from '../../services/facilityService';
 import { getFacilityTypeLabel } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
@@ -59,7 +59,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
       setActiveLocation(currentPatient.village);
       setIsChangingLocation(false);
     } else {
-      const saved = sessionStorage.getItem('carebridge_active_village');
+      const saved = sessionStorage.getItem('nalam_active_village') || sessionStorage.getItem('carebridge_active_village');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -96,7 +96,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
         }
         setError(null);
 
-        const params: Parameters<typeof facilityService.getNearbyFacilities>[0] = {
+        const params: NearbyFacilityParams = {
           radius_km: radiusKm,
           facility_type: selectedType === 'ALL' ? undefined : selectedType,
           auto_expand: true,
@@ -151,6 +151,7 @@ export const NearbyFacilitiesSection: React.FC<NearbyFacilitiesSectionProps> = (
       setUsingGps(false);
       setGpsCoords(null);
       setIsChangingLocation(false);
+      sessionStorage.setItem('nalam_active_village', JSON.stringify(village));
       sessionStorage.setItem('carebridge_active_village', JSON.stringify(village));
     }
   };

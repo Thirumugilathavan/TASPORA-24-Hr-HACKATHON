@@ -5,7 +5,6 @@ import { facilityService } from '../../services/facilityService';
 import { appointmentService } from '../../services/appointmentService';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
-import { useTranslation } from '../../context/LanguageContext';
 
 interface BookAppointmentModalProps {
   isOpen: boolean;
@@ -37,7 +36,6 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
 }) => {
   const { currentPatient, user } = useAuth();
   const { notify } = useNotification();
-  const { t } = useTranslation();
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState(initialFacilityId || '');
@@ -91,11 +89,11 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFacilityId) {
-      setError(t('selectFacility', 'Please select a healthcare facility.'));
+      setError('Please select a healthcare facility.');
       return;
     }
     if (!date) {
-      setError(t('appointmentDate', 'Please select an appointment date.'));
+      setError('Please select an appointment date.');
       return;
     }
 
@@ -114,11 +112,11 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
         appointment_time: timeSlot,
       });
 
-      notify(t('appointmentBookedNotify', 'Appointment booked successfully!'), 'success');
+      notify('Appointment booked successfully!', 'success');
       if (onSuccess) onSuccess(appt);
       onClose();
     } catch (err: any) {
-      setError(err.message || t('errorTitle', 'Failed to book appointment. Please try again.'));
+      setError(err.message || 'Failed to book appointment. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +128,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-lg font-semibold text-slate-800">{t('bookAppointmentTitle', 'Book Care Appointment')}</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Book Care Appointment</h2>
           </div>
           <button
             onClick={onClose}
@@ -151,7 +149,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
           {/* Facility Select */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('selectFacility', 'Healthcare Facility')} <span className="text-rose-500">*</span>
+              Healthcare Facility <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -177,7 +175,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
           {/* Doctor Select */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              {t('selectDoctor', 'Select Doctor (Optional)')}
+              Select Doctor (Optional)
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -186,7 +184,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
                 onChange={(e) => setSelectedDoctorId(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
               >
-                <option value="">{t('anyDutyOfficer', 'Any Duty Medical Officer')}</option>
+                <option value="">Any Duty Medical Officer</option>
                 {availableDoctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
                     {doc.name} ({doc.specialty})
@@ -195,7 +193,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
               </select>
             </div>
             {availableDoctors.length === 0 && (
-              <p className="text-xs text-slate-500 mt-1">{t('generalOfficerNote', 'General Medical Officer will attend your consultation.')}</p>
+              <p className="text-xs text-slate-500 mt-1">General Medical Officer will attend your consultation.</p>
             )}
           </div>
 
@@ -203,7 +201,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('appointmentDate', 'Date')} <span className="text-rose-500">*</span>
+                Date <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -220,7 +218,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('appointmentTime', 'Time Slot')} <span className="text-rose-500">*</span>
+                Time Slot <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -243,7 +241,7 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
           <div className="p-3 bg-emerald-50/60 rounded-lg border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-800">
             <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
             <span>
-              {t('bookingGuaranteeNotice', 'Booking with NALAM AI guarantees queued check-in and priority triage review at rural health centers.')}
+              Booking with NALAM guarantees queued check-in and priority triage review at rural health centers.
             </span>
           </div>
 
@@ -255,14 +253,14 @@ export const BookAppointmentModal: React.FC<BookAppointmentModalProps> = ({
               disabled={submitting}
               className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
             >
-              {t('cancel', 'Cancel')}
+              Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
             >
-              {submitting ? t('confirmingAppointment', 'Confirming...') : t('confirmBooking', 'Confirm Appointment')}
+              {submitting ? 'Confirming...' : 'Confirm Appointment'}
             </button>
           </div>
         </form>

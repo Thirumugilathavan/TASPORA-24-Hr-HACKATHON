@@ -6,11 +6,11 @@ import { FacilityDetailModal } from '../components/facilities/FacilityDetailModa
 import { BookAppointmentModal } from '../components/appointments/BookAppointmentModal';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { EmptyState } from '../components/common/EmptyState';
 import { Facility, Village, NearbyFacilityListResponse } from '../types';
 import { facilityService } from '../services/facilityService';
-import { getFacilityTypeLabel } from '../lib/constants';
+import { FACILITY_TYPE_LABELS } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
-import { useTranslation } from '../context/LanguageContext';
 import {
   MapPin,
   Navigation,
@@ -27,9 +27,16 @@ import {
 
 const RADIUS_OPTIONS = [5, 10, 25, 50, 100];
 
+const TYPE_FILTER_OPTIONS = [
+  { label: 'All Centers', value: 'ALL' },
+  { label: 'Sub-Centres (SCE)', value: 'SCE' },
+  { label: 'Primary Health (PHC)', value: 'PHC' },
+  { label: 'Community Health (CHC)', value: 'CHC' },
+  { label: 'Hospitals (THO/DHO)', value: 'HOSPITAL' },
+];
+
 export const FacilitiesPage: React.FC = () => {
-  const { currentPatient } = useAuth();
-  const { t } = useTranslation();
+  const { user, currentPatient } = useAuth();
 
   // Location State
   const [activeLocation, setActiveLocation] = useState<Village | null>(null);
@@ -43,8 +50,8 @@ export const FacilitiesPage: React.FC = () => {
   const [radiusKm, setRadiusKm] = useState<number>(10);
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedOwnership, setSelectedOwnership] = useState<string>('ALL');
+  const [selectedService, setSelectedService] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
   // Results State
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -58,24 +65,9 @@ export const FacilitiesPage: React.FC = () => {
 
   const PAGE_SIZE = 24;
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [search]);
-
   // Modals
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
   const [bookingFacility, setBookingFacility] = useState<Facility | null>(null);
-
-  const typeFilterOptions = [
-    { label: t('allCenters', 'All Centers'), value: 'ALL' },
-    { label: t('typeSubCentres', 'Sub-Centres (SCE)'), value: 'SCE' },
-    { label: t('typePhcs', 'Primary Health (PHC)'), value: 'PHC' },
-    { label: t('typeChcs', 'Community Health (CHC)'), value: 'CHC' },
-    { label: t('typeHospitals', 'Hospitals (THO/DHO)'), value: 'HOSPITAL' },
-  ];
 
   // Initialize location from registered user profile or session
   useEffect(() => {
@@ -83,7 +75,7 @@ export const FacilitiesPage: React.FC = () => {
       setActiveLocation(currentPatient.village);
       setIsChangingLocation(false);
     } else {
-      const saved = sessionStorage.getItem('carebridge_active_village');
+      const saved = sessionStorage.getItem('nalam_active_village') || sessionStorage.getItem('carebridge_active_village');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -125,8 +117,8 @@ export const FacilitiesPage: React.FC = () => {
           radius_km: radiusKm,
           facility_type: selectedType === 'ALL' ? undefined : selectedType,
           ownership: selectedOwnership === 'ALL' ? undefined : selectedOwnership,
-          query: debouncedSearch.trim() || undefined,
-          auto_expand: true,
+          emergency_services: selectedService === 'EMERGENCY' ? true : undefined,
+          maternity_services: selectedService === 'MATERNITY' ? true : undefined,
           limit: PAGE_SIZE,
           skip: offset,
         };
@@ -153,13 +145,13 @@ export const FacilitiesPage: React.FC = () => {
         setPageOffset(offset);
         setHasMore((offset + (res.items || []).length) < (res.total || 0));
       } catch (err: any) {
-        setError(err.message || t('errorTitle', 'Failed to fetch nearby facilities from registry.'));
+        setError(err.message || 'Failed to fetch nearby facilities from registry.');
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, selectedOwnership, debouncedSearch, t]
+    [usingGps, gpsCoords, activeLocation, radiusKm, selectedType, selectedOwnership, selectedService]
   );
 
   useEffect(() => {
@@ -178,6 +170,7 @@ export const FacilitiesPage: React.FC = () => {
       setUsingGps(false);
       setGpsCoords(null);
       setIsChangingLocation(false);
+      sessionStorage.setItem('nalam_active_village', JSON.stringify(village));
       sessionStorage.setItem('carebridge_active_village', JSON.stringify(village));
     }
   };
@@ -222,14 +215,37 @@ export const FacilitiesPage: React.FC = () => {
     );
   };
 
-  // Use facilities returned from the backend multi-criteria search
-  const filteredFacilities = facilities;
+  // Client-side text filter on the currently loaded page/results
+  const filteredFacilities = facilities.filter((fac) => {
+    if (selectedOwnership === 'GOVERNMENT' && fac.ownership && !['government', 'municipal corporation'].includes(fac.ownership.toLowerCase())) {
+      return false;
+    }
+    if (selectedOwnership === 'PRIVATE' && fac.ownership?.toLowerCase() !== 'private') {
+      return false;
+    }
+    if (selectedService === 'EMERGENCY' && !fac.emergency_services) {
+      return false;
+    }
+    if (selectedService === 'MATERNITY' && !fac.maternity_services) {
+      return false;
+    }
+    if (!search.trim()) return true;
+    const q = search.toLowerCase().trim();
+    return (
+      fac.name.toLowerCase().includes(q) ||
+      (fac.district && fac.district.toLowerCase().includes(q)) ||
+      (fac.address && fac.address.toLowerCase().includes(q)) ||
+      (fac.block && fac.block.toLowerCase().includes(q)) ||
+      (fac.locality && fac.locality.toLowerCase().includes(q)) ||
+      (fac.subdistrict && fac.subdistrict.toLowerCase().includes(q))
+    );
+  });
 
   const currentLocationLabel = usingGps
     ? `Device GPS (${gpsCoords?.lat.toFixed(4)}, ${gpsCoords?.lon.toFixed(4)})`
     : activeLocation
     ? `${activeLocation.name}, ${activeLocation.district}${activeLocation.state ? `, ${activeLocation.state}` : ''}`
-    : t('empty', 'No location selected');
+    : 'No location selected';
 
   const isUserRegisteredVillage =
     !usingGps &&
@@ -240,8 +256,8 @@ export const FacilitiesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t('facilitiesTitle', 'Healthcare Facilities Directory')}
-        subtitle={t('facilitiesSubtitle', 'Dynamic straight-line distance ranking from your registered location using official MOHFW/NIC registry')}
+        title="Healthcare Facilities Directory"
+        subtitle="Dynamic straight-line distance ranking from your registered location using official MOHFW/NIC registry"
       />
 
       {/* Location Resolution Bar */}
@@ -254,18 +270,18 @@ export const FacilitiesPage: React.FC = () => {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {t('referenceLocation', 'Reference Location:')}
+                  Reference Location:
                 </span>
                 {isUserRegisteredVillage && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                    {t('registeredProfileLocation', 'Registered Profile Location')}
+                    Registered Profile Location
                   </span>
                 )}
                 {usingGps && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-100 text-sky-800">
                     <Navigation className="w-3 h-3 text-sky-600" />
-                    {t('usingGpsLocation', 'Live Device GPS')}
+                    Live Device GPS
                   </span>
                 )}
               </div>
@@ -287,7 +303,7 @@ export const FacilitiesPage: React.FC = () => {
               onClick={() => setIsChangingLocation(!isChangingLocation)}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors"
             >
-              {isChangingLocation ? t('hideLocation', 'Hide Location Selector') : t('selectChangeLocation', 'Select / Change Location')}
+              {isChangingLocation ? 'Hide Location Selector' : 'Select / Change Location'}
             </button>
 
             <button
@@ -300,14 +316,14 @@ export const FacilitiesPage: React.FC = () => {
               }`}
             >
               <Navigation className={`w-3.5 h-3.5 ${usingGps ? 'text-sky-600' : 'text-slate-500'}`} />
-              {gpsLoading ? t('acquiringGps', 'Acquiring GPS...') : usingGps ? t('usingGpsLocation', 'Using GPS') : t('useDeviceGps', 'Use Device GPS')}
+              {gpsLoading ? 'Acquiring GPS...' : usingGps ? 'Using GPS' : 'Use Device GPS'}
             </button>
 
             <button
               onClick={() => loadFacilities(0, false)}
               disabled={loading}
               className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-              title={t('refresh', 'Refresh nearby facilities')}
+              title="Refresh nearby facilities"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
@@ -319,22 +335,22 @@ export const FacilitiesPage: React.FC = () => {
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in fade-in duration-200">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                {t('selectVillageTitle', 'Select Your Village, Town, or City')}
+                Select Your Village, Town, or City
               </h4>
               <button
                 onClick={() => setIsChangingLocation(false)}
                 className="text-xs text-slate-400 hover:text-slate-600"
               >
-                {t('close', 'Close')} ✕
+                Close ✕
               </button>
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              {t('selectVillageDesc', 'Search nationwide database of 625,000+ Indian settlements to dynamically resolve accurate latitude and longitude coordinates.')}
+              Search nationwide database of 625,000+ Indian settlements to dynamically resolve accurate latitude and longitude coordinates.
             </p>
             <LocationSearchInput
               selectedVillageId={activeLocation?.id || ''}
               onSelect={handleLocationSelect}
-              placeholder={t('searchVillagePlaceholder', 'Type village, town, or city name...')}
+              placeholder="Type village, town, or city name (e.g. Alangulam, Erode, Tiruchirappalli, Bilaspur)..."
             />
           </div>
         )}
@@ -347,54 +363,29 @@ export const FacilitiesPage: React.FC = () => {
         )}
 
         {/* Filters & Radius Controls */}
-        <div className="pt-3 border-t border-slate-100 flex flex-col gap-3">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            {/* Radius Selector */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-semibold text-slate-600 mr-1">{t('searchRadius', 'Search Radius:')}</span>
-              {RADIUS_OPTIONS.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRadiusKm(r)}
-                  className={`px-3 py-1 text-xs rounded-lg font-semibold transition-all ${
-                    radiusKm === r
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {r} km
-                </button>
-              ))}
-            </div>
-
-            {/* Ownership Filter */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-              <span className="text-xs font-semibold text-slate-600 mr-1">{t('facilityOwnership', 'Ownership:')}</span>
-              {[
-                { label: t('allOwnership', 'All Ownership'), value: 'ALL' },
-                { label: t('ownershipGov', 'Government'), value: 'GOVERNMENT' },
-                { label: t('ownershipPrivate', 'Private'), value: 'PRIVATE' },
-              ].map((own) => (
-                <button
-                  key={own.value}
-                  onClick={() => setSelectedOwnership(own.value)}
-                  className={`px-3 py-1 text-xs rounded-lg font-semibold whitespace-nowrap transition-colors ${
-                    selectedOwnership === own.value
-                      ? 'bg-emerald-700 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {own.label}
-                </button>
-              ))}
-            </div>
+        <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Radius Selector */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-semibold text-slate-600 mr-1">Search Radius:</span>
+            {RADIUS_OPTIONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRadiusKm(r)}
+                className={`px-3 py-1 text-xs rounded-lg font-semibold transition-all ${
+                  radiusKm === r
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {r} km
+              </button>
+            ))}
           </div>
 
           {/* Facility Type Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1 flex-shrink-0" />
-            <span className="text-xs font-semibold text-slate-600 mr-1">{t('facilityType', 'Type:')}</span>
-            {typeFilterOptions.map((type) => (
+            {TYPE_FILTER_OPTIONS.map((type) => (
               <button
                 key={type.value}
                 onClick={() => setSelectedType(type.value)}
@@ -409,6 +400,51 @@ export const FacilitiesPage: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Additional Filters: Ownership & Services */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-slate-600">Ownership:</span>
+            {[
+              { label: 'All Ownership', value: 'ALL' },
+              { label: '🏛️ Government', value: 'GOVERNMENT' },
+              { label: '🏥 Private Accredited', value: 'PRIVATE' },
+            ].map((own) => (
+              <button
+                key={own.value}
+                onClick={() => setSelectedOwnership(own.value)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  selectedOwnership === own.value
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {own.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-slate-600">Critical Care:</span>
+            {[
+              { label: 'All Services', value: 'ALL' },
+              { label: '🚨 24x7 Emergency', value: 'EMERGENCY' },
+              { label: '🤰 Maternity & Delivery', value: 'MATERNITY' },
+            ].map((srv) => (
+              <button
+                key={srv.value}
+                onClick={() => setSelectedService(srv.value)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  selectedService === srv.value
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {srv.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Search Input Bar */}
@@ -417,33 +453,20 @@ export const FacilitiesPage: React.FC = () => {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder={t('searchFacilitiesPlaceholder', 'Filter loaded results by name, place, district...')}
+            placeholder="Filter loaded results by name, place, district..."
           />
         </div>
 
         <div className="text-xs text-slate-500 font-medium w-full md:w-auto text-left md:text-right">
           {totalCount > 0 ? (
             <span>
-              {t('showingFacilitiesWithin', { count: facilities.length, total: totalCount, radius: radiusKm })}
+              Showing <strong>{facilities.length}</strong> of <strong>{totalCount}</strong> facilities within {radiusKm} km (closest first)
             </span>
           ) : (
-            <span>{t('searchRadius', 'Search Radius:')} {radiusKm} km</span>
+            <span>Radius: {radiusKm} km</span>
           )}
         </div>
       </div>
-
-      {/* Auto-expanded radius banner */}
-      {resolvedMeta?.is_expanded && (
-        <div className="p-3 bg-teal-50 rounded-xl border border-teal-200 text-xs text-teal-900 flex items-center gap-2">
-          <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
-          <span>
-            {t(
-              'expandedRadiusNotice',
-              `Search radius automatically expanded to ${resolvedMeta.effective_radius_km} km because no facilities were found in the initial ${resolvedMeta.initial_radius_km} km.`
-            )}
-          </span>
-        </div>
-      )}
 
       {/* Low Count Progressive Expansion Banner */}
       {!loading && totalCount > 0 && totalCount < 4 && radiusKm < 50 && (
@@ -451,45 +474,45 @@ export const FacilitiesPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <span>
-              {t('foundFacilitiesCount', { count: totalCount, radius: radiusKm })}
+              Only <strong>{totalCount}</strong> eligible {totalCount === 1 ? 'facility' : 'facilities'} found within {radiusKm} km of your location.
             </span>
           </div>
           <button
             onClick={() => setRadiusKm(radiusKm === 5 ? 10 : radiusKm === 10 ? 25 : 50)}
             className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs transition-colors self-start sm:self-auto"
           >
-            {t('expandSearchRadius', 'Expand Search Radius →')}
+            Expand Search Radius →
           </button>
         </div>
       )}
 
       {/* Main Facilities Content */}
       {loading ? (
-        <LoadingState message={t('calculatingDistances', { location: currentLocationLabel })} />
+        <LoadingState message={`Calculating distances from ${currentLocationLabel}...`} />
       ) : error ? (
         <ErrorState message={error} onRetry={() => loadFacilities(0, false)} />
       ) : !activeLocation && !usingGps ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-4">
           <Compass className="w-12 h-12 text-emerald-600 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-800">{t('selectVillageTitle', 'Please Select Your Location')}</h3>
+          <h3 className="text-lg font-bold text-slate-800">Please Select Your Location</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {t('selectVillageDesc', 'To view healthcare facilities automatically ranked by geographic distance, please select your village, town, or city above or enable device GPS.')}
+            To view healthcare facilities automatically ranked by geographic distance, please select your village, town, or city above or enable device GPS.
           </p>
           <button
             onClick={() => setIsChangingLocation(true)}
             className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 transition-colors"
           >
-            {t('selectVillageCityBtn', 'Select Village / City')}
+            Select Village / City
           </button>
         </div>
       ) : filteredFacilities.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-4">
           <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="text-base font-bold text-slate-800">
-            {t('noFacilitiesWithin', { radius: radiusKm })}
+            No healthcare facilities found within {radiusKm} km
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {t('noFacilitiesWithinDesc', { radius: radiusKm, location: currentLocationLabel })}
+            There are no matching facilities within {radiusKm} km of {currentLocationLabel}. Try expanding your search radius to locate available regional centers.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
             {radiusKm < 25 && (
@@ -497,7 +520,7 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(25)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                {t('expandTo25km', 'Expand to 25 km')}
+                Expand to 25 km
               </button>
             )}
             {radiusKm < 50 && (
@@ -505,7 +528,7 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(50)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                {t('expandTo50km', 'Expand to 50 km')}
+                Expand to 50 km
               </button>
             )}
             {radiusKm < 100 && (
@@ -513,50 +536,45 @@ export const FacilitiesPage: React.FC = () => {
                 onClick={() => setRadiusKm(100)}
                 className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                {t('expandTo100km', 'Expand to 100 km')}
+                Expand to 100 km
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Facility Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="space-y-6">
+          {/* Facilities Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredFacilities.map((fac, idx) => {
-              const typeLabel = getFacilityTypeLabel(fac.facility_type, t);
-              const isClosest = idx === 0 && pageOffset === 0;
+              const typeLabel = FACILITY_TYPE_LABELS[fac.facility_type] || fac.facility_type;
+              const isFirst = idx === 0 && pageOffset === 0;
 
               return (
                 <div
                   key={fac.id}
-                  className={`bg-white rounded-2xl border p-5 transition-all duration-200 flex flex-col justify-between ${
-                    isClosest
-                      ? 'border-emerald-300 ring-2 ring-emerald-400/20 shadow-md'
-                      : 'border-slate-200/90 hover:border-slate-300 shadow-sm'
+                  className={`bg-white rounded-2xl border p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
+                    isFirst ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-slate-200/90'
                   }`}
                 >
                   <div className="space-y-2.5">
-                    {/* Header: Rank + Type + Distance */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                    {/* Top Row: Rank & Distance Badge */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${
-                            isClosest
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-100 text-slate-700'
+                          className={`text-xs px-2 py-0.5 rounded-md font-bold ${
+                            isFirst ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          #{idx + 1} {isClosest ? t('closest', 'Closest') : ''}
+                          #{idx + 1} {isFirst ? 'Closest' : ''}
                         </span>
-
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                        <span className="text-xs px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-800 border border-slate-200">
                           {typeLabel}
                         </span>
                       </div>
 
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200 flex-shrink-0">
                         <MapPin className="w-3 h-3 text-emerald-700" />
-                        {fac.distance_km !== undefined ? t('kmAway', { dist: fac.distance_km }) : t('nearYou', 'Near you')}
+                        {fac.distance_km !== undefined ? `${fac.distance_km} km away` : 'Near you'}
                       </span>
                     </div>
 
@@ -570,24 +588,58 @@ export const FacilitiesPage: React.FC = () => {
                       {fac.address || `${fac.district || ''}, ${fac.state || ''}`}
                     </p>
 
-                    {/* Ownership & Availability Notice */}
-                    <div className="pt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
-                        title={t('availabilityTooltip', 'Operational attendance and stock require live verification')}
-                      >
-                        <Info className="w-3 h-3 text-slate-400" />
-                        {t('availabilityNotVerified', 'Availability not verified')}
-                      </span>
-                      {fac.ownership && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          {fac.ownership === 'Government' ? t('ownershipGov', 'Government') : fac.ownership}
+                    {/* Ownership & Verified Badges */}
+                    <div className="pt-2 flex flex-wrap items-center gap-1.5">
+                      {(fac.verification_status === 'VERIFIED_OFFICIAL' || fac.geographic_verification_status === 'VERIFIED_OFFICIAL') ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Verified Official
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                          <Info className="w-3 h-3 text-slate-400" />
+                          Standard Listing
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400">
-                        {fac.source === 'nic' ? 'NIC / MOHFW' : `Source: ${fac.source || 'NIC'}`}
-                      </span>
+
+                      {fac.emergency_services && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          🚨 24x7 Emergency
+                        </span>
+                      )}
+
+                      {fac.maternity_services && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                          🤰 Maternity
+                        </span>
+                      )}
+
+                      {fac.ownership && (
+                        <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                          {fac.ownership}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Operational Details: Hours & Official Phone */}
+                    {(fac.opening_hours || fac.official_phone) && (
+                      <div className="pt-1.5 text-xs text-slate-600 space-y-1">
+                        {fac.opening_hours && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                            <span className="font-semibold text-slate-700">Hours:</span>
+                            <span>{fac.opening_hours}</span>
+                          </div>
+                        )}
+                        {fac.official_phone && (
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <span className="font-semibold text-slate-700">Phone:</span>
+                            <a href={`tel:${fac.official_phone}`} className="text-emerald-700 hover:underline font-mono font-medium">
+                              {fac.official_phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions: Directions and Details */}
@@ -600,7 +652,7 @@ export const FacilitiesPage: React.FC = () => {
                         className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors py-1"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        {t('directionsExternal', 'Directions ↗')}
+                        Directions ↗
                       </a>
                     ) : (
                       <div />
@@ -612,17 +664,37 @@ export const FacilitiesPage: React.FC = () => {
                         onClick={() => setSelectedFacility(fac)}
                         className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1"
                       >
-                        {t('details', 'Details')}
+                        Details
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setBookingFacility(fac)}
-                        className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
-                      >
-                        {t('bookSlot', 'Book Slot')}
-                      </button>
+                      {fac.appointment_booking_method === 'ONLINE_BOOKING_AVAILABLE' && fac.online_booking_url ? (
+                        <a
+                          href={fac.online_booking_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs inline-flex items-center gap-1"
+                        >
+                          Book Online ↗
+                        </a>
+                      ) : fac.appointment_booking_method === 'WALK_IN_ONLY' ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFacility(fac)}
+                          className="px-3 py-1.5 text-xs font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-300 rounded-lg transition-colors shadow-xs"
+                          title="Walk-in OPD registration at hospital counter (typically 07:30 AM - 12:00 PM)"
+                        >
+                          Walk-in OPD
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setBookingFacility(fac)}
+                          className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
+                        >
+                          Book Slot
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -641,11 +713,11 @@ export const FacilitiesPage: React.FC = () => {
                 {loadingMore ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-                    {t('loadingMore', 'Loading additional facilities...')}
+                    Loading additional facilities...
                   </>
                 ) : (
                   <>
-                    {t('showMoreFacilities', { count: facilities.length, total: totalCount })}
+                    Show More Nearby Facilities ({facilities.length} of {totalCount})
                     <ChevronRight className="w-4 h-4 text-slate-500" />
                   </>
                 )}

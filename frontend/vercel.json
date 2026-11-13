@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": "https://nalam-backend.vercel.app/api"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://nalam-backend.vercel.app/api/:path*"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://nalam-backend.vercel.app/docs"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "https://nalam-backend.vercel.app/openapi.json"
+    },
+    {
+      "source": "/redoc",
+      "destination": "https://nalam-backend.vercel.app/redoc"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

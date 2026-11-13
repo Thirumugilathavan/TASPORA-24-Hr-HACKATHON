@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.doctor import Doctor
-from app.models.facility import Facility, FacilityService
+from app.models.facility import (
+    Facility,
+    FacilityService,
+    FacilitySpecialty,
+    FacilitySource,
+    FacilityVerificationHistory,
+    FacilityAppointmentConfig,
+)
 from app.models.patient import Patient
 from app.models.village import Village
 from app.schemas.facility import (
@@ -15,6 +22,9 @@ from app.schemas.facility import (
     FacilityDetailResponse,
     FacilityResponse,
     FacilityServiceResponse,
+    FacilitySpecialtyResponse,
+    FacilitySourceResponse,
+    FacilityAppointmentConfigResponse,
     NearbyFacilityList,
     NearbyFacilityResponse,
 )
@@ -30,6 +40,14 @@ class FacilityServiceHandler:
         village_id: Optional[UUID] = None,
         facility_type: Optional[str] = None,
         service: Optional[str] = None,
+        district: Optional[str] = None,
+        block: Optional[str] = None,
+        locality: Optional[str] = None,
+        ownership: Optional[str] = None,
+        facility_category: Optional[str] = None,
+        emergency_services: Optional[bool] = None,
+        maternity_services: Optional[bool] = None,
+        search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ) -> Tuple[List[Facility], int]:
@@ -41,6 +59,36 @@ class FacilityServiceHandler:
 
         if facility_type:
             stmt = stmt.where(func.upper(Facility.facility_type) == facility_type.upper())
+
+        if facility_category:
+            stmt = stmt.where(func.upper(Facility.facility_category) == facility_category.upper())
+
+        if district:
+            stmt = stmt.where(func.lower(Facility.district) == district.lower())
+
+        if block:
+            stmt = stmt.where(func.lower(Facility.block).contains(block.lower()))
+
+        if locality:
+            stmt = stmt.where(func.lower(Facility.locality).contains(locality.lower()))
+
+        if ownership:
+            stmt = stmt.where(func.lower(Facility.ownership) == ownership.lower())
+
+        if emergency_services is not None:
+            stmt = stmt.where(Facility.emergency_services == emergency_services)
+
+        if maternity_services is not None:
+            stmt = stmt.where(Facility.maternity_services == maternity_services)
+
+        if search:
+            clean_q = f"%{search.lower()}%"
+            stmt = stmt.where(
+                func.lower(Facility.name).like(clean_q)
+                | func.lower(Facility.address).like(clean_q)
+                | func.lower(func.coalesce(Facility.locality, "")).like(clean_q)
+                | func.lower(func.coalesce(Facility.block, "")).like(clean_q)
+            )
 
         if service:
             stmt = (
@@ -61,13 +109,16 @@ class FacilityServiceHandler:
         return items, total
 
     async def get_facility(self, facility_id: UUID) -> Optional[FacilityDetailResponse]:
-        """Retrieve facility detail including services[] and doctors[]."""
+        """Retrieve facility detail including services[], doctors[], specialties[], and appointment_config."""
         stmt = (
             select(Facility)
             .where(Facility.id == facility_id)
             .options(
                 selectinload(Facility.services),
                 selectinload(Facility.doctors),
+                selectinload(Facility.specialties_rel),
+                selectinload(Facility.sources_rel),
+                selectinload(Facility.appointment_config),
             )
         )
         res = await self.db.execute(stmt)
@@ -86,6 +137,43 @@ class FacilityServiceHandler:
             for s in facility.services
         ]
 
+        specialties_data = [
+            FacilitySpecialtyResponse(
+                id=sp.id,
+                specialty_name=sp.specialty_name,
+                is_verified=sp.is_verified,
+                created_at=sp.created_at,
+            )
+            for sp in (facility.specialties_rel or [])
+        ]
+
+        sources_data = [
+            FacilitySourceResponse(
+                id=src.id,
+                source_name=src.source_name,
+                source_url=src.source_url,
+                source_type=src.source_type,
+                date_collected=src.date_collected,
+                verification_notes=src.verification_notes,
+            )
+            for src in (facility.sources_rel or [])
+        ]
+
+        apt_config = None
+        if facility.appointment_config:
+            ac = facility.appointment_config
+            apt_config = FacilityAppointmentConfigResponse(
+                id=ac.id,
+                booking_method=ac.booking_method,
+                booking_url=ac.booking_url,
+                booking_phone=ac.booking_phone,
+                instructions_en=ac.instructions_en,
+                instructions_ta=ac.instructions_ta,
+                requires_registration=ac.requires_registration,
+                lead_time_days=ac.lead_time_days,
+                is_verified=ac.is_verified,
+            )
+
         doctors_data = [
             DoctorSummary(
                 id=d.id,
@@ -100,19 +188,50 @@ class FacilityServiceHandler:
         return FacilityDetailResponse(
             id=facility.id,
             name=facility.name,
+            alternate_names=facility.alternate_names,
             facility_type=facility.facility_type,
+            facility_category=facility.facility_category,
             address=facility.address,
             village_id=facility.village_id,
             district=facility.district,
+            health_unit_district=facility.health_unit_district,
+            block=facility.block,
+            locality=facility.locality,
             state=facility.state,
             subdistrict=facility.subdistrict,
+            pincode=facility.pincode,
             latitude=facility.latitude,
             longitude=facility.longitude,
+            geographic_verification_status=facility.geographic_verification_status,
             ownership=facility.ownership,
+            official_phone=facility.official_phone,
+            official_email=facility.official_email,
+            official_website=facility.official_website,
+            emergency_contact=facility.emergency_contact,
+            opd_available=facility.opd_available,
+            opening_hours=facility.opening_hours,
+            emergency_services=facility.emergency_services,
+            ambulance_available=facility.ambulance_available,
+            maternity_services=facility.maternity_services,
+            pharmacy_available=facility.pharmacy_available,
+            laboratory_services=facility.laboratory_services,
+            imaging_services=facility.imaging_services,
+            specialties=facility.specialties,
+            appointment_booking_method=facility.appointment_booking_method,
+            online_booking_url=facility.online_booking_url,
+            official_source_url=facility.official_source_url,
             source=facility.source,
             source_id=facility.source_id,
+            source_type=facility.source_type,
+            date_collected=facility.date_collected,
+            last_verified_date=facility.last_verified_date,
+            verification_status=facility.verification_status,
+            data_completeness_score=facility.data_completeness_score,
             contact_details=facility.contact_details,
             services=services_data,
+            specialties_rel=specialties_data,
+            sources_rel=sources_data,
+            appointment_config=apt_config,
             doctors=doctors_data,
             created_at=facility.created_at,
             updated_at=facility.updated_at,

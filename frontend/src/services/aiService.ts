@@ -24,6 +24,8 @@ export interface AIChatRequest {
   village_id?: string;
   location_context?: string;
   user_role?: string;
+  include_audio?: boolean;
+  voice_name?: string;
 }
 
 export interface AIChatResponse {
@@ -40,6 +42,9 @@ export interface AIChatResponse {
     score: number;
   }>;
   action_taken?: string;
+  audio_base64?: string;
+  audio_duration?: number;
+  voice_provider?: string;
   disclaimer: string;
 }
 
@@ -70,7 +75,7 @@ export interface VoiceSynthesizeResponse {
 
 export const aiService = {
   /**
-   * Send user message to NALAM AI AI Assistant
+   * Send user message to NALAM AI Assistant
    */
   async sendMessage(request: AIChatRequest): Promise<AIChatResponse> {
     return apiRequest<AIChatResponse>('/api/ai/chat', {
@@ -80,30 +85,40 @@ export const aiService = {
   },
 
   /**
-   * Transcribe base64 audio to text
+   * Transcribe base64 audio to text via Gnani Prisma STT
    */
-  async transcribeVoice(audioBase64: string, language: string = 'ta'): Promise<VoiceTranscribeResponse> {
+  async transcribeVoice(audioBase64: string, language: string = 'ta', audioFormat: string = 'wav'): Promise<VoiceTranscribeResponse> {
     return apiRequest<VoiceTranscribeResponse>('/api/ai/voice/transcribe', {
       method: 'POST',
       body: JSON.stringify({
         audio_base64: audioBase64,
-        audio_format: 'wav',
+        audio_format: audioFormat,
         language,
       }),
     });
   },
 
   /**
-   * Synthesize text to spoken audio
+   * Synthesize text to spoken audio via Gnani Timbre TTS
    */
-  async synthesizeVoice(text: string, language: string = 'ta'): Promise<VoiceSynthesizeResponse> {
+  async synthesizeVoice(text: string, language: string = 'ta', voiceName?: string): Promise<VoiceSynthesizeResponse> {
     return apiRequest<VoiceSynthesizeResponse>('/api/ai/voice/synthesize', {
       method: 'POST',
       body: JSON.stringify({
         text,
         language,
         voice_gender: 'female',
+        voice_name: voiceName,
       }),
+    });
+  },
+
+  /**
+   * Get Gnani voice engine status and available voices
+   */
+  async getVoiceStatus(): Promise<any> {
+    return apiRequest<any>('/api/ai/voice/status', {
+      method: 'GET',
     });
   },
 

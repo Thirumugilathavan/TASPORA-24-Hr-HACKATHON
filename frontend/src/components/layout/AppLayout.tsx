@@ -12,30 +12,40 @@ import { useTranslation } from '../../context/LanguageContext';
 export const AppLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
-  const { language, t } = useTranslation();
+  const { language } = useTranslation();
   const location = useLocation();
 
   // Map route to human-readable page titles and breadcrumbs
   const getPageMeta = () => {
     switch (location.pathname) {
       case '/':
-        return { title: t('appName', 'NALAM AI'), breadcrumb: t('navDashboard', 'Dashboard') };
+        return { title: 'Patient Overview', breadcrumb: 'Dashboard' };
       case '/facilities':
-        return { title: t('facilitiesTitle', 'Healthcare Facilities Directory'), breadcrumb: t('navFacilities', 'Find Healthcare') };
+        return { title: 'Find Healthcare Facilities', breadcrumb: 'Healthcare Directory' };
       case '/medicines':
-        return { title: t('medicinesTitle', 'Essential Medicines & Inventory Availability'), breadcrumb: t('navMedicines', 'Medicine Stock') };
+        return { title: 'Medicine Stock & Availability', breadcrumb: 'Pharmacy & Supplies' };
       case '/requests':
-        return { title: t('requestsTitle', 'Healthcare Requests & AI Routing'), breadcrumb: t('navRequests', 'Healthcare Requests') };
+        return { title: 'My Healthcare Requests', breadcrumb: 'Care Coordination' };
       case '/appointments':
-        return { title: t('appointmentsTitle', 'Scheduled Appointments'), breadcrumb: t('navAppointments', 'Appointments') };
+        return { title: 'Scheduled Appointments', breadcrumb: 'Consultations' };
       case '/profile':
-        return { title: t('profileTitle', 'Patient Profile & Settings'), breadcrumb: t('navProfile', 'My Profile') };
+        return { title: 'Patient Profile & Preferences', breadcrumb: 'Account' };
       default:
-        return { title: t('appName', 'NALAM AI'), breadcrumb: t('ruralHealthcare', 'Rural Healthcare') };
+        return { title: 'NALAM', breadcrumb: 'Portal' };
     }
   };
 
   const { title, breadcrumb } = getPageMeta();
+
+  React.useEffect(() => {
+    const handleOpenAI = () => setIsAIAssistantOpen(true);
+    window.addEventListener('open-carebridge-ai', handleOpenAI);
+    window.addEventListener('open-nalam-ai', handleOpenAI);
+    return () => {
+      window.removeEventListener('open-carebridge-ai', handleOpenAI);
+      window.removeEventListener('open-nalam-ai', handleOpenAI);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -78,7 +88,7 @@ export const AppLayout: React.FC = () => {
           <Bot className="w-4 h-4 text-teal-200 group-hover:rotate-12 transition-transform" />
         </div>
         <span className="font-semibold text-xs tracking-wide">
-          {language === 'ta' ? 'AI உதவியாளர்' : 'NALAM AI'}
+          {language === 'ta' ? 'நலம் AI உதவியாளர்' : 'NALAM AI'}
         </span>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
       </button>

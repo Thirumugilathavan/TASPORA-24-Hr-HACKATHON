@@ -1,12 +1,11 @@
 import json
-from pathlib import Path
 from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "NALAM AI"
+    PROJECT_NAME: str = "CareBridge"
     API_V1_PREFIX: str = "/api"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
@@ -44,8 +43,6 @@ class Settings(BaseSettings):
     IVR_MAX_AUTH_ATTEMPTS: int = 3
     IVR_AUTH_LOCKOUT_MINUTES: int = 15
     IVR_DEFAULT_LANGUAGE: str = "ta"
-    IVR_LANGUAGE_MAX_RETRIES: int = 3
-    IVR_LANGUAGE_FALLBACK: str = "ta"
     IVR_AUDIO_BASE_URL: str = ""
     IVR_EMERGENCY_NUMBER: str = "108"
     IVR_ALLOW_DEMO_PHONE_PIN: bool = True
@@ -54,15 +51,6 @@ class Settings(BaseSettings):
     IVR_ENABLE_CALL_TRANSFER: bool = False
     IVR_TRANSFER_PHONE_NUMBER: str = ""
     IVR_ENABLE_CALL_RECORDING: bool = False
-
-    # Gnani.ai Indic Voice Integration Settings
-    GNANI_API_KEY: str = ""
-    GNANI_TOKEN: str = ""
-    GNANI_STT_URL: str = "https://api.gnani.ai/v1/speech-to-text"
-    GNANI_TTS_URL: str = "https://api.gnani.ai/v1/text-to-speech"
-    GNANI_VOICE_NAME: str = "Nalini"
-    GNANI_VOICE_MODEL: str = "timbre-v2.5"
-    GNANI_STT_MODEL: str = "prisma-v3.0"
 
     # Telecom / Telephony Provider Integration Settings
     TELEPHONY_PROVIDER: str = "mock"
@@ -77,15 +65,14 @@ class Settings(BaseSettings):
     TELEPHONY_CALL_TIMEOUT: int = 30
     TELEPHONY_MAX_CALL_DURATION: int = 600
 
-    @field_validator("DATABASE_URL", mode="after")
-    @classmethod
-    def assemble_database_url(cls, v: str) -> str:
-        if v.startswith("sqlite+aiosqlite:///./"):
-            base_dir = Path(__file__).resolve().parent.parent.parent
-            db_filename = v.replace("sqlite+aiosqlite:///./", "")
-            abs_path = (base_dir / db_filename).resolve().as_posix()
-            return f"sqlite+aiosqlite:///{abs_path}"
-        return v
+    # Gnani Indic Voice AI Settings
+    GNANI_API_KEY: str = ""
+    GNANI_TOKEN: str = ""
+    GNANI_STT_URL: str = "https://api.vachana.ai/stt/v3"
+    GNANI_TTS_URL: str = "https://api.vachana.ai/api/v1/tts/inference"
+    GNANI_VOICE_MODEL: str = "timbre-v2.5"
+    GNANI_VOICE_NAME: str = "Nalini"
+    GNANI_STT_MODEL: str = "prisma-v3.0"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

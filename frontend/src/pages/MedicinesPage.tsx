@@ -9,13 +9,10 @@ import { EmptyState } from '../components/common/EmptyState';
 import { Medicine, StockAvailabilityItem } from '../types';
 import { medicineService } from '../services/medicineService';
 import { useNotification } from '../context/NotificationContext';
-import { useTranslation } from '../context/LanguageContext';
-import { Info } from 'lucide-react';
+import { Pill, Info, PlusCircle } from 'lucide-react';
 
 export const MedicinesPage: React.FC = () => {
   const { notify } = useNotification();
-  const { t } = useTranslation();
-
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +43,7 @@ export const MedicinesPage: React.FC = () => {
         fetchStockForMedicine(med.id);
       });
     } catch (err: any) {
-      setError(err.message || t('errorTitle', 'Failed to load medicine directory.'));
+      setError(err.message || 'Failed to load medicine directory.');
     } finally {
       setLoading(false);
     }
@@ -81,17 +78,18 @@ export const MedicinesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t('medicinesTitle', 'Essential Medicines & Inventory Availability')}
-        subtitle={t('medicinesSubtitle', 'Check probabilistic stock levels across primary health centers and verified Jan Aushadhi stores')}
+        title="Medicine Inventory & Stock Verification"
+        subtitle="Verify drug availability across rural dispensaries before traveling to avoid futile journeys"
       />
 
       {/* Probabilistic Stock Disclaimer Box */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-900 text-xs flex items-start gap-3">
         <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong>{t('bayesianStockEstimation', 'Bayesian Stock Estimation:')} </strong>
-          {t('bayesianStockDesc', 'NALAM AI computes medicine availability probabilities combining physical dispensary reports, facility stock audits, and ASHA refill logs.')}{' '}
-          {t('statusTagsExplanation', 'Status tags indicate Likely (p ≥ 0.65), Uncertain (0.35 < p < 0.65), or Unlikely (p ≤ 0.35) in stock.')}
+          <strong>Bayesian Stock Estimation:</strong> NALAM computes medicine availability probabilities
+          combining physical dispensary reports, facility stock audits, and ASHA refill logs.
+          Status tags indicate <strong>Likely (p &ge; 0.65)</strong>, <strong>Uncertain (0.35 &lt; p &lt; 0.65)</strong>, or{' '}
+          <strong>Unlikely (p &le; 0.35)</strong> in stock.
         </div>
       </div>
 
@@ -101,7 +99,7 @@ export const MedicinesPage: React.FC = () => {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder={t('searchMedicinesPlaceholder', 'Search by medicine name, generic code, or category...')}
+            placeholder="Search medicine name, code, or salt..."
           />
         </div>
 
@@ -116,7 +114,7 @@ export const MedicinesPage: React.FC = () => {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {cat === 'ALL' ? t('allCategories', 'All Categories') : cat}
+              {cat}
             </button>
           ))}
         </div>
@@ -124,14 +122,14 @@ export const MedicinesPage: React.FC = () => {
 
       {/* Medicine Grid */}
       {loading ? (
-        <LoadingState message={t('fetchingMedicines', 'Fetching verified medicine catalog...')} />
+        <LoadingState message="Loading essential medicine catalog..." />
       ) : error ? (
         <ErrorState message={error} onRetry={loadMedicines} />
       ) : filteredMedicines.length === 0 ? (
         <EmptyState
-          title={t('noMedicinesFound', 'No medicines found')}
-          message={t('noMedicinesFoundDesc', 'No essential medicines matched your search query or category filter. Try clearing filters.')}
-          actionLabel={t('clearFilters', 'Clear Filters')}
+          title="No medicines found"
+          message="No medicine matched your query. Check the spelling or clear active filters."
+          actionLabel="Reset Filters"
           onAction={() => {
             setSearch('');
             setSelectedCategory('ALL');
@@ -165,7 +163,7 @@ export const MedicinesPage: React.FC = () => {
           initialRequestType="REFILL"
           initialMedicineId={refillMedicine.id}
           onCreated={() => {
-            notify(t('requestSubmittedNotify', 'Healthcare request submitted successfully with AI routing!'), 'success');
+            notify(`Refill request for ${refillMedicine.name} submitted!`, 'success');
             setRefillMedicine(null);
           }}
         />

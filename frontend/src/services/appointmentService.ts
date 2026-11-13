@@ -10,7 +10,7 @@ let mockAppointmentsState = [...MOCK_APPOINTMENTS];
 function getStoredAppointmentIds(): string[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem('carebridge_my_appointment_ids');
+    const raw = localStorage.getItem('nalam_my_appointment_ids') || localStorage.getItem('carebridge_my_appointment_ids');
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -23,6 +23,7 @@ function saveAppointmentId(id: string) {
     const ids = getStoredAppointmentIds();
     if (!ids.includes(id)) {
       ids.unshift(id);
+      localStorage.setItem('nalam_my_appointment_ids', JSON.stringify(ids.slice(0, 50)));
       localStorage.setItem('carebridge_my_appointment_ids', JSON.stringify(ids.slice(0, 50)));
     }
   } catch {

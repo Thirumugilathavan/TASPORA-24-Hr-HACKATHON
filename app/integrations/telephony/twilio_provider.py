@@ -31,8 +31,10 @@ class TwilioTelephonyProvider(TelephonyProvider):
         4. Compute HMAC-SHA1 digest using Twilio Auth Token.
         5. Base64 encode and compare using constant-time comparison.
         """
-        auth_token = settings.TELEPHONY_AUTH_TOKEN or settings.TELEPHONY_WEBHOOK_SECRET
-        if not auth_token:
+        auth_token = settings.TELEPHONY_AUTH_TOKEN
+        if not auth_token and settings.TELEPHONY_WEBHOOK_SECRET and "your_webhook" not in settings.TELEPHONY_WEBHOOK_SECRET:
+            auth_token = settings.TELEPHONY_WEBHOOK_SECRET
+        if not auth_token or auth_token == "your_twilio_auth_token_here":
             # If no auth token is configured (e.g. development/testing mode), permit request
             return True
 
@@ -42,9 +44,13 @@ class TwilioTelephonyProvider(TelephonyProvider):
             logger.warning("Missing X-Twilio-Signature header on inbound webhook")
             return False
 
-        # Construct target URL (prefer configured base URL if behind proxy/ngrok)
+        # Construct target URL (prefer configured base URL if behind proxy/ngrok and not placeholder)
         target_url = url
-        if settings.TELEPHONY_WEBHOOK_BASE_URL:
+        if (
+            settings.TELEPHONY_WEBHOOK_BASE_URL
+            and "your-domain" not in settings.TELEPHONY_WEBHOOK_BASE_URL
+            and "example.com" not in settings.TELEPHONY_WEBHOOK_BASE_URL
+        ):
             # Reconstruct with configured base URL if path matches
             from urllib.parse import urlparse
             parsed_base = urlparse(settings.TELEPHONY_WEBHOOK_BASE_URL)

@@ -8,8 +8,6 @@ import {
   CalendarCheck,
   User,
   HeartHandshake,
-  HeartPulse,
-  Landmark,
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -27,8 +25,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { to: '/', label: t('navDashboard', 'Dashboard'), icon: LayoutDashboard },
     { to: '/facilities', label: t('navFacilities', 'Find Healthcare'), icon: Hospital },
     { to: '/medicines', label: t('navMedicines', 'Medicine Availability'), icon: Pill },
-    { to: '/camps', label: t('navCamps', 'Health Camps'), icon: HeartPulse },
-    { to: '/schemes', label: t('navSchemes', 'Government Schemes'), icon: Landmark },
     { to: '/requests', label: t('navRequests', 'My Requests'), icon: ClipboardList },
     { to: '/appointments', label: t('navAppointments', 'Appointments'), icon: CalendarCheck },
     { to: '/profile', label: t('navProfile', 'Profile'), icon: User },
@@ -59,9 +55,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <HeartHandshake className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-lg font-bold text-navy-900 tracking-tight">{t('appName', 'NALAM AI')}</span>
+              <span className="text-lg font-bold text-navy-900 tracking-tight">NALAM</span>
               <span className="block text-[10px] uppercase font-semibold text-healthcare-700 tracking-wider">
-                {t('ruralHealthcare', 'Rural Healthcare')}
+                Rural Healthcare
               </span>
             </div>
           </div>
@@ -69,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <button
             onClick={onClose}
             className="md:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-            aria-label={t('closeSidebar', 'Close sidebar')}
+            aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
           </button>
@@ -101,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-slate-100 bg-slate-50/70 m-3 rounded-xl text-xs text-slate-500">
           <p className="font-semibold text-slate-700">{t('tagline', 'No Wasted Trips. Better Access.')}</p>
           <p className="mt-0.5 text-[11px] leading-relaxed">
-            {t('ashaSupportNotice', 'Contact your local ASHA worker or village health representative for in-person support.')}
+            Contact your local ASHA worker or village health representative for in-person support.
           </p>
         </div>
       </aside>

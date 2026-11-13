@@ -19,7 +19,7 @@ export const patientService = {
   async getPatient(idOrUserId: string): Promise<Patient> {
     if (config.isMockMode) {
       await new Promise((r) => setTimeout(r, 150));
-      const stored = localStorage.getItem('carebridge_patient');
+      const stored = localStorage.getItem('nalam_patient') || localStorage.getItem('carebridge_patient');
       if (stored) {
         try {
           return JSON.parse(stored);
@@ -48,6 +48,7 @@ export const patientService = {
         emergency_contact_phone: payload.emergency_contact_phone,
         created_at: new Date().toISOString(),
       };
+      localStorage.setItem('nalam_patient', JSON.stringify(newPatient));
       localStorage.setItem('carebridge_patient', JSON.stringify(newPatient));
       return newPatient;
     }
