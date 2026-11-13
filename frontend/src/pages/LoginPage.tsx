@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { HeartHandshake, Phone, Lock, Eye, EyeOff, LogIn, Sparkles, Zap } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { HeartHandshake, Phone, Lock, Eye, EyeOff, LogIn, Sparkles, Zap, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useNotification } from '../context/NotificationContext';
@@ -8,9 +8,12 @@ import { EmergencyNotice } from '../components/common/EmergencyNotice';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, loginDemoUser } = useAuth();
   const { t } = useTranslation();
   const { notify } = useNotification();
+
+  const sessionExpired = searchParams.get('session') === 'expired';
 
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -68,6 +71,13 @@ export const LoginPage: React.FC = () => {
             <h2 className="text-xl font-semibold text-slate-800">{t('signInTitle', 'Sign In to Your Account')}</h2>
             <p className="text-xs text-slate-500 mt-1">{t('signInSubtitle', 'Access medical facilities, stock checks, and appointments')}</p>
           </div>
+
+          {sessionExpired && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg flex items-start gap-2 text-sm text-amber-800">
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>Your session has expired. Please sign in again to continue.</span>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-sm text-rose-700">

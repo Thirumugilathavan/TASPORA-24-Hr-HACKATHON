@@ -38,6 +38,17 @@ export async function apiRequest<T>(
         errorData = null;
       }
 
+      // Handle expired / invalid token — clear credentials and signal the app
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('carebridge_token');
+          localStorage.removeItem('carebridge_user');
+          localStorage.removeItem('carebridge_patient');
+          localStorage.removeItem('carebridge_my_request_ids');
+          window.dispatchEvent(new CustomEvent('nalam:session-expired'));
+        }
+      }
+
       const errorCode =
         errorData?.error?.code ||
         errorData?.detail?.error?.code ||

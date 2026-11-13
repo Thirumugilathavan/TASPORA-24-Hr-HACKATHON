@@ -83,6 +83,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  // Listen for the custom event fired by apiClient when any API call returns 401.
+  // Clear all auth state and redirect to /login with a session-expired flag so
+  // LoginPage can show a helpful banner ("Your session has expired, please log in again").
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      authService.logout();
+      setUser(null);
+      setPatient(null);
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login?session=expired';
+      }
+    };
+
+    window.addEventListener('nalam:session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('nalam:session-expired', handleSessionExpired);
+    };
+  }, []);
+
   const login = async (phone: string, pass: string) => {
     setIsLoading(true);
     try {
@@ -179,12 +198,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await login('9876543210', 'DemoPass123!');
     } catch (e) {
-      console.warn('Backend login for demo user failed, using local profile:', e);
+      console.warn('Backend login for demo user failed, using local profile only (no token stored):', e);
       setUser(MOCK_USER);
       setPatient(MOCK_PATIENT);
       localStorage.setItem('carebridge_user', JSON.stringify(MOCK_USER));
       localStorage.setItem('carebridge_patient', JSON.stringify(MOCK_PATIENT));
-      localStorage.setItem('carebridge_token', 'demo-patient-token-session');
+      // Do NOT store a fake token — API calls that require auth will get a proper
+      // 401 response rather than sending an invalid non-JWT string.
+      localStorage.removeItem('carebridge_token');
     } finally {
       setIsLoading(false);
     }
