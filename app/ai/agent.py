@@ -28,6 +28,7 @@ from app.ai.tools import (
     emergency_guidance_tool,
     get_appointment_slots_tool,
     get_recommendations_tool,
+    query_government_schemes_tool,
     query_rag_knowledge_tool,
     search_facilities_tool,
 )
@@ -911,6 +912,63 @@ class NalamAIAgent:
                 tools_called=tools_called,
                 cards=[],
                 action_taken="RESPOND_CONVERSATIONAL",
+                request=request,
+            )
+
+        # -------------------------------------------------------------
+        # BRANCH 10.5: GOVERNMENT SCHEMES & WELFARE BENEFITS DISCOVERY
+        # -------------------------------------------------------------
+        if classification.intent == IntentType.GOVERNMENT_SCHEMES_DISCOVERY:
+            tools_called.append("query_government_schemes_tool")
+            tool_res = await query_government_schemes_tool(
+                db=db,
+                query_text=message,
+                limit=3,
+            )
+            schemes = tool_res.get("schemes", [])
+            for s in schemes:
+                cards.append(
+                    AIChatCard(
+                        type=CardType.SCHEME,
+                        title=s.get("name_ta") if lang == "ta" else s.get("name"),
+                        subtitle=s.get("department_ta") if lang == "ta" else s.get("department"),
+                        badge=s.get("benefit_amount_desc_ta") if lang == "ta" else s.get("benefit_amount_desc"),
+                        details={
+                            "category": s.get("category"),
+                            "benefit_type": s.get("benefit_type"),
+                            "portal_url": s.get("official_portal_url"),
+                            "source_url": s.get("official_source_url"),
+                        },
+                        action={
+                            "label": "திட்டம் காண்க" if lang == "ta" else "View Scheme",
+                            "type": "LINK",
+                            "url": f"/schemes/{s.get('slug')}",
+                        },
+                        action_url=f"/schemes/{s.get('slug')}",
+                        action_label="திட்டம் காண்க" if lang == "ta" else "View Scheme",
+                    )
+                )
+            if lang == "ta":
+                resp_text = (
+                    f"சரிபார்க்கப்பட்ட அரசு நலத்திட்டங்கள் மற்றும் மானியங்கள் கண்டறியப்பட்டன ({len(schemes)} திட்டங்கள்):\n\n"
+                    + "\n".join([f"- **{s.get('name_ta', s.get('name'))}**: {s.get('benefit_amount_desc_ta', s.get('benefit_amount_desc'))}" for s in schemes])
+                    + "\n\nகூடுதல் தகுதி மற்றும் விண்ணப்ப முறைக்கு 'திட்டம் காண்க' பொத்தானை அழுத்தவும்."
+                )
+            else:
+                resp_text = (
+                    f"Found {len(schemes)} verified government welfare schemes matching your inquiry:\n\n"
+                    + "\n".join([f"- **{s.get('name')}**: {s.get('benefit_amount_desc')}" for s in schemes])
+                    + "\n\nClick 'View Scheme' on any card to review full statutory eligibility and application guidelines."
+                )
+            session.add_turn(message, lang, "GOVERNMENT_SCHEMES_DISCOVERY", resolved_loc, tools_called, resp_text)
+            return await self._build_response(
+                conversation_id=conv_id,
+                response_text=resp_text,
+                language=lang,
+                intent="GOVERNMENT_SCHEMES_DISCOVERY",
+                tools_called=tools_called,
+                cards=cards,
+                action_taken="DISPLAY_SCHEMES",
                 request=request,
             )
 

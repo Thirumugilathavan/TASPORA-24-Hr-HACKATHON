@@ -506,12 +506,15 @@ async def get_scheme_detail(
 
 @router.get("/user/saved", response_model=List[SavedSchemeOut])
 async def list_user_saved_schemes(
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Retrieves all schemes saved/bookmarked by the current user.
     """
+    if not current_user:
+        return []
+
     stmt = (
         select(SavedUserScheme)
         .options(selectinload(SavedUserScheme.scheme))
@@ -673,7 +676,7 @@ async def compare_government_schemes(
 @router.post("/documents/checklist", response_model=DocumentChecklistOut)
 async def generate_document_checklist(
     payload: DocumentChecklistIn,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -682,9 +685,10 @@ async def generate_document_checklist(
     """
     scheme_ids = payload.scheme_ids
     if not scheme_ids:
-        # Load user's saved schemes if not specified
-        saved_stmt = select(SavedUserScheme.scheme_id).where(SavedUserScheme.user_id == current_user.id)
-        scheme_ids = list((await db.execute(saved_stmt)).scalars().all())
+        # Load user's saved schemes if logged in
+        if current_user:
+            saved_stmt = select(SavedUserScheme.scheme_id).where(SavedUserScheme.user_id == current_user.id)
+            scheme_ids = list((await db.execute(saved_stmt)).scalars().all())
 
     if not scheme_ids:
         # Fallback to top schemes

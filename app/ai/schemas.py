@@ -16,6 +16,7 @@ class CardType(str, Enum):
     EMERGENCY = "EMERGENCY"
     RAG_SOURCE = "RAG_SOURCE"
     DISCLAIMER = "DISCLAIMER"
+    SCHEME = "SCHEME"
 
 
 class AIChatCard(BaseModel):
@@ -27,6 +28,8 @@ class AIChatCard(BaseModel):
     badge_color: Optional[str] = None  # green, yellow, red, blue, purple
     details: Dict[str, Any] = Field(default_factory=dict)
     action: Optional[Dict[str, Any]] = None
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
 
 
 class ChatMessage(BaseModel):

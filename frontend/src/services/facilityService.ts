@@ -15,6 +15,8 @@ export interface FacilityFilters {
   service?: string;
   village_id?: string;
   search?: string;
+  limit?: number;
+  skip?: number;
 }
 
 export interface NearbyFacilityParams {
@@ -88,6 +90,12 @@ export const facilityService = {
     }
     if (filters.village_id) {
       queryParams.append('village_id', filters.village_id);
+    }
+    if (filters.limit !== undefined) {
+      queryParams.append('limit', filters.limit.toString());
+    }
+    if (filters.skip !== undefined) {
+      queryParams.append('skip', filters.skip.toString());
     }
 
     const endpoint = `/api/facilities${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

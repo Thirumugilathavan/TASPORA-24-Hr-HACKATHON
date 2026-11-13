@@ -56,21 +56,27 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [currentPatient]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const lat = currentPatient?.village?.latitude || 11.38;
+      const lon = currentPatient?.village?.longitude || 77.89;
+
       const [nearbyRes, reqData, apptData] = await Promise.all([
         facilityService.getNearbyFacilities({
-          latitude: currentPatient?.village?.latitude,
-          longitude: currentPatient?.village?.longitude,
+          latitude: lat,
+          longitude: lon,
           village_id: currentPatient?.village?.id,
-          radius_km: 15,
+          radius_km: 25,
           limit: 10,
-        }).catch(() => ({ items: [], total: 0 })),
+        }).catch(async () => {
+          const fallback = await facilityService.getFacilities({ limit: 10 }).catch(() => []);
+          return { items: fallback, total: fallback.length };
+        }),
         requestService.getRequests().catch(() => []),
         appointmentService.getAppointments().catch(() => []),
       ]);

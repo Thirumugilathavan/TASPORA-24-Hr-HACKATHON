@@ -1,7 +1,7 @@
 """add_coimbatore_facility_schema_and_booking_fields
 
-Revision ID: c9d0e1f2a3b4
-Revises: b8c9d0e1f2a3
+Revision ID: d0e1f2a3b4c5
+Revises: c9d0e1f2a3b4
 Create Date: 2026-11-13 08:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'c9d0e1f2a3b4'
-down_revision: Union[str, None] = 'b8c9d0e1f2a3'
+revision: str = 'd0e1f2a3b4c5'
+down_revision: Union[str, None] = 'c9d0e1f2a3b4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

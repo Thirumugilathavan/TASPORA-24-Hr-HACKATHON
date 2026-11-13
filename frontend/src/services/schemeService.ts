@@ -46,10 +46,31 @@ export const schemeService = {
     language: string = 'ta'
   ): Promise<{ data: SchemeMatchResponse; isOffline: boolean }> {
     try {
-      const payload = { ...answers, language };
+      const sanitized: Record<string, any> = { ...answers, language };
+
+      // Sanitize empty strings and ensure proper numeric types
+      const intKeys = ['age', 'annual_income', 'family_size', 'disability_percentage'];
+      for (const k of intKeys) {
+        if (sanitized[k] === '' || sanitized[k] === undefined) {
+          delete sanitized[k];
+        } else if (typeof sanitized[k] === 'string') {
+          const parsed = parseInt(sanitized[k], 10);
+          if (!isNaN(parsed)) sanitized[k] = parsed;
+          else delete sanitized[k];
+        }
+      }
+
+      if (sanitized.landholding_acres === '' || sanitized.landholding_acres === undefined) {
+        delete sanitized.landholding_acres;
+      } else if (typeof sanitized.landholding_acres === 'string') {
+        const parsed = parseFloat(sanitized.landholding_acres);
+        if (!isNaN(parsed)) sanitized.landholding_acres = parsed;
+        else delete sanitized.landholding_acres;
+      }
+
       const response = await apiRequest<SchemeMatchResponse>('/api/schemes/match', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(sanitized),
       });
       return { data: response, isOffline: false };
     } catch (err) {
@@ -202,6 +223,29 @@ export const schemeService = {
   },
 
   async getSavedSchemes(): Promise<SavedScheme[]> {
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('nalam_token') || localStorage.getItem('carebridge_token')) : null;
+    if (!token) {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem('nalam_saved_scheme_ids');
+        if (raw) {
+          try {
+            const ids: string[] = JSON.parse(raw);
+            return ids.map((id) => {
+              const scheme = VERIFIED_SCHEMES_CATALOG.find((s) => s.id === id || s.slug === id) || ({} as any);
+              return {
+                id,
+                scheme_id: id,
+                saved_at: new Date().toISOString(),
+                scheme: scheme as GovernmentScheme,
+              };
+            });
+          } catch {
+            return [];
+          }
+        }
+      }
+      return [];
+    }
     try {
       return await apiRequest<SavedScheme[]>('/api/schemes/user/saved');
     } catch {

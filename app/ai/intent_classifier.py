@@ -49,6 +49,7 @@ class IntentType(str, Enum):
     UNKNOWN_INTENT = "UNKNOWN_INTENT"
     CLINICAL_SAFETY = "CLINICAL_SAFETY"
     SYMPTOM_WITH_FACILITY = "SYMPTOM_WITH_FACILITY"
+    GOVERNMENT_SCHEMES_DISCOVERY = "GOVERNMENT_SCHEMES_DISCOVERY"
 
 
 @dataclass
@@ -430,6 +431,22 @@ def classify_intent(
                 clarification_prompt_ta=ta_clarify,
                 clarification_prompt_en=en_clarify,
             )
+
+    # -------------------------------------------------------------
+    # PRIORITY 10.5: GOVERNMENT SCHEMES & WELFARE BENEFITS
+    # -------------------------------------------------------------
+    scheme_patterns = [
+        r"government scheme", r"welfare scheme", r"subsidy", r"subsidies",
+        r"scholarship", r"pension scheme", r"cmchis", r"pm[- ]?kisan",
+        r"mudra", r"pudhumai penn", r"welfare",
+        r"அரசு திட்டம்", r"அரசு மருத்துவ நலத்திட்டங்கள்", r"நலத்திட்டம்", r"மானிய", r"காப்பீடு", r"உதவித்தொகை",
+        r"முதியோர் உதவி", r"விதவை உதவி", r"கல்வி உதவி",
+    ]
+    if any(re.search(p, lowered) for p in scheme_patterns):
+        return IntentClassificationResult(
+            intent=IntentType.GOVERNMENT_SCHEMES_DISCOVERY,
+            confidence=0.92,
+        )
 
     # -------------------------------------------------------------
     # PRIORITY 11: GENERAL CONVERSATION (GREETINGS, THANKS, CHAT)

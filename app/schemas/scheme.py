@@ -7,7 +7,7 @@ saved schemes, comparisons, and document checklists.
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # -------------------------------------------------------------------------
@@ -289,6 +289,46 @@ class QuestionnaireAnswersIn(BaseModel):
     # Freeform / raw answers map
     profile_data: Optional[Dict[str, Any]] = None
     language: Optional[str] = "ta"
+
+    @model_validator(mode="before")
+    @classmethod
+    def clean_empty_strings_and_types(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            cleaned = dict(data)
+            int_fields = ["age", "annual_income", "family_size", "disability_percentage"]
+            for f in int_fields:
+                val = cleaned.get(f)
+                if val == "" or val is None:
+                    cleaned[f] = None
+                elif isinstance(val, str):
+                    try:
+                        cleaned[f] = int(val)
+                    except ValueError:
+                        cleaned[f] = None
+
+            val = cleaned.get("landholding_acres")
+            if val == "" or val is None:
+                cleaned["landholding_acres"] = None
+            elif isinstance(val, str):
+                try:
+                    cleaned["landholding_acres"] = float(val)
+                except ValueError:
+                    cleaned["landholding_acres"] = None
+
+            bool_fields = [
+                "is_woman_head_of_household",
+                "is_head_of_household",
+                "is_differently_abled",
+                "studied_in_govt_school",
+                "is_senior_citizen",
+                "is_farmer",
+            ]
+            for f in bool_fields:
+                val = cleaned.get(f)
+                if isinstance(val, str):
+                    cleaned[f] = val.lower() in ("true", "1", "yes")
+            return cleaned
+        return data
 
 
 class SchemeMatchItemOut(BaseModel):
